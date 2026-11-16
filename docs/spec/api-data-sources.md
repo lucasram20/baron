@@ -4,14 +4,15 @@
 
 ---
 
-## 1. Overview of the 4 Free Data Pillars
+## 1. Overview of the 5 Free Data Pillars
 
 | Pillar | Auth Required? | Rate Limit | Primary Rust Crate | What It Powers |
 | :--- | :--- | :--- | :--- | :--- |
-| **1. League Client Update (LCU) API** | Local `lockfile` (Auto-discovered) | **Unlimited** (`127.0.0.1`) | `irelia` (`rest` + `ws`) | Auto-Runes, Auto-Spells, Auto-Items, Live Champ Select, Local Match History, Current LP, Skin Inventory |
-| **2. Live Client Data API** | None (Local HTTPS) | **Unlimited** (`127.0.0.1:2999`) | `irelia` (`in_game`) | Real-time active game events (Baron/Dragon/Kills), live scoreboard, gold/item tracking, replay timestamps |
-| **3. Data Dragon & CommunityDragon** | None (Public CDN) | **Unlimited** (CDN cached locally) | `reqwest` + disk cache | Champion icons, splashes, exact spell ratios, items, runes, Arena augments, skin rarity & RP prices |
-| **4. Riot Games Official Web API** | Free Personal/Dev Key (`RGAPI-...`) | `20 req/1s`, `100 req/2m` per region | `riven` | Cross-account search (`Account-V1`), frame-by-frame `Match-V5 Timeline` (DPM Lens), Custom Leaderboards (`League-V4`) |
+| **1. League Client Update (LCU) API** | Local `lockfile` (Auto-discovered) | **Unlimited** (`127.0.0.1`) | `baron-lcu` (`lockfile` + REST/WS) | Auto-Runes, Auto-Spells, Auto-Items, Live Champ Select, Local Match History, Current LP, Skin Inventory |
+| **2. Live Client Data API** | None (Local HTTPS) | **Unlimited** (`127.0.0.1:2999`) | `baron-lcu` (`live_game`) | Real-time active game events (Baron/Dragon/Kills), live scoreboard, gold/item tracking, replay timestamps |
+| **3. Data Dragon & CommunityDragon** | None (Public CDN) | **Unlimited** (CDN cached locally) | `baron-riot` (`assets`) | Champion icons, splashes, exact spell ratios, items, runes, Arena augments, skin rarity & RP prices |
+| **4. Riot Games Official Web API** | Free Personal/Dev Key (`RGAPI-...`) | `20 req/1s`, `100 req/2m` per region | `baron-riot` (`web_api`) | Cross-account search (`Account-V1`), frame-by-frame `Match-V5 Timeline` (DPM Lens), Custom Leaderboards (`League-V4`) |
+| **5. Multi-Provider Fallback API & REA MCP** | None (Public JSON / User Browser) | Cached per patch in SQLite | `baron-riot` (`fallback`) | Fallback Meta Builds, Matchup Shifts & Tier Lists (`U.GG`, `OP.GG`, `DPM.lol`, `Meraki CDN`) when Riot API key is absent/rate-limited |
 
 ---
 
@@ -89,3 +90,18 @@ Used for features that go beyond the local client (e.g., minute-by-minute `Match
 - **Personal / Development Key Limits:** `20 requests / 1 sec` and `100 requests / 2 min` per region.
 - **SQLite Immutable Cache:** Match summaries (`Match-V5`) and timelines (`Match-V5 Timeline`) are immutable once a game finishes. Baron stores every fetched `matchId` in SQLite (`matches` and `match_timelines` tables). Subsequent views of that match require **0 network requests**.
 - **Lazy Timeline Fetching:** Match history lists are populated first via LCU API (0 Riot API requests) or cached `Match-V5` summaries; the `Timeline` endpoint is only called when opening the deep **DPM Lens** tab or background-indexing the user's own matches at a throttled `1 req / 2s`.
+
+---
+
+## 6. Pillar 5: Multi-Provider Fallback API (`U.GG`, `OP.GG`, `DPM.lol`, `Meraki CDN`) & REA MCP Discovery
+
+When a user runs **Baron** without a Riot Web API key, exceeds personal key rate limits (`100 req / 2 min`), or needs pre-aggregated patch meta tier lists and matchup builds, Baron resolves data through a **3-Tier Resolution Chain**:
+
+1. **Tier 1 — Local Zero-Key (Primary):** LCU API (`127.0.0.1:<port>`) + Live Client Data API (`127.0.0.1:2999`).
+2. **Tier 2 — Official Riot Web API:** `Account-V1`, `League-V4`, `Match-V5` + `Match-V5 Timeline` (when user key is present).
+3. **Tier 3 — Multi-Provider Fallback API (`baron-riot::fallback`):** Normalized adapter trying `U.GG` -> `OP.GG` -> `DPM.lol` -> `Meraki CDN` and caching patch results in `baron.db` (`champion_builds`).
+
+### Passive Endpoint & Schema Discovery via REA MCP
+Because external stats APIs periodically evolve JSON payload shapes across patches and seasons, maintainers can inspect shapes passively with **REA MCP** (without bypassing anti-bot/Cloudflare Turnstile challenges):
+- Launch your visible desktop browser with `--remote-debugging-port=9222` and navigate normally to `u.gg`, `op.gg`, or `dpm.lol`.
+- Run `list_browser_targets` (`cdp_endpoint: "http://127.0.0.1:9222"`) followed by `inspect_web_page` (`include_json_body_shapes: true`) or `inspect_web_network_capture` on an exported `.har` archive to inspect JSON endpoint paths and field shapes cleanly, then update `baron-riot::fallback` parsers accordingly.
