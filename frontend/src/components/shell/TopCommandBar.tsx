@@ -185,7 +185,7 @@ export function TopCommandBar({
         <button
           type="button"
           onClick={() => setCommandOpen(true)}
-          className="flex h-8 w-[420px] items-center justify-between gap-2 rounded-md border border-baron-border bg-baron-surface px-2.5 text-left transition hover:border-baron-border-strong focus:border-baron-accent focus:outline-none"
+          className="flex h-8 w-[420px] items-center justify-between gap-2 rounded-md border border-baron-border bg-baron-surface px-2.5 text-left transition hover:border-baron-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-baron-accent"
         >
           <span className="flex min-w-0 items-center gap-2">
             <Search className="h-3.5 w-3.5 shrink-0 text-baron-ink-muted" />
@@ -204,13 +204,13 @@ export function TopCommandBar({
         </button>
 
         {/* Right Action Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 divide-x divide-baron-border">
           {/* Patch & Period Trigger + Popover */}
           <div className="relative">
             <button
               type="button"
               onClick={onTogglePatchPopover}
-              className="flex h-7 items-center gap-1.5 rounded-md border border-baron-border bg-baron-surface px-2.5 text-xs font-semibold text-baron-ink transition hover:border-baron-border-strong"
+              className="flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold text-baron-ink transition hover:bg-baron-hover"
             >
               <span>Patch {patch}</span>
               <span className="text-[10px] text-baron-ink-muted">· {period}</span>
@@ -278,7 +278,7 @@ export function TopCommandBar({
             <button
               type="button"
               onClick={onToggleProviderOpen}
-              className="flex h-7 items-center gap-1.5 rounded-md border border-baron-accent/40 bg-baron-accent/12 px-2.5 text-xs font-semibold text-baron-accent-soft transition hover:bg-baron-accent/20"
+              className="flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold text-baron-ink-secondary transition hover:bg-baron-hover hover:text-baron-ink"
             >
               <span>API: {activeProvider?.label ?? "OP.GG"}</span>
               <ChevronDown className="h-3.5 w-3.5" />
@@ -326,7 +326,7 @@ export function TopCommandBar({
           <div
             role="group"
             aria-label="Theme preference"
-            className="flex h-7 items-center rounded-md border border-baron-border bg-baron-surface p-0.5"
+            className="flex h-7 items-center px-1"
           >
             {THEME_OPTIONS.map((opt) => {
               const Icon = opt.icon;

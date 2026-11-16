@@ -2,10 +2,8 @@
 
 import { useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
-import SpotlightCard from "@/components/SpotlightCard";
 import { RankCrest } from "@/components/icons/LolIcons";
-import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
-import { champSquareUrl, itemIconUrl } from "@/lib/ddragon";
+import { champSplashUrl, champSquareUrl, itemIconUrl } from "@/lib/ddragon";
 import { isProviderAvailable, type ProviderMeta } from "@/lib/tauri";
 import { type ThemePreference, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -123,252 +121,70 @@ export function DashboardView({
   onNavigate: (r: BaronRoute) => void;
 }) {
   const [regionTab, setRegionTab] = useState("EUW");
-  const { resolved } = useTheme();
-  const spotlightTheme = resolved === "light" ? "light" : "dark";
   const leaderboardRows = LB_BY_REGION[regionTab] ?? LB_BY_REGION.EUW;
+  const lpPoints = [994, 1015, 999, 1021, 1042];
+  const chartPoints = lpPoints.map((lp, i) => `${40 + i * 65},${105 - (lp - 980)}`).join(" ");
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 3-Column Discovery Row */}
-      <div className="grid grid-cols-3 gap-3">
-        {/* Profile & LP Trajectory */}
-        <SpotlightCard
-          theme={spotlightTheme}
-          intensity={0.08}
-          borderGlow={0.35}
-          className="flex flex-col justify-between rounded-xl border border-baron-border bg-baron-surface p-3.5"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <img
-                src={champSquareUrl("Ahri", ddVersion)}
-                alt="Ahri"
-                className="h-10 w-10 rounded-lg object-cover ring-1 ring-baron-cyan/50"
-              />
-              <div>
-                <div className="text-sm font-bold text-baron-ink">Hide on bush #KR1</div>
-                <div className="flex items-center gap-1 text-xs font-bold text-baron-cyan">
-                  <RankCrest tier="CHALLENGER" className="h-3.5 w-3.5" />
-                  <span>CHALLENGER · 1042 LP</span>
-                </div>
-              </div>
-            </div>
-            <span className="rounded bg-baron-emerald/15 px-2 py-0.5 text-[11px] font-bold text-baron-emerald">
-              Today: +58 LP
-            </span>
-          </div>
-
-          <svg viewBox="0 0 320 96" className="mt-3 h-24 w-full">
-            <defs>
-              <linearGradient id="lpGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#6366F1" stopOpacity="0.38" />
-                <stop offset="100%" stopColor="#6366F1" stopOpacity="0.02" />
-              </linearGradient>
-            </defs>
-            <polyline
-              fill="none"
-              stroke="#6366F1"
-              strokeWidth="2.5"
-              points="10,74 60,64 110,69 160,48 210,38 260,24 310,14"
-            />
-            <polygon
-              fill="url(#lpGrad)"
-              points="10,92 10,74 60,64 110,69 160,48 210,38 260,24 310,14 310,92"
-            />
-          </svg>
-        </SpotlightCard>
-
-        {/* Patch Tierlist & Builds Preview */}
-        <SpotlightCard
-          theme={spotlightTheme}
-          intensity={0.08}
-          borderGlow={0.35}
-          className="rounded-xl border border-baron-border bg-baron-surface p-3.5"
-        >
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-bold text-baron-ink">{patch} Tierlist &amp; Builds</span>
-            <button
-              type="button"
-              onClick={() => onNavigate("tierlist")}
-              className="text-[11px] font-semibold text-baron-accent-soft hover:underline"
-            >
-              View All ›
-            </button>
-          </div>
-          <div className="divide-y divide-baron-border-muted text-xs">
-            {TIER_BENTO.map((row) => (
-              <div key={row.champ} className="flex items-center justify-between py-1.5">
-                <div className="flex w-28 items-center gap-2">
-                  <img
-                    src={champSquareUrl(row.champ, ddVersion)}
-                    alt={row.champ}
-                    className="h-6 w-6 rounded object-cover"
-                  />
-                  <span className="font-semibold text-baron-ink">{row.champ}</span>
-                </div>
-                <span className="rounded bg-baron-gold/18 px-1.5 py-0.5 text-[10px] font-black text-baron-gold">
-                  S+
-                </span>
-                <div className="text-right">
-                  <div className="font-bold text-baron-ink">{row.wr}</div>
-                  <div
-                    className={cn(
-                      "text-[10px] font-semibold",
-                      row.pos ? "text-baron-emerald" : "text-baron-defeat",
-                    )}
-                  >
-                    {row.delta}
-                  </div>
-                </div>
-                <span className="font-semibold text-baron-ink-secondary">{row.pr}</span>
-              </div>
-            ))}
-          </div>
-        </SpotlightCard>
-
-        {/* Regional Challenger Leaderboard Preview */}
-        <SpotlightCard
-          theme={spotlightTheme}
-          intensity={0.08}
-          borderGlow={0.35}
-          className="rounded-xl border border-baron-border bg-baron-surface p-3.5"
-        >
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-1 rounded-md border border-baron-border bg-baron-elevated p-0.5">
-              {["EUW", "KR", "NA"].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRegionTab(r)}
-                  className={cn(
-                    "rounded px-2 py-0.5 text-[10px] font-bold transition",
-                    regionTab === r ? "bg-baron-accent text-white" : "text-baron-ink-muted",
-                  )}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => onNavigate("leaderboards")}
-              className="text-[11px] font-semibold text-baron-accent-soft hover:underline"
-            >
-              Top 100 ›
-            </button>
-          </div>
-          <div className="divide-y divide-baron-border-muted text-xs">
-            {leaderboardRows.map((p) => (
-              <div key={p.name} className="flex items-center justify-between py-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 text-[11px] text-baron-ink-muted">{p.rank}</span>
-                  <img
-                    src={champSquareUrl(p.champ, ddVersion)}
-                    alt={p.name}
-                    className="h-6 w-6 rounded object-cover"
-                  />
-                  <div>
-                    <div className="font-semibold text-baron-ink">{p.name}</div>
-                    <div className="text-[10px] text-baron-ink-muted">{p.tag}</div>
-                  </div>
-                </div>
-                <span className="font-bold text-baron-cyan">{p.lp}</span>
-                <span className="rounded bg-baron-cyan/15 px-1.5 py-0.5 text-[10px] font-bold text-baron-cyan">
-                  {p.wr}
-                </span>
-              </div>
-            ))}
-          </div>
-        </SpotlightCard>
+      <div className="flex items-center justify-between text-xs text-baron-ink-secondary">
+        <h1 className="text-lg font-bold text-baron-ink">Summoner overview</h1>
+        <span>Sample dashboard data</span>
       </div>
-
-      {/* Match History Feed */}
-      <div className="rounded-xl border border-baron-border bg-baron-surface p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-baron-ink">Recent Solo/Duo Matches</h2>
-          <HoverBorderGradient onClick={() => onNavigate("postgame")}>
-            <span>Open Post-game Lens ›</span>
-          </HoverBorderGradient>
+      <section aria-label="Sample summoner overview" className="overflow-hidden rounded-lg border border-baron-border bg-baron-surface">
+        <div className="relative overflow-hidden border-b border-baron-border px-5 py-4">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-cover bg-center opacity-20" style={{ backgroundImage: `linear-gradient(to right, var(--baron-surface), transparent), url(${champSplashUrl("Ahri")})` }} />
+          <div className="relative flex items-center gap-3">
+            <img src={champSquareUrl("Ahri", ddVersion)} alt="" className="h-12 w-12 rounded-md object-cover" />
+            <div><h2 className="text-base font-bold text-baron-ink">Hide on bush <span className="text-baron-ink-muted">#KR1</span></h2><div className="mt-1 flex items-center gap-1.5 text-xs text-baron-cyan"><RankCrest tier="CHALLENGER" className="h-4 w-4" /> Challenger · 1,042 LP</div></div>
+          </div>
         </div>
-
-        <div className="flex flex-col gap-2">
-          {RECENT_MATCHES.map((m) => {
-            const win = m.result === "Victory";
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => onNavigate("postgame")}
-                className="relative flex w-full items-center justify-between overflow-hidden rounded-lg border border-baron-border bg-baron-elevated px-4 py-3 text-left transition hover:border-baron-border-strong"
-              >
-                <span
-                  className={cn(
-                    "absolute top-0 bottom-0 left-0 w-px",
-                    win ? "bg-baron-victory" : "bg-baron-defeat",
-                  )}
-                />
-                <div className="flex items-center gap-3 pl-1">
-                  <img
-                    src={champSquareUrl(m.champ, ddVersion)}
-                    alt={m.champ}
-                    className="h-11 w-11 rounded-lg object-cover"
-                  />
-                  <div>
-                    <div
-                      className={cn(
-                        "text-xs font-bold",
-                        win ? "text-baron-victory" : "text-baron-defeat",
-                      )}
-                    >
-                      {m.result} · {m.queue}
-                    </div>
-                    <div className="text-sm font-bold text-baron-ink">
-                      {m.champ} · {m.duration}
-                    </div>
-                    <div className="text-[11px] text-baron-ink-muted">{m.ago}</div>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm font-bold text-baron-ink">
-                    {m.kills} / <span className="text-baron-defeat">{m.deaths}</span> / {m.assists}
-                  </div>
-                  <div className="text-xs text-baron-ink-muted">
-                    {m.kdaRatio} KDA · {m.csRate}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  {m.items.map((id) => (
-                    <img
-                      key={`${m.id}-${id}`}
-                      src={itemIconUrl(id, ddVersion)}
-                      alt={String(id)}
-                      className="h-7 w-7 rounded border border-baron-border"
-                    />
-                  ))}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={cn(
-                      "rounded-full border-2 px-2.5 py-1 text-xs font-extrabold text-baron-ink",
-                      m.score >= 85 ? "border-baron-gold" : "border-baron-cyan",
-                    )}
-                  >
-                    {m.score}
-                  </span>
-                  <span
-                    className={cn(
-                      "w-14 text-right text-xs font-bold",
-                      win ? "text-baron-cyan" : "text-baron-defeat",
-                    )}
-                  >
-                    {m.lp}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
+        <div className="grid gap-5 p-5 lg:grid-cols-[minmax(220px,0.8fr)_minmax(280px,1.2fr)]">
+          <div className="flex flex-col justify-between gap-4">
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div><div className="text-baron-ink-secondary">Solo/Duo</div><div className="mt-1 font-bold text-baron-ink">Challenger · 1,042 LP</div></div>
+              <div><div className="text-baron-ink-secondary">Flex</div><div className="mt-1 font-semibold text-baron-ink-muted">Not available</div></div>
+              <div><div className="text-baron-ink-secondary">Recent record</div><div className="mt-1 font-bold text-baron-ink">3W 1L · 75% win rate</div></div>
+              <div><div className="text-baron-ink-secondary">Recent LP</div><div className="mt-1 font-bold text-baron-emerald">+48 LP</div></div>
+            </div>
+            <div><div className="mb-2 text-xs font-semibold text-baron-ink-secondary">Recent champions</div><div className="flex gap-2">{RECENT_MATCHES.slice(0, 3).map((m) => <div key={m.id} className="flex items-center gap-1.5 text-xs text-baron-ink"><img src={champSquareUrl(m.champ, ddVersion)} alt="" className="h-7 w-7 rounded object-cover" />{m.champ}</div>)}</div></div>
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center justify-between text-xs"><h3 className="font-semibold text-baron-ink">LP trajectory</h3><span className="text-baron-ink-muted">Last 4 sample matches</span></div>
+            <svg viewBox="0 0 320 125" role="img" aria-label="Sample LP trajectory: 994, 1015, 999, 1021, 1042 LP" className="mt-2 h-32 w-full overflow-visible">
+              <defs><linearGradient id="dashboard-lp-gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--baron-accent)" stopOpacity="0.25" /><stop offset="100%" stopColor="var(--baron-accent)" stopOpacity="0" /></linearGradient></defs>
+              {[980, 1000, 1020, 1040, 1060].map((lp) => <g key={lp}><line x1="40" x2="300" y1={105 - (lp - 980)} y2={105 - (lp - 980)} stroke="var(--baron-border)" /><text x="32" y={109 - (lp - 980)} textAnchor="end" fill="var(--baron-ink-secondary)" fontSize="10">{lp}</text></g>)}
+              <polygon points={`40,105 ${chartPoints} 300,105`} fill="url(#dashboard-lp-gradient)" />
+              <polyline points={chartPoints} fill="none" stroke="var(--baron-accent)" strokeWidth="2" />
+              {lpPoints.map((lp, i) => <circle key={i} cx={40 + i * 65} cy={105 - (lp - 980)} r="4" fill="var(--baron-accent)" tabIndex={0} aria-label={`${lp} LP`}><title>{`${lp} LP`}</title></circle>)}
+            </svg>
+          </div>
         </div>
+      </section>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-lg border border-baron-border bg-baron-surface px-4 py-3">
+          <div className="mb-2 flex items-center justify-between"><h2 className="text-sm font-bold text-baron-ink">{patch} Tierlist &amp; Builds</h2><button type="button" onClick={() => onNavigate("tierlist")} className="text-xs font-semibold text-baron-accent-soft hover:underline">View all</button></div>
+          <div className="divide-y divide-baron-border-muted">{TIER_BENTO.map((row) => <div key={row.champ} className="grid grid-cols-[1fr_40px_70px_55px] items-center gap-2 py-2 text-xs"><span className="flex items-center gap-2 font-semibold text-baron-ink"><img src={champSquareUrl(row.champ, ddVersion)} alt="" className="h-7 w-7 rounded object-cover" />{row.champ}</span><span className="font-bold text-baron-gold">S+</span><span className="text-right font-semibold text-baron-ink">{row.wr}</span><span className="text-right text-baron-ink-secondary">{row.pr}</span></div>)}</div>
+        </section>
+        <section className="rounded-lg border border-baron-border bg-baron-surface px-4 py-3">
+          <div className="mb-2 flex items-center justify-between"><div className="flex gap-1" aria-label="Leaderboard region">{["EUW", "KR", "NA"].map((r) => <button key={r} type="button" onClick={() => setRegionTab(r)} aria-pressed={regionTab === r} className={cn("rounded px-2 py-1 text-xs font-semibold transition", regionTab === r ? "bg-baron-accent text-white" : "text-baron-ink-secondary hover:bg-baron-hover")}>{r}</button>)}</div><button type="button" onClick={() => onNavigate("leaderboards")} className="text-xs font-semibold text-baron-accent-soft hover:underline">Leaderboard</button></div>
+          <div className="divide-y divide-baron-border-muted">{leaderboardRows.map((p) => <div key={p.name} className="grid grid-cols-[1fr_85px_45px] items-center gap-2 py-2 text-xs"><span className="flex min-w-0 items-center gap-2 text-baron-ink"><span className="w-3 text-baron-ink-muted">{p.rank}</span><img src={champSquareUrl(p.champ, ddVersion)} alt="" className="h-7 w-7 rounded object-cover" /><span className="truncate font-semibold">{p.name}</span></span><span className="text-right font-bold text-baron-cyan">{p.lp}</span><span className="text-right text-baron-ink-secondary">{p.wr}</span></div>)}</div>
+        </section>
       </div>
+      <section className="overflow-hidden rounded-lg border border-baron-border bg-baron-surface">
+        <div className="flex items-center justify-between border-b border-baron-border px-4 py-3"><h2 className="text-sm font-bold text-baron-ink">Recent Solo/Duo Matches</h2><span className="text-xs text-baron-ink-muted">Sample matches</span></div>
+        <div className="divide-y divide-baron-border-muted">{RECENT_MATCHES.map((m) => {
+          const win = m.result === "Victory";
+          return <div key={m.id} className={cn("relative grid grid-cols-[120px_1fr_130px_155px_95px] items-center gap-3 px-4 py-3 text-xs", win ? "bg-baron-victory/5" : "bg-baron-defeat/5")}>
+            <span className={cn("absolute inset-y-0 left-0 w-px", win ? "bg-baron-victory" : "bg-baron-defeat")} />
+            <div><div className={cn("font-bold", win ? "text-baron-victory" : "text-baron-defeat")}>{m.result}</div><div className="mt-1 text-baron-ink-secondary">{m.ago}</div><div className="text-baron-ink-muted">{m.duration} · Solo/Duo</div></div>
+            <div className="flex items-center gap-2"><img src={champSquareUrl(m.champ, ddVersion)} alt="" className="h-10 w-10 rounded-md object-cover" /><div><div className="font-bold text-baron-ink">{m.champ}</div><div className="text-baron-ink-muted">{m.queue}</div></div></div>
+            <div><div className="font-bold text-baron-ink">{m.kills} / <span className="text-baron-defeat">{m.deaths}</span> / {m.assists}</div><div className="text-baron-ink-secondary">{m.kdaRatio} · {m.csRate}</div></div>
+            <div className="grid w-fit grid-cols-3 gap-0.5">{m.items.map((id) => <img key={`${m.id}-${id}`} src={itemIconUrl(id, ddVersion)} alt={`Item ${id}`} className="h-6 w-6 rounded-sm" />)}</div>
+            <div className="text-right"><div className="font-bold text-baron-ink">Score {m.score}</div><div className={cn("font-semibold", win ? "text-baron-cyan" : "text-baron-defeat")}>{m.lp}</div>{m.id === "m1" && <button type="button" aria-label="Open sample post-game" onClick={() => onNavigate("postgame")} className="mt-1 text-baron-accent-soft hover:underline">Details →</button>}</div>
+          </div>;
+        })}</div>
+      </section>
     </div>
   );
 }
