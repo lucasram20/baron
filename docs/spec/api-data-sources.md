@@ -93,15 +93,21 @@ Used for features that go beyond the local client (e.g., minute-by-minute `Match
 
 ---
 
-## 6. Pillar 5: Multi-Provider Fallback API (`U.GG`, `OP.GG`, `DPM.lol`, `Meraki CDN`) & REA MCP Discovery
+## 6. Pillar 5: Multi-Provider Fallback API (`LoLalytics`, `Meraki CDN`, `U.GG`, `OP.GG`, `DPM.lol`, `MetaSRC`) & REA MCP Discovery
 
 When a user runs **Baron** without a Riot Web API key, exceeds personal key rate limits (`100 req / 2 min`), or needs pre-aggregated patch meta tier lists and matchup builds, Baron resolves data through a **3-Tier Resolution Chain**:
 
 1. **Tier 1 — Local Zero-Key (Primary):** LCU API (`127.0.0.1:<port>`) + Live Client Data API (`127.0.0.1:2999`).
 2. **Tier 2 — Official Riot Web API:** `Account-V1`, `League-V4`, `Match-V5` + `Match-V5 Timeline` (when user key is present).
-3. **Tier 3 — Multi-Provider Fallback API (`baron-riot::fallback`):** Normalized adapter trying `U.GG` -> `OP.GG` -> `DPM.lol` -> `Meraki CDN` and caching patch results in `baron.db` (`champion_builds`).
+3. **Tier 3 — Multi-Provider Fallback API (`baron-riot::fallback`):** Normalized adapter trying `LoLalytics` -> `Meraki CDN` -> `U.GG` -> `OP.GG` -> `DPM.lol` -> `MetaSRC` and caching patch results in `baron.db` (`champion_builds`).
+
+### REA MCP Inspection Ledger (Fallback Endpoint Verification)
+- **`https://lolalytics.com/lol/tierlist/`** (`ev_45e54d9edf22ab7d3a6c4b21e442a48443a3547887777803cb595107f0b2b295`):
+  - **Accessible without CAPTCHA/Turnstile** in headless Chrome (`370,786` bytes DOM). Renders live patch tier lists via Qwik SSR with embedded `<script type="qwik/json">` state (`extract_lolalytics_qwik_json`), backed by `a1.lolalytics.com/mega/`. Promoted to **#1 primary fallback**.
+- **`https://www.metasrc.com/lol`** (`ev_af9cd17de8390073ab297e728e3003ff4fcbcecac26a83d4eeb905f3a9bde6e9`):
+  - Gated by **Cloudflare Turnstile** (`Ray ID: a5b52ee7c9af6447`) on automated headless runs (stopped immediately without bypassing). Registered as `FallbackProvider::MetaSrc`.
 
 ### Passive Endpoint & Schema Discovery via REA MCP
 Because external stats APIs periodically evolve JSON payload shapes across patches and seasons, maintainers can inspect shapes passively with **REA MCP** (without bypassing anti-bot/Cloudflare Turnstile challenges):
-- Launch your visible desktop browser with `--remote-debugging-port=9222` and navigate normally to `u.gg`, `op.gg`, or `dpm.lol`.
+- Launch your visible desktop browser with `--remote-debugging-port=9222` and navigate normally to `lolalytics.com`, `metasrc.com`, `u.gg`, `op.gg`, or `dpm.lol`.
 - Run `list_browser_targets` (`cdp_endpoint: "http://127.0.0.1:9222"`) followed by `inspect_web_page` (`include_json_body_shapes: true`) or `inspect_web_network_capture` on an exported `.har` archive to inspect JSON endpoint paths and field shapes cleanly, then update `baron-riot::fallback` parsers accordingly.

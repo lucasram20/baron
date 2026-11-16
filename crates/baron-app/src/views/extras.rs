@@ -37,8 +37,18 @@ pub fn render_tier_list(
                     div()
                         .flex()
                         .flex_row()
+                        .flex_wrap()
                         .gap_2()
-                        .child(Tag::primary().small().child(FallbackProvider::UGg.label()))
+                        .child(
+                            Tag::primary()
+                                .small()
+                                .child(FallbackProvider::Lolalytics.label()),
+                        )
+                        .child(
+                            Tag::secondary()
+                                .small()
+                                .child(FallbackProvider::UGg.label()),
+                        )
                         .child(
                             Tag::secondary()
                                 .small()
@@ -48,6 +58,16 @@ pub fn render_tier_list(
                             Tag::secondary()
                                 .small()
                                 .child(FallbackProvider::DpmLol.label()),
+                        )
+                        .child(
+                            Tag::secondary()
+                                .small()
+                                .child(FallbackProvider::MetaSrc.label()),
+                        )
+                        .child(
+                            Tag::secondary()
+                                .small()
+                                .child(FallbackProvider::MerakiCdn.label()),
                         ),
                 ),
         )

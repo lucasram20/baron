@@ -115,7 +115,11 @@ impl BaronWorkspace {
                     .gap_2()
                     .child(Tag::secondary().small().child("KR"))
                     .child(Tag::secondary().small().child("Patch 14.10"))
-                    .child(Tag::secondary().small().child("U.GG"))
+                    .child(
+                        Tag::secondary()
+                            .small()
+                            .child(baron_riot::DEFAULT_FALLBACK_ORDER[0].label()),
+                    )
                     .child(lcu_tag),
             )
     }
