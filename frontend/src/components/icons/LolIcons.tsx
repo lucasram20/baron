@@ -128,3 +128,41 @@ export function RarityDiamond({ className }: { className?: string }) {
     </svg>
   );
 }
+
+export function ShardIcon({ kind, className }: { kind: string; className?: string }) {
+  const k = kind.toLowerCase();
+  if (k.includes("attack")) {
+    return (
+      <svg viewBox="0 0 14 14" fill="currentColor" className={cn("h-3 w-3", className)}>
+        <path d="M10.8 1.5 12.5 3.2 7 8.7 5.3 7l5.5-5.5ZM4.1 8.2 5.8 9.9 3.6 12.1 1.9 10.4l2.2-2.2Z" />
+      </svg>
+    );
+  }
+  if (k.includes("haste")) {
+    return (
+      <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" className={cn("h-3 w-3", className)}>
+        <circle cx="7" cy="7" r="4.8" />
+        <path d="M7 4.2V7l2 1.3" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (k.includes("move")) {
+    return (
+      <svg viewBox="0 0 14 14" fill="currentColor" className={cn("h-3 w-3", className)}>
+        <path d="M2 8.2h6.8l-1.9 2.2 1.1 1.1 3.9-4.5L8 2.5 6.9 3.6l1.9 2.2H2v2.4Z" />
+      </svg>
+    );
+  }
+  if (k.includes("health") || k.includes("tenacity")) {
+    return (
+      <svg viewBox="0 0 14 14" fill="currentColor" className={cn("h-3 w-3", className)}>
+        <path d="M7 1.5 11.5 3.2v3.6c0 2.7-1.9 4.9-4.5 5.7C4.4 11.7 2.5 9.5 2.5 6.8V3.2L7 1.5Z" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 14 14" fill="currentColor" className={cn("h-3 w-3", className)}>
+      <path d="M7 1.2 12.2 7 7 12.8 1.8 7 7 1.2Z" />
+    </svg>
+  );
+}

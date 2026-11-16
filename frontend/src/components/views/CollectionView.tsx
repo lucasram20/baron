@@ -48,12 +48,19 @@ const TIER_SIDEBAR: { label: SkinPosterItem["rarity"]; count: string; color: str
   { label: "Transcendent", count: "0/2", color: "text-teal-400" },
 ];
 
+const AVAILABILITY_ROWS = [
+  { label: "Available", count: "140/308" },
+  { label: "Legacy", count: "65/148" },
+  { label: "Limited", count: "7/26" },
+] as const;
+
 export function CollectionView() {
   const [filter, setFilter] = useState<"All" | "Owned" | "Missing">("All");
   const [skinQuery, setSkinQuery] = useState("");
   const [championFilter, setChampionFilter] = useState("all");
   const [worldsOnly, setWorldsOnly] = useState(false);
   const [selectedTiers, setSelectedTiers] = useState<SkinPosterItem["rarity"][]>([]);
+  const [availabilityFilter, setAvailabilityFilter] = useState<string[]>([]);
   const [groupBy, setGroupBy] = useState("year");
   const [sortBy, setSortBy] = useState("date");
   const [sortDesc, setSortDesc] = useState(true);
@@ -68,11 +75,19 @@ export function CollectionView() {
     );
   };
 
+  const toggleAvailability = (label: string) => {
+    setAvailabilityFilter((prev) =>
+      prev.includes(label) ? prev.filter((x) => x !== label) : [...prev, label],
+    );
+  };
+
   const visibleSkins = SKIN_POSTERS.filter((s) => {
     if (filter === "Owned" && !s.owned) return false;
     if (filter === "Missing" && s.owned) return false;
     if (championFilter !== "all" && s.champion !== championFilter) return false;
-    if (worldsOnly && !s.skinName.toLowerCase().includes("world")) return false;
+    if (worldsOnly && !s.skinName.toLowerCase().includes("ig") && !s.skinName.toLowerCase().includes("world")) {
+      return false;
+    }
     if (selectedTiers.length > 0 && !selectedTiers.includes(s.rarity)) return false;
     if (skinQuery.trim()) {
       const q = skinQuery.trim().toLowerCase();
@@ -84,8 +99,10 @@ export function CollectionView() {
       const cmp = a.skinName.localeCompare(b.skinName);
       return sortDesc ? -cmp : cmp;
     }
-    return sortDesc ? a.id.localeCompare(b.id) : b.id.localeCompare(a.id);
+    return sortDesc ? b.year - a.year : a.year - b.year;
   });
+
+  const years = Array.from(new Set(visibleSkins.map((s) => s.year))).toSorted((a, b) => b - a);
 
   return (
     <div className="flex flex-col gap-4">
@@ -172,7 +189,7 @@ export function CollectionView() {
             <div className="mb-2 text-[10px] font-bold tracking-wider text-baron-ink-muted">
               TIER
             </div>
-            <div className="flex flex-col gap-2 text-xs">
+            <div className="flex flex-col gap-1.5 text-xs">
               {TIER_SIDEBAR.map((t) => {
                 const checked = selectedTiers.includes(t.label);
                 return (
@@ -192,6 +209,29 @@ export function CollectionView() {
                   </label>
                 );
               })}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 text-[10px] font-bold tracking-wider text-baron-ink-muted">
+              AVAILABILITY
+            </div>
+            <div className="flex flex-col gap-1.5 text-xs">
+              {AVAILABILITY_ROWS.map((row) => (
+                <label
+                  key={row.label}
+                  className="flex cursor-pointer items-center justify-between rounded px-1 py-0.5 transition hover:bg-baron-hover/60"
+                >
+                  <span className="flex items-center gap-2 text-baron-ink">
+                    <Checkbox
+                      checked={availabilityFilter.includes(row.label)}
+                      onCheckedChange={() => toggleAvailability(row.label)}
+                    />
+                    <span>{row.label}</span>
+                  </span>
+                  <span className="text-[11px] text-baron-ink-muted">{row.count}</span>
+                </label>
+              ))}
             </div>
           </div>
         </div>
@@ -223,7 +263,8 @@ export function CollectionView() {
           {/* Collection Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs font-medium text-baron-ink-secondary">
-              {visibleSkins.length} matching skins · <strong className="text-baron-ink">482</strong> total
+              {visibleSkins.length} matching skins · <strong className="text-baron-ink">482</strong>{" "}
+              total
             </span>
             <div className="flex items-center gap-2">
               <Select value={groupBy} onValueChange={setGroupBy}>
@@ -274,67 +315,76 @@ export function CollectionView() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
-            <span className="font-bold text-baron-ink">Acquired in 2026</span>
-            <span className="text-baron-ink-muted">18 / 18</span>
-          </div>
-
-          <div
-            className={cn(
-              "grid gap-3",
-              gridDensity === "compact" ? "grid-cols-6" : "grid-cols-5",
-            )}
-          >
-            {visibleSkins.map((skin) => (
-              <MagicCard
-                key={skin.id}
-                gradientFrom="#6366f1"
-                gradientTo="#38bdf8"
-                gradientOpacity={0.14}
-                className="rounded-lg"
-              >
-                <button
-                  type="button"
-                  onClick={() => setPreviewSkin(skin)}
-                  className="group relative block h-[228px] w-full overflow-hidden rounded-lg border border-baron-border bg-baron-surface text-left transition hover:border-baron-border-strong"
-                >
-                  <img
-                    src={champLoadingUrl(skin.champion, skin.skinNum)}
-                    alt={skin.skinName}
-                    className={cn(
-                      "h-full w-full object-cover object-top transition duration-300 group-hover:scale-105",
-                      !skin.owned && "opacity-45 grayscale",
-                    )}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent" />
-
-                  <span
-                    className={cn(
-                      "absolute top-2.5 right-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/75 ring-1 ring-white/15",
-                      RARITY_COLOR[skin.rarity],
-                    )}
-                  >
-                    <RarityDiamond />
+          {years.map((yr) => {
+            const yearSkins = visibleSkins.filter((s) => s.year === yr);
+            return (
+              <div key={yr} className="flex flex-col gap-2.5">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="font-bold text-baron-ink">Acquired in {yr}</span>
+                  <span className="text-baron-ink-muted">
+                    {yearSkins.filter((s) => s.owned).length} / {yearSkins.length}
                   </span>
+                </div>
 
-                  {!skin.owned && (
-                    <span className="absolute top-2.5 left-2.5 rounded bg-black/80 px-1.5 py-0.5 text-[9px] font-bold text-slate-300 ring-1 ring-white/15">
-                      MISSING
-                    </span>
+                <div
+                  className={cn(
+                    "grid gap-3",
+                    gridDensity === "compact" ? "grid-cols-6" : "grid-cols-5",
                   )}
+                >
+                  {yearSkins.map((skin) => (
+                    <MagicCard
+                      key={skin.id}
+                      gradientFrom="#6366f1"
+                      gradientTo="#38bdf8"
+                      gradientOpacity={0.14}
+                      className="rounded-lg"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setPreviewSkin(skin)}
+                        className="group relative block h-[228px] w-full overflow-hidden rounded-lg border border-baron-border bg-baron-surface text-left transition hover:border-baron-border-strong"
+                      >
+                        <img
+                          src={champLoadingUrl(skin.champion, skin.skinNum)}
+                          alt={skin.skinName}
+                          className={cn(
+                            "h-full w-full object-cover object-top transition duration-300 group-hover:scale-105",
+                            !skin.owned && "opacity-45 grayscale",
+                          )}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent" />
 
-                  <div className="absolute inset-x-0 bottom-0 p-2.5">
-                    <div className="line-clamp-2 text-xs leading-tight font-bold text-slate-100">
-                      {skin.skinName}
-                    </div>
-                    <div className="mt-1 text-[10px] font-medium text-slate-400">
-                      {skin.priceLabel}
-                    </div>
-                  </div>
-                </button>
-              </MagicCard>
-            ))}
-          </div>
+                        <span
+                          className={cn(
+                            "absolute top-2.5 right-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/75 ring-1 ring-white/15",
+                            RARITY_COLOR[skin.rarity],
+                          )}
+                        >
+                          <RarityDiamond />
+                        </span>
+
+                        {!skin.owned && (
+                          <span className="absolute top-2.5 left-2.5 rounded bg-black/80 px-1.5 py-0.5 text-[9px] font-bold text-slate-300 ring-1 ring-white/15">
+                            MISSING
+                          </span>
+                        )}
+
+                        <div className="absolute inset-x-0 bottom-0 p-2.5">
+                          <div className="line-clamp-2 text-xs leading-tight font-bold text-slate-100">
+                            {skin.skinName}
+                          </div>
+                          <div className="mt-1 text-[10px] font-medium text-slate-400">
+                            {skin.priceLabel}
+                          </div>
+                        </div>
+                      </button>
+                    </MagicCard>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

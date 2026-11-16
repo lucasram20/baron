@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { ArrowLeftRight, Download } from "lucide-react";
-import { LaneIcon } from "@/components/icons/LolIcons";
+import { LaneIcon, ShardIcon } from "@/components/icons/LolIcons";
 import { BorderBeam } from "@/components/ui/border-beam";
+import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -95,15 +96,14 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
   const [injectStatus, setInjectStatus] = useState<string | null>(null);
 
   const activeBuild = ASHE_BUILDS.find((b) => b.id === selectedBuildId) ?? ASHE_BUILDS[0];
+  const isLethality = selectedBuildId === "lethality";
 
   const handleImportRunes = async () => {
-    const payload = await buildBaronRunePayload(
-      "Ashe",
-      8000,
-      8100,
-      [8008, 8009, 9104, 8017, 8139, 8135, 5005, 5008, 5001],
-    );
-    setInjectStatus(`Injected "${payload.name}" to LCU`);
+    const runeIds = isLethality
+      ? [8021, 8009, 9105, 8014, 8143, 8135, 5008, 5008, 5001]
+      : [8008, 8009, 9104, 8017, 8139, 8135, 5005, 5008, 5001];
+    const payload = await buildBaronRunePayload("Ashe", 8000, 8100, runeIds);
+    setInjectStatus(`Injected "${payload.name}" (${activeBuild.name}) to LCU`);
     setTimeout(() => setInjectStatus(null), 3200);
   };
 
@@ -347,14 +347,10 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-sm font-bold text-baron-ink">Runes</span>
-              <button
-                type="button"
-                onClick={handleImportRunes}
-                className="flex items-center gap-1 rounded-md border border-baron-border bg-baron-elevated px-2.5 py-1 text-xs font-medium text-baron-ink-secondary transition hover:border-baron-accent hover:text-baron-ink"
-              >
+              <HoverBorderGradient onClick={handleImportRunes}>
                 <Download className="h-3 w-3" />
                 <span>Import</span>
-              </button>
+              </HoverBorderGradient>
               {injectStatus && (
                 <span className="rounded bg-baron-emerald/15 px-2 py-0.5 text-[11px] font-semibold text-baron-emerald">
                   {injectStatus}
@@ -392,31 +388,36 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
 
               {PRECISION_ROWS.map((row, rowIdx) => (
                 <div key={`p-${rowIdx}`} className="flex items-center gap-4">
-                  {row.map((rune) => (
-                    <Tooltip key={rune.id}>
-                      <TooltipTrigger asChild>
-                        <div
-                          className={cn(
-                            "flex items-center justify-center rounded-full border transition",
-                            rowIdx === 0 ? "h-12 w-12" : "h-9 w-9",
-                            rune.active
-                              ? "border-baron-gold bg-baron-gold/15"
-                              : "border-baron-border bg-baron-elevated opacity-30 grayscale",
-                          )}
-                        >
-                          <img
-                            src={runeIconUrl(rune.icon)}
-                            alt={rune.name}
+                  {row.map((rune) => {
+                    const isActive = isLethality
+                      ? [8021, 8009, 9105, 8014].includes(rune.id)
+                      : rune.active;
+                    return (
+                      <Tooltip key={rune.id}>
+                        <TooltipTrigger asChild>
+                          <div
                             className={cn(
-                              "rounded-full object-contain",
-                              rowIdx === 0 ? "h-9 w-9" : "h-7 w-7",
+                              "flex items-center justify-center rounded-full border transition",
+                              rowIdx === 0 ? "h-12 w-12" : "h-9 w-9",
+                              isActive
+                                ? "border-baron-gold bg-baron-gold/15"
+                                : "border-baron-border bg-baron-elevated opacity-30 grayscale",
                             )}
-                          />
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>{rune.name}</TooltipContent>
-                    </Tooltip>
-                  ))}
+                          >
+                            <img
+                              src={runeIconUrl(rune.icon)}
+                              alt={rune.name}
+                              className={cn(
+                                "rounded-full object-contain",
+                                rowIdx === 0 ? "h-9 w-9" : "h-7 w-7",
+                              )}
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>{rune.name}</TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
                 </div>
               ))}
             </div>
@@ -445,43 +446,48 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
 
               {DOMINATION_SECONDARY_ROWS.map((row, rowIdx) => (
                 <div key={`s-${rowIdx}`} className="flex items-center gap-4">
-                  {row.map((rune) => (
-                    <Tooltip key={rune.id}>
-                      <TooltipTrigger asChild>
-                        <div
-                          className={cn(
-                            "flex h-9 w-9 items-center justify-center rounded-full border transition",
-                            rune.active
-                              ? "border-baron-defeat bg-baron-defeat/15"
-                              : "border-baron-border bg-baron-elevated opacity-30 grayscale",
-                          )}
-                        >
-                          <img src={runeIconUrl(rune.icon)} alt={rune.name} className="h-7 w-7" />
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>{rune.name}</TooltipContent>
-                    </Tooltip>
-                  ))}
+                  {row.map((rune) => {
+                    const isActive = isLethality
+                      ? [8143, 8135].includes(rune.id)
+                      : rune.active;
+                    return (
+                      <Tooltip key={rune.id}>
+                        <TooltipTrigger asChild>
+                          <div
+                            className={cn(
+                              "flex h-9 w-9 items-center justify-center rounded-full border transition",
+                              isActive
+                                ? "border-baron-defeat bg-baron-defeat/15"
+                                : "border-baron-border bg-baron-elevated opacity-30 grayscale",
+                            )}
+                          >
+                            <img src={runeIconUrl(rune.icon)} alt={rune.name} className="h-7 w-7" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>{rune.name}</TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
                 </div>
               ))}
 
-              {/* Stat Shards */}
+              {/* Stat Shards with Authored ShardIcon SVGs */}
               <div className="mt-2 flex flex-col gap-2.5">
                 {[
                   [
-                    { label: "Adaptive", active: false, tone: "border-baron-ace" },
-                    { label: "Attack Speed", active: true, tone: "border-baron-gold" },
-                    { label: "Ability Haste", active: false, tone: "border-baron-cyan" },
+                    { label: "Adaptive", active: isLethality, tone: "border-baron-ace text-baron-ace" },
+                    { label: "Attack Speed", active: !isLethality, tone: "border-baron-gold text-baron-gold" },
+                    { label: "Ability Haste", active: false, tone: "border-baron-cyan text-baron-cyan" },
                   ],
                   [
-                    { label: "Adaptive", active: true, tone: "border-baron-ace" },
-                    { label: "Move Speed", active: false, tone: "border-baron-cyan" },
-                    { label: "Health Scaling", active: false, tone: "border-baron-emerald" },
+                    { label: "Adaptive", active: true, tone: "border-baron-ace text-baron-ace" },
+                    { label: "Move Speed", active: false, tone: "border-baron-cyan text-baron-cyan" },
+                    { label: "Health Scaling", active: false, tone: "border-baron-emerald text-baron-emerald" },
                   ],
                   [
-                    { label: "Health", active: true, tone: "border-baron-emerald" },
-                    { label: "Tenacity", active: false, tone: "border-baron-accent" },
-                    { label: "Health Scaling", active: false, tone: "border-baron-emerald" },
+                    { label: "Health", active: true, tone: "border-baron-emerald text-baron-emerald" },
+                    { label: "Tenacity", active: false, tone: "border-baron-accent text-baron-accent" },
+                    { label: "Health Scaling", active: false, tone: "border-baron-emerald text-baron-emerald" },
                   ],
                 ].map((shardRow, rIdx) => (
                   <div key={`sh-${rIdx}`} className="flex items-center gap-4">
@@ -493,15 +499,10 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
                               "flex h-6 w-6 items-center justify-center rounded-full border",
                               s.active
                                 ? `${s.tone} bg-baron-hover`
-                                : "border-baron-border bg-baron-elevated opacity-40",
+                                : "border-baron-border bg-baron-elevated text-baron-ink-muted opacity-40",
                             )}
                           >
-                            <span
-                              className={cn(
-                                "h-2 w-2 rounded-full",
-                                s.active ? "bg-baron-ink" : "bg-baron-ink-muted",
-                              )}
-                            />
+                            <ShardIcon kind={s.label} />
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>{s.label}</TooltipContent>

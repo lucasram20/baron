@@ -115,6 +115,7 @@ export default function BaronAppPage() {
               ddVersion={ddVersion}
               patch={patch}
               activeProviderLabel={activeProviderLabel}
+              onOpenChampSelect={() => setRoute("champselect")}
             />
           )}
           {route === "collections" && <CollectionView />}

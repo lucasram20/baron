@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import SpotlightCard from "@/components/SpotlightCard";
 import { RankCrest } from "@/components/icons/LolIcons";
+import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
 import { champSquareUrl, itemIconUrl } from "@/lib/ddragon";
 import type { ProviderMeta } from "@/lib/tauri";
 import { type ThemePreference, useTheme } from "@/lib/theme";
@@ -18,12 +19,98 @@ const TIER_BENTO = [
   { champ: "Thresh", wr: "51.0%", delta: "-0.6%", pr: "13.7%", pos: false },
 ];
 
-const LB_PREVIEW = [
-  { rank: 1, name: "Annie IRL", tag: "#Annie", champ: "Annie", lp: "4368 LP", wr: "55%" },
-  { rank: 2, name: "Kaori", tag: "Kaori#EUW33", champ: "Kai'Sa", lp: "4351 LP", wr: "55%" },
-  { rank: 3, name: "Mrozku", tag: "MRO#ZKU", champ: "Orianna", lp: "4332 LP", wr: "57%" },
-  { rank: 4, name: "Mentos", tag: "GSMC", champ: "Ezreal", lp: "4130 LP", wr: "54%" },
-  { rank: 5, name: "Nan0", tag: "RUD", champ: "Viego", lp: "4050 LP", wr: "54%" },
+const LB_BY_REGION: Record<
+  string,
+  { rank: number; name: string; tag: string; champ: string; lp: string; wr: string }[]
+> = {
+  EUW: [
+    { rank: 1, name: "Annie IRL", tag: "#Annie", champ: "Annie", lp: "4368 LP", wr: "55%" },
+    { rank: 2, name: "Kaori", tag: "Kaori#EUW33", champ: "Kai'Sa", lp: "4351 LP", wr: "55%" },
+    { rank: 3, name: "Mrozku", tag: "MRO#ZKU", champ: "Orianna", lp: "4332 LP", wr: "57%" },
+    { rank: 4, name: "Mentos", tag: "GSMC", champ: "Ezreal", lp: "4130 LP", wr: "54%" },
+    { rank: 5, name: "Nan0", tag: "RUD", champ: "Viego", lp: "4050 LP", wr: "54%" },
+  ],
+  KR: [
+    { rank: 1, name: "Hide on bush", tag: "#KR1", champ: "Ahri", lp: "1,742 LP", wr: "58%" },
+    { rank: 2, name: "Zeus", tag: "T1#KR", champ: "Gnar", lp: "1,698 LP", wr: "56%" },
+    { rank: 3, name: "Chovy", tag: "GEN#1", champ: "Syndra", lp: "1,651 LP", wr: "61%" },
+    { rank: 4, name: "Viper", tag: "HLE#1", champ: "Caitlyn", lp: "1,610 LP", wr: "57%" },
+    { rank: 5, name: "Keria", tag: "T1#SUP", champ: "Thresh", lp: "1,585 LP", wr: "56%" },
+  ],
+  NA: [
+    { rank: 1, name: "Yeon", tag: "TL#NA1", champ: "Kai'Sa", lp: "1,490 LP", wr: "57%" },
+    { rank: 2, name: "APA", tag: "TL#MID", champ: "Taliyah", lp: "1,412 LP", wr: "55%" },
+    { rank: 3, name: "CoreJJ", tag: "TL#SUP", champ: "Rakan", lp: "1,380 LP", wr: "54%" },
+    { rank: 4, name: "Impact", tag: "TL#TOP", champ: "Aatrox", lp: "1,344 LP", wr: "55%" },
+    { rank: 5, name: "Blaber", tag: "C9#JGL", champ: "Lee Sin", lp: "1,310 LP", wr: "54%" },
+  ],
+};
+
+const RECENT_MATCHES = [
+  {
+    id: "m1",
+    champ: "Ahri",
+    result: "Victory" as const,
+    queue: "Ranked Solo/Duo",
+    duration: "33:07",
+    ago: "6 minutes ago",
+    kills: 9,
+    deaths: 4,
+    assists: 8,
+    kdaRatio: "4.25:1",
+    csRate: "8.1 CS/m",
+    items: [3118, 4645, 3157, 3020, 3089, 3364],
+    score: 75,
+    lp: "+21 LP",
+  },
+  {
+    id: "m2",
+    champ: "Syndra",
+    result: "Victory" as const,
+    queue: "Ranked Solo/Duo",
+    duration: "27:42",
+    ago: "1 hour ago",
+    kills: 11,
+    deaths: 2,
+    assists: 7,
+    kdaRatio: "9.00:1",
+    csRate: "8.9 CS/m",
+    items: [3118, 4645, 3089, 3020, 3135, 3364],
+    score: 89,
+    lp: "+22 LP",
+  },
+  {
+    id: "m3",
+    champ: "Orianna",
+    result: "Defeat" as const,
+    queue: "Ranked Solo/Duo",
+    duration: "31:18",
+    ago: "3 hours ago",
+    kills: 6,
+    deaths: 5,
+    assists: 9,
+    kdaRatio: "3.00:1",
+    csRate: "8.4 CS/m",
+    items: [3003, 4628, 3157, 3020, 3135, 3363],
+    score: 68,
+    lp: "-16 LP",
+  },
+  {
+    id: "m4",
+    champ: "Jinx",
+    result: "Victory" as const,
+    queue: "Ranked Solo/Duo",
+    duration: "29:05",
+    ago: "yesterday",
+    kills: 10,
+    deaths: 3,
+    assists: 11,
+    kdaRatio: "7.00:1",
+    csRate: "9.1 CS/m",
+    items: [6672, 3085, 3031, 3006, 3036, 3363],
+    score: 84,
+    lp: "+21 LP",
+  },
 ];
 
 export function DashboardView({
@@ -38,6 +125,7 @@ export function DashboardView({
   const [regionTab, setRegionTab] = useState("EUW");
   const { resolved } = useTheme();
   const spotlightTheme = resolved === "light" ? "light" : "dark";
+  const leaderboardRows = LB_BY_REGION[regionTab] ?? LB_BY_REGION.EUW;
 
   return (
     <div className="flex flex-col gap-4">
@@ -170,7 +258,7 @@ export function DashboardView({
             </button>
           </div>
           <div className="divide-y divide-baron-border-muted text-xs">
-            {LB_PREVIEW.map((p) => (
+            {leaderboardRows.map((p) => (
               <div key={p.name} className="flex items-center justify-between py-1.5">
                 <div className="flex items-center gap-2">
                   <span className="w-3 text-[11px] text-baron-ink-muted">{p.rank}</span>
@@ -194,60 +282,92 @@ export function DashboardView({
         </SpotlightCard>
       </div>
 
-      {/* Match History Preview Card */}
+      {/* Match History Feed */}
       <div className="rounded-xl border border-baron-border bg-baron-surface p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-bold text-baron-ink">Recent Solo/Duo Matches</h2>
-          <button
-            type="button"
-            onClick={() => onNavigate("postgame")}
-            className="rounded-md bg-baron-accent/15 px-3 py-1 text-xs font-semibold text-baron-accent-soft transition hover:bg-baron-accent/25"
-          >
-            Open Post-game Lens ›
-          </button>
+          <HoverBorderGradient onClick={() => onNavigate("postgame")}>
+            <span>Open Post-game Lens ›</span>
+          </HoverBorderGradient>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onNavigate("postgame")}
-          className="relative flex w-full items-center justify-between overflow-hidden rounded-lg border border-baron-border bg-baron-elevated px-4 py-3 text-left transition hover:border-baron-border-strong"
-        >
-          <span className="absolute top-0 bottom-0 left-0 w-px bg-baron-victory" />
-          <div className="flex items-center gap-3 pl-1">
-            <img
-              src={champSquareUrl("Ahri", ddVersion)}
-              alt="Ahri"
-              className="h-11 w-11 rounded-lg object-cover"
-            />
-            <div>
-              <div className="text-xs font-bold text-baron-victory">Victory · Ranked Solo/Duo</div>
-              <div className="text-sm font-bold text-baron-ink">Ahri · 33:07</div>
-              <div className="text-[11px] text-baron-ink-muted">6 minutes ago</div>
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-bold text-baron-ink">
-              9 / <span className="text-baron-defeat">4</span> / 8
-            </div>
-            <div className="text-xs text-baron-ink-muted">4.25:1 KDA · 8.1 CS/m</div>
-          </div>
-          <div className="flex items-center gap-1">
-            {[3118, 4645, 3157, 3020, 3089, 3364].map((id) => (
-              <img
-                key={id}
-                src={itemIconUrl(id, ddVersion)}
-                alt={String(id)}
-                className="h-7 w-7 rounded border border-baron-border"
-              />
-            ))}
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="rounded-full border-2 border-baron-cyan px-2.5 py-1 text-xs font-extrabold text-baron-ink">
-              75
-            </span>
-            <span className="text-xs font-bold text-baron-cyan">+21 LP</span>
-          </div>
-        </button>
+        <div className="flex flex-col gap-2">
+          {RECENT_MATCHES.map((m) => {
+            const win = m.result === "Victory";
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => onNavigate("postgame")}
+                className="relative flex w-full items-center justify-between overflow-hidden rounded-lg border border-baron-border bg-baron-elevated px-4 py-3 text-left transition hover:border-baron-border-strong"
+              >
+                <span
+                  className={cn(
+                    "absolute top-0 bottom-0 left-0 w-px",
+                    win ? "bg-baron-victory" : "bg-baron-defeat",
+                  )}
+                />
+                <div className="flex items-center gap-3 pl-1">
+                  <img
+                    src={champSquareUrl(m.champ, ddVersion)}
+                    alt={m.champ}
+                    className="h-11 w-11 rounded-lg object-cover"
+                  />
+                  <div>
+                    <div
+                      className={cn(
+                        "text-xs font-bold",
+                        win ? "text-baron-victory" : "text-baron-defeat",
+                      )}
+                    >
+                      {m.result} · {m.queue}
+                    </div>
+                    <div className="text-sm font-bold text-baron-ink">
+                      {m.champ} · {m.duration}
+                    </div>
+                    <div className="text-[11px] text-baron-ink-muted">{m.ago}</div>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-bold text-baron-ink">
+                    {m.kills} / <span className="text-baron-defeat">{m.deaths}</span> / {m.assists}
+                  </div>
+                  <div className="text-xs text-baron-ink-muted">
+                    {m.kdaRatio} KDA · {m.csRate}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  {m.items.map((id) => (
+                    <img
+                      key={`${m.id}-${id}`}
+                      src={itemIconUrl(id, ddVersion)}
+                      alt={String(id)}
+                      className="h-7 w-7 rounded border border-baron-border"
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span
+                    className={cn(
+                      "rounded-full border-2 px-2.5 py-1 text-xs font-extrabold text-baron-ink",
+                      m.score >= 85 ? "border-baron-gold" : "border-baron-cyan",
+                    )}
+                  >
+                    {m.score}
+                  </span>
+                  <span
+                    className={cn(
+                      "w-14 text-right text-xs font-bold",
+                      win ? "text-baron-cyan" : "text-baron-defeat",
+                    )}
+                  >
+                    {m.lp}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -255,19 +375,23 @@ export function DashboardView({
 
 export function LeaderboardsView({ ddVersion }: { ddVersion: string }) {
   const [region, setRegion] = useState("KR");
+  const rows = LB_BY_REGION[region] ?? LB_BY_REGION.KR;
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-extrabold tracking-tight text-baron-ink">Leaderboards</h1>
         <div className="flex items-center gap-1 rounded-lg border border-baron-border bg-baron-surface p-1">
-          {["EUW", "KR", "NA", "PH2", "Rivals"].map((r) => (
+          {["EUW", "KR", "NA"].map((r) => (
             <button
               key={r}
               type="button"
               onClick={() => setRegion(r)}
               className={cn(
                 "rounded-md px-3 py-1 text-xs font-bold transition",
-                region === r ? "bg-baron-accent text-white" : "text-baron-ink-secondary hover:text-baron-ink",
+                region === r
+                  ? "bg-baron-accent text-white"
+                  : "text-baron-ink-secondary hover:text-baron-ink",
               )}
             >
               {r}
@@ -285,7 +409,7 @@ export function LeaderboardsView({ ddVersion }: { ddVersion: string }) {
           <div>7D NET LP</div>
           <div className="text-right">AVG SCORE</div>
         </div>
-        {LB_PREVIEW.map((row, idx) => (
+        {rows.map((row, idx) => (
           <div
             key={row.name}
             className="grid grid-cols-[64px_1fr_190px_110px_110px_110px] items-center border-b border-baron-border-muted px-4 py-2.5 text-xs hover:bg-baron-hover/60"
@@ -320,8 +444,18 @@ export function LeaderboardsView({ ddVersion }: { ddVersion: string }) {
 
 const THEME_MODES: { id: ThemePreference; title: string; subtitle: string; icon: typeof Moon }[] = [
   { id: "dark", title: "Cool-Black Dark", subtitle: "Obsidian low-glare gaming surface", icon: Moon },
-  { id: "light", title: "Cool-Slate Light", subtitle: "Crisp high-contrast daylight workspace", icon: Sun },
-  { id: "system", title: "System Default", subtitle: "Follow Windows / macOS theme setting", icon: Monitor },
+  {
+    id: "light",
+    title: "Cool-Slate Light",
+    subtitle: "Crisp high-contrast daylight workspace",
+    icon: Sun,
+  },
+  {
+    id: "system",
+    title: "System Default",
+    subtitle: "Follow Windows / macOS theme setting",
+    icon: Monitor,
+  },
 ];
 
 export function DataStudioView({

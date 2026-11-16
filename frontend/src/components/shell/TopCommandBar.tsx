@@ -124,11 +124,14 @@ export function TopCommandBar({
       if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "k") {
         ev.preventDefault();
         setCommandOpen((prev) => !prev);
+      } else if (ev.key === "Escape") {
+        if (patchPopoverOpen) onTogglePatchPopover();
+        if (providerOpen) onToggleProviderOpen();
       }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, []);
+  }, [patchPopoverOpen, providerOpen, onTogglePatchPopover, onToggleProviderOpen]);
 
   return (
     <>
