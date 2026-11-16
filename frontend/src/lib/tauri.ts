@@ -123,6 +123,25 @@ export async function fetchBootstrapData(patch?: string): Promise<BaronBootstrap
   }
 }
 
+export type TierRole = "Top" | "Jungle" | "Middle" | "Bottom" | "Utility";
+
+export interface ProviderTierEntry {
+  rank: number;
+  champion_name: string;
+  role: TierRole;
+  tier: string;
+  win_rate: number;
+  pick_rate: number;
+  ban_rate: number;
+  matches_label: string;
+}
+
+export async function fetchProviderTierList(provider: string, role: TierRole): Promise<ProviderTierEntry[]> {
+  if (!isTauriRuntime()) throw new Error("Live provider data requires the desktop app.");
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<ProviderTierEntry[]>("get_provider_tier_list", { provider, role });
+}
+
 export async function buildBaronRunePayload(
   championName: string,
   primaryStyleId: number,

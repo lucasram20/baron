@@ -530,7 +530,8 @@ export function DataStudioView({
 
       {/* Provider Failover Chain */}
       <div className="flex flex-col gap-2 rounded-xl border border-baron-border bg-baron-surface p-4">
-        <div className="mb-1 text-sm font-bold text-baron-ink">Meta &amp; Build API Providers</div>
+        <div className="mb-1 text-sm font-bold text-baron-ink">Tier-list providers</div>
+        <p className="text-xs text-baron-ink-secondary">Only OP.GG tier data is implemented. Other providers and build data are unavailable; automatic failover is not implemented.</p>
         {providers.map((prov, idx) => {
           const active = prov.id === activeProviderId;
           return (
@@ -559,7 +560,7 @@ export function DataStudioView({
                     : "bg-baron-hover text-baron-ink-secondary",
                 )}
               >
-                {active ? "Selected" : prov.roleTag}
+                {active ? "Selected" : prov.id === "opgg" ? "Tier list" : "Unavailable"}
               </span>
             </button>
           );

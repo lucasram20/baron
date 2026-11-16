@@ -105,6 +105,11 @@ pub const DEFAULT_FALLBACK_ORDER: [FallbackProvider; 6] = [
     FallbackProvider::MerakiCdn,
 ];
 
+/// Fetch a single lane from the official OP.GG MCP server.
+pub fn fetch_opgg_tier_list(role: Role) -> Result<Vec<ChampionTierEntry>, String> {
+    crate::providers::opgg::fetch_tier_list_from("https://mcp-api.op.gg/mcp", role)
+}
+
 /// Extracts embedded Qwik SSR JSON payload (`<script type="qwik/json">...</script>`) from LoLalytics HTML.
 pub fn extract_lolalytics_qwik_json(html: &str) -> Option<&str> {
     let marker = "<script type=\"qwik/json\">";

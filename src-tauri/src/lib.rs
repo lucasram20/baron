@@ -1,7 +1,9 @@
 //! Baron Desktop Host (`src-tauri`): Tauri v2 IPC commands bridging pure-Rust
 //! `baron-core`, `baron-db`, `baron-lcu`, and `baron-riot` to the Next.js frontend.
 
-use baron_core::models::{CombatRadarMetrics, DashboardSampleData, LaneDiffAt14, Role};
+use baron_core::models::{
+    ChampionTierEntry, CombatRadarMetrics, DashboardSampleData, LaneDiffAt14, Role,
+};
 use baron_core::{
     calculate_baron_score, compute_combat_radar, compute_lane_diff_at_minute,
     compute_team_gold_curve, sample_dashboard_data,
@@ -162,6 +164,19 @@ fn get_bootstrap_data(
 }
 
 #[tauri::command]
+async fn get_provider_tier_list(
+    provider: String,
+    role: Role,
+) -> Result<Vec<ChampionTierEntry>, String> {
+    if provider != "opgg" {
+        return Err("This provider has no verified tier-list integration".to_string());
+    }
+    tauri::async_runtime::spawn_blocking(move || baron_riot::fetch_opgg_tier_list(role))
+        .await
+        .map_err(|e| format!("Provider task failed: {e}"))?
+}
+
+#[tauri::command]
 fn get_provider_endpoints(patch: String) -> Vec<ProviderMeta> {
     build_providers_meta(&patch)
 }
@@ -194,6 +209,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_bootstrap_data,
             get_provider_endpoints,
+            get_provider_tier_list,
             build_baron_rune_page_payload,
             get_lcu_status,
         ])

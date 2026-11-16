@@ -112,10 +112,8 @@ export default function BaronAppPage() {
           )}
           {route === "tierlist" && (
             <TierListView
-              ddVersion={ddVersion}
-              patch={patch}
+              activeProviderId={activeProviderId}
               activeProviderLabel={activeProviderLabel}
-              onOpenChampSelect={() => setRoute("champselect")}
             />
           )}
           {route === "collections" && <CollectionView />}
