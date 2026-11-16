@@ -4,6 +4,14 @@ All notable changes to **Baron** are documented in this single consolidated chan
 
 ---
 
+## [Unreleased]
+
+### Changed
+- Updated the dashboard layout and command-bar styling, and labeled dashboard data as sample data.
+- Added a dashboard rendering check and frontend-specific Next.js agent guidance.
+
+---
+
 ## [v0.1.0-dev.7] — 2026-11-16
 
 ### Added
