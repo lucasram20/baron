@@ -1,11 +1,11 @@
 use baron_core::models::DashboardSampleData;
 use baron_db::BaronDatabase;
 use baron_lcu::OwnedSkinEntry;
+use baron_riot::{FallbackProvider, AVAILABLE_PATCHES, AVAILABLE_PERIODS, DEFAULT_FALLBACK_ORDER};
 use gpui_kit::component::avatar::Avatar;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::scroll::ScrollableElement;
-use gpui_kit::component::tag::Tag;
 use gpui_kit::component::{Icon, IconName, Sizable as _, TitleBar};
 use gpui_kit::*;
 
@@ -52,6 +52,11 @@ pub struct BaronWorkspace {
     pub tierlist_role_idx: usize,
     pub off_meta: bool,
     pub collection_filter_idx: usize,
+    pub selected_patch_idx: usize,
+    pub selected_period_idx: usize,
+    pub patch_popover_open: bool,
+    pub selected_provider_idx: usize,
+    pub provider_dropdown_open: bool,
     pub expanded_match_id: Option<String>,
     pub data: DashboardSampleData,
     pub skins: Vec<OwnedSkinEntry>,
@@ -83,6 +88,11 @@ impl BaronWorkspace {
             tierlist_role_idx: 0,
             off_meta: false,
             collection_filter_idx: 0,
+            selected_patch_idx: 0,
+            selected_period_idx: 0,
+            patch_popover_open: false,
+            selected_provider_idx: 0,
+            provider_dropdown_open: false,
             expanded_match_id: None,
             data,
             skins,
@@ -90,7 +100,31 @@ impl BaronWorkspace {
         }
     }
 
+    pub fn active_patch(&self) -> &'static str {
+        AVAILABLE_PATCHES
+            .get(self.selected_patch_idx)
+            .copied()
+            .unwrap_or("16.22")
+    }
+
+    pub fn active_period(&self) -> &'static str {
+        AVAILABLE_PERIODS
+            .get(self.selected_period_idx)
+            .copied()
+            .unwrap_or("7 days")
+    }
+
+    pub fn active_provider(&self) -> FallbackProvider {
+        DEFAULT_FALLBACK_ORDER
+            .get(self.selected_provider_idx)
+            .copied()
+            .unwrap_or(FallbackProvider::OpGg)
+    }
+
     fn render_top_command_bar(&self, cx: &Context<Self>) -> impl IntoElement {
+        let patch_label = format!("Patch {} ▾", self.active_patch());
+        let api_label = format!("API: {} ▾", self.active_provider().label());
+
         div()
             .h(px(44.))
             .w_full()
@@ -190,6 +224,28 @@ impl BaronWorkspace {
                     .items_center()
                     .gap_2()
                     .child(
+                        Button::new("top-patch-btn")
+                            .label(patch_label)
+                            .xsmall()
+                            .ghost()
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.patch_popover_open = !this.patch_popover_open;
+                                this.provider_dropdown_open = false;
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Button::new("top-provider-btn")
+                            .label(api_label)
+                            .xsmall()
+                            .primary()
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.provider_dropdown_open = !this.provider_dropdown_open;
+                                this.patch_popover_open = false;
+                                cx.notify();
+                            })),
+                    )
+                    .child(
                         div()
                             .px_2()
                             .py(px(2.))
@@ -203,17 +259,243 @@ impl BaronWorkspace {
                             .child("L  LCU Ready"),
                     )
                     .child(
-                        Tag::secondary()
-                            .small()
-                            .child(baron_riot::DEFAULT_FALLBACK_ORDER[0].label()),
-                    )
-                    .child(
                         Button::new("top-settings")
                             .icon(Icon::new(IconName::Settings))
                             .ghost()
-                            .xsmall(),
+                            .xsmall()
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.route = ActiveRoute::DataStudio;
+                                cx.notify();
+                            })),
                     ),
             )
+    }
+
+    /// Renders the Patch (`16.22`..`16.10`) & Period (`7 days`, `14 days`, `30 days`) Popover
+    /// matching the user's screenshot, plus the API Provider Switcher Dropdown when open.
+    pub fn render_popovers_bar(&self, cx: &Context<Self>) -> Option<AnyElement> {
+        if !self.patch_popover_open && !self.provider_dropdown_open {
+            return None;
+        }
+
+        let elem = div()
+            .mb_3()
+            .flex()
+            .flex_row()
+            .justify_end()
+            .gap_3()
+            .children(self.patch_popover_open.then(|| {
+                let patch_rows: Vec<&[&'static str]> = AVAILABLE_PATCHES.chunks(3).collect();
+                div()
+                    .w(px(280.))
+                    .p_3()
+                    .rounded_lg()
+                    .bg(theme::color(theme::BG_SIDEBAR))
+                    .border_1()
+                    .border_color(theme::color(theme::BORDER_STRONG))
+                    .flex()
+                    .flex_col()
+                    .gap_3()
+                    // PERIOD section (7 days | 14 days | 30 days)
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .font_weight(FontWeight::BOLD)
+                                    .text_color(theme::color(theme::TEXT_FAINT))
+                                    .child("PERIOD"),
+                            )
+                            .child(div().flex().flex_row().gap_2().children(
+                                AVAILABLE_PERIODS.iter().copied().enumerate().map(
+                                    |(idx, period)| {
+                                        let active = self.selected_period_idx == idx;
+                                        div()
+                                            .id(SharedString::from(format!("period-opt-{idx}")))
+                                            .flex_1()
+                                            .h(px(32.))
+                                            .rounded_md()
+                                            .bg(theme::color(if active {
+                                                theme::BORDER_STRONG
+                                            } else {
+                                                theme::BG_ELEVATED
+                                            }))
+                                            .border_1()
+                                            .border_color(theme::color(if active {
+                                                theme::ACCENT_SOFT
+                                            } else {
+                                                theme::BORDER_SUBTLE
+                                            }))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .text_xs()
+                                            .font_weight(if active {
+                                                FontWeight::BOLD
+                                            } else {
+                                                FontWeight::MEDIUM
+                                            })
+                                            .text_color(theme::color(if active {
+                                                theme::TEXT_PRIMARY
+                                            } else {
+                                                theme::TEXT_SECONDARY
+                                            }))
+                                            .cursor_pointer()
+                                            .on_click(cx.listener(move |this, _, _, cx| {
+                                                this.selected_period_idx = idx;
+                                                cx.notify();
+                                            }))
+                                            .child(period)
+                                    },
+                                ),
+                            )),
+                    )
+                    // PATCH section (3-column grid: 16.22 .. 16.10)
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .font_weight(FontWeight::BOLD)
+                                    .text_color(theme::color(theme::TEXT_FAINT))
+                                    .child("PATCH"),
+                            )
+                            .children(patch_rows.into_iter().enumerate().map(
+                                |(row_idx, chunk)| {
+                                    div().flex().flex_row().gap_2().children(
+                                        chunk.iter().copied().enumerate().map(
+                                            move |(col_idx, p)| {
+                                                let idx = row_idx * 3 + col_idx;
+                                                let active = self.selected_patch_idx == idx;
+                                                div()
+                                                    .id(SharedString::from(format!(
+                                                        "patch-opt-{idx}"
+                                                    )))
+                                                    .w(px(80.))
+                                                    .h(px(32.))
+                                                    .rounded_md()
+                                                    .bg(theme::color(if active {
+                                                        theme::BORDER_STRONG
+                                                    } else {
+                                                        theme::BG_ELEVATED
+                                                    }))
+                                                    .border_1()
+                                                    .border_color(theme::color(if active {
+                                                        theme::ACCENT_SOFT
+                                                    } else {
+                                                        theme::BORDER_SUBTLE
+                                                    }))
+                                                    .flex()
+                                                    .items_center()
+                                                    .justify_center()
+                                                    .text_xs()
+                                                    .font_weight(if active {
+                                                        FontWeight::BOLD
+                                                    } else {
+                                                        FontWeight::MEDIUM
+                                                    })
+                                                    .text_color(theme::color(if active {
+                                                        theme::TEXT_PRIMARY
+                                                    } else {
+                                                        theme::TEXT_SECONDARY
+                                                    }))
+                                                    .cursor_pointer()
+                                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                                        this.selected_patch_idx = idx;
+                                                        this.patch_popover_open = false;
+                                                        cx.notify();
+                                                    }))
+                                                    .child(p)
+                                            },
+                                        ),
+                                    )
+                                },
+                            )),
+                    )
+            }))
+            .children(self.provider_dropdown_open.then(|| {
+                div()
+                    .w(px(250.))
+                    .p_3()
+                    .rounded_lg()
+                    .bg(theme::color(theme::BG_SIDEBAR))
+                    .border_1()
+                    .border_color(theme::color(theme::BORDER_STRONG))
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .child(
+                        div()
+                            .text_xs()
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(theme::color(theme::TEXT_FAINT))
+                            .child("API PROVIDER MODE"),
+                    )
+                    .children(DEFAULT_FALLBACK_ORDER.iter().copied().enumerate().map(
+                        |(idx, prov)| {
+                            let active = self.selected_provider_idx == idx;
+                            let role_tag = match idx {
+                                0 => "Primary #1",
+                                1 => "Fallback #2",
+                                _ => "Fallback",
+                            };
+                            div()
+                                .id(SharedString::from(format!("api-prov-opt-{idx}")))
+                                .p_2()
+                                .rounded_md()
+                                .bg(theme::color(if active {
+                                    theme::BORDER_STRONG
+                                } else {
+                                    theme::BG_ELEVATED
+                                }))
+                                .border_1()
+                                .border_color(theme::color(if active {
+                                    theme::ACCENT_PRIMARY
+                                } else {
+                                    theme::BORDER_SUBTLE
+                                }))
+                                .flex()
+                                .flex_row()
+                                .items_center()
+                                .justify_between()
+                                .text_xs()
+                                .cursor_pointer()
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.selected_provider_idx = idx;
+                                    this.provider_dropdown_open = false;
+                                    cx.notify();
+                                }))
+                                .child(
+                                    div()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(theme::color(if active {
+                                            theme::TEXT_PRIMARY
+                                        } else {
+                                            theme::TEXT_SECONDARY
+                                        }))
+                                        .child(prov.label()),
+                                )
+                                .child(
+                                    div()
+                                        .text_color(theme::color(if active {
+                                            theme::ACCENT_SOFT
+                                        } else {
+                                            theme::TEXT_FAINT
+                                        }))
+                                        .child(role_tag),
+                                )
+                        },
+                    ))
+            }))
+            .into_any_element();
+
+        Some(elem)
     }
 
     fn render_sidebar_item(
@@ -300,7 +582,6 @@ impl BaronWorkspace {
                     .flex()
                     .flex_col()
                     .gap_4()
-                    // Brand Header (Matches DPM APP V1.8.1 top-left header)
                     .child(
                         div()
                             .flex()
@@ -340,7 +621,6 @@ impl BaronWorkspace {
                                     ),
                             ),
                     )
-                    // BARON CORE group
                     .child(
                         div()
                             .flex()
@@ -355,7 +635,6 @@ impl BaronWorkspace {
                                     .child("BARON CORE"),
                             )
                             .child(self.render_sidebar_item(ActiveRoute::Home, "⌂", false, cx))
-                            // Indented active summoner pill under Dashboard
                             .child(
                                 div()
                                     .pl_6()
@@ -381,7 +660,6 @@ impl BaronWorkspace {
                                 cx,
                             )),
                     )
-                    // BARON APP group
                     .child(
                         div()
                             .flex()
@@ -403,7 +681,6 @@ impl BaronWorkspace {
                                 cx,
                             )),
                     )
-                    // BARON INSIGHTS group
                     .child(
                         div()
                             .flex()
@@ -424,7 +701,6 @@ impl BaronWorkspace {
                                 cx,
                             )),
                     )
-                    // IN GAME group
                     .child(
                         div()
                             .flex()
@@ -442,7 +718,6 @@ impl BaronWorkspace {
                             .child(self.render_sidebar_item(ActiveRoute::DpmLens, "⚔", true, cx)),
                     ),
             )
-            // Bottom Pinned Summoner Profile Card (Matches DPM APP V1.8.1 bottom-left card)
             .child(
                 div()
                     .p_2()
@@ -572,6 +847,7 @@ impl Render for BaronWorkspace {
                             .h_full()
                             .overflow_y_scrollbar()
                             .p_4()
+                            .children(self.render_popovers_bar(cx))
                             .child(self.render_route(window, cx)),
                     ),
             )

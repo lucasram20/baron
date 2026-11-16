@@ -673,7 +673,7 @@ pub fn sample_dashboard_data() -> DashboardSampleData {
         queue_label: "Ranked Solo".to_string(),
         game_duration_secs: 1548,
         played_ago_label: "2 hours ago".to_string(),
-        patch: "14.10".to_string(),
+        patch: "16.22".to_string(),
         participants,
         timeline_samples,
     }];

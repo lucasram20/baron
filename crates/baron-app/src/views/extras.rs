@@ -324,17 +324,25 @@ pub fn render_tier_list(
                         )
                         .child(
                             div()
+                                .id("tierlist-patch-trigger")
                                 .px_3()
                                 .h(px(28.))
                                 .rounded_md()
                                 .bg(theme::color(theme::BG_SURFACE))
                                 .border_1()
-                                .border_color(theme::color(theme::BORDER_SUBTLE))
+                                .border_color(theme::color(theme::BORDER_STRONG))
                                 .flex()
                                 .items_center()
                                 .text_xs()
+                                .font_weight(FontWeight::BOLD)
                                 .text_color(theme::color(theme::TEXT_PRIMARY))
-                                .child("16.22  ▾"),
+                                .cursor_pointer()
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.patch_popover_open = !this.patch_popover_open;
+                                    this.provider_dropdown_open = false;
+                                    cx.notify();
+                                }))
+                                .child(format!("{} ({})  ▾", ws.active_patch(), ws.active_period())),
                         )
                         .child(
                             div()
@@ -364,16 +372,22 @@ pub fn render_tier_list(
                         .flex()
                         .flex_row()
                         .items_center()
-                        .gap_1()
+                        .gap_2()
                         .child(
-                            Tag::primary()
-                                .small()
-                                .child(FallbackProvider::Lolalytics.label()),
+                            Button::new("tierlist-api-dropdown-btn")
+                                .label(format!("API: {}  ▾", ws.active_provider().label()))
+                                .xsmall()
+                                .primary()
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.provider_dropdown_open = !this.provider_dropdown_open;
+                                    this.patch_popover_open = false;
+                                    cx.notify();
+                                })),
                         )
                         .child(
                             Tag::secondary()
                                 .small()
-                                .child(FallbackProvider::MetaSrc.label()),
+                                .child(format!("Fallback #2: {}", FallbackProvider::UGg.label())),
                         ),
                 ),
         )
@@ -1263,10 +1277,12 @@ pub fn render_leaderboard(
 }
 
 pub fn render_data_studio(
-    _: &BaronWorkspace,
+    ws: &BaronWorkspace,
     _: &mut Window,
-    _: &Context<BaronWorkspace>,
+    cx: &Context<BaronWorkspace>,
 ) -> impl IntoElement {
+    let patch_rows: Vec<&[&'static str]> = baron_riot::AVAILABLE_PATCHES.chunks(3).collect();
+
     div()
         .flex()
         .flex_col()
@@ -1275,44 +1291,230 @@ pub fn render_data_studio(
             div()
                 .text_xl()
                 .font_weight(FontWeight::BOLD)
-                .child("⛁  Data Studio & Fallback Providers"),
+                .child("⛁  Data Studio — Patch Selector & API Provider Mode"),
         )
         .child(
             div()
-                .p_4()
-                .rounded_lg()
-                .bg(theme::color(theme::BG_SURFACE))
-                .border_1()
-                .border_color(theme::color(theme::BORDER_SUBTLE))
                 .flex()
-                .flex_col()
-                .gap_3()
+                .flex_row()
+                .gap_4()
+                // Left Card: Exact PERIOD (7/14/30 days) + PATCH (16.22..16.10) Selector Grid
                 .child(
                     div()
-                        .text_sm()
-                        .font_weight(FontWeight::BOLD)
-                        .child("Multi-Provider Fallback Pipeline (REA MCP Verified)"),
+                        .w(px(300.))
+                        .p_4()
+                        .rounded_lg()
+                        .bg(theme::color(theme::BG_SURFACE))
+                        .border_1()
+                        .border_color(theme::color(theme::BORDER_SUBTLE))
+                        .flex()
+                        .flex_col()
+                        .gap_3()
+                        .child(
+                            div()
+                                .text_xs()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(theme::color(theme::TEXT_FAINT))
+                                .child("PERIOD"),
+                        )
+                        .child(
+                            div().flex().flex_row().gap_2().children(
+                                baron_riot::AVAILABLE_PERIODS
+                                    .iter()
+                                    .copied()
+                                    .enumerate()
+                                    .map(|(idx, period)| {
+                                        let active = ws.selected_period_idx == idx;
+                                        div()
+                                            .id(SharedString::from(format!("ds-period-{idx}")))
+                                            .flex_1()
+                                            .h(px(34.))
+                                            .rounded_md()
+                                            .bg(theme::color(if active {
+                                                theme::BORDER_STRONG
+                                            } else {
+                                                theme::BG_ELEVATED
+                                            }))
+                                            .border_1()
+                                            .border_color(theme::color(if active {
+                                                theme::ACCENT_SOFT
+                                            } else {
+                                                theme::BORDER_SUBTLE
+                                            }))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .text_xs()
+                                            .font_weight(if active {
+                                                FontWeight::BOLD
+                                            } else {
+                                                FontWeight::MEDIUM
+                                            })
+                                            .text_color(theme::color(if active {
+                                                theme::TEXT_PRIMARY
+                                            } else {
+                                                theme::TEXT_SECONDARY
+                                            }))
+                                            .cursor_pointer()
+                                            .on_click(cx.listener(move |this, _, _, cx| {
+                                                this.selected_period_idx = idx;
+                                                cx.notify();
+                                            }))
+                                            .child(period)
+                                    }),
+                            ),
+                        )
+                        .child(
+                            div()
+                                .text_xs()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(theme::color(theme::TEXT_FAINT))
+                                .child("PATCH"),
+                        )
+                        .children(patch_rows.into_iter().enumerate().map(|(row_idx, chunk)| {
+                            div().flex().flex_row().gap_2().children(
+                                chunk.iter().copied().enumerate().map(move |(col_idx, p)| {
+                                    let idx = row_idx * 3 + col_idx;
+                                    let active = ws.selected_patch_idx == idx;
+                                    div()
+                                        .id(SharedString::from(format!("ds-patch-{idx}")))
+                                        .w(px(84.))
+                                        .h(px(34.))
+                                        .rounded_md()
+                                        .bg(theme::color(if active {
+                                            theme::BORDER_STRONG
+                                        } else {
+                                            theme::BG_ELEVATED
+                                        }))
+                                        .border_1()
+                                        .border_color(theme::color(if active {
+                                            theme::ACCENT_SOFT
+                                        } else {
+                                            theme::BORDER_SUBTLE
+                                        }))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .text_xs()
+                                        .font_weight(if active {
+                                            FontWeight::BOLD
+                                        } else {
+                                            FontWeight::MEDIUM
+                                        })
+                                        .text_color(theme::color(if active {
+                                            theme::TEXT_PRIMARY
+                                        } else {
+                                            theme::TEXT_SECONDARY
+                                        }))
+                                        .cursor_pointer()
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            this.selected_patch_idx = idx;
+                                            cx.notify();
+                                        }))
+                                        .child(p)
+                                }),
+                            )
+                        })),
                 )
-                .children(baron_riot::DEFAULT_FALLBACK_ORDER.iter().enumerate().map(
-                    |(idx, prov)| {
-                        div()
-                            .p_2()
-                            .rounded_md()
-                            .bg(theme::color(theme::BG_ELEVATED))
-                            .border_1()
-                            .border_color(theme::color(theme::BORDER_SUBTLE))
-                            .flex()
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .text_xs()
-                            .child(div().font_weight(FontWeight::BOLD).child(format!(
-                                "#{}  {}",
-                                idx + 1,
-                                prov.label()
-                            )))
-                            .child(Tag::success().small().child("Active Fallback"))
-                    },
-                )),
+                // Right Card: Interactive API Provider Mode Switcher (OP.GG #1 -> U.GG #2 -> ...)
+                .child(
+                    div()
+                        .flex_1()
+                        .p_4()
+                        .rounded_lg()
+                        .bg(theme::color(theme::BG_SURFACE))
+                        .border_1()
+                        .border_color(theme::color(theme::BORDER_SUBTLE))
+                        .flex()
+                        .flex_col()
+                        .gap_3()
+                        .child(
+                            div()
+                                .flex()
+                                .flex_row()
+                                .items_center()
+                                .justify_between()
+                                .child(
+                                    div()
+                                        .text_sm()
+                                        .font_weight(FontWeight::BOLD)
+                                        .child("API Provider Mode Switcher (REA MCP Verified)"),
+                                )
+                                .child(Tag::primary().small().child(format!(
+                                    "Active: {} • Patch {}",
+                                    ws.active_provider().label(),
+                                    ws.active_patch()
+                                ))),
+                        )
+                        .children(
+                            baron_riot::DEFAULT_FALLBACK_ORDER
+                                .iter()
+                                .copied()
+                                .enumerate()
+                                .map(|(idx, prov)| {
+                                    let active = ws.selected_provider_idx == idx;
+                                    let role_badge = match idx {
+                                        0 => "Primary #1 (Complete JSON API)",
+                                        1 => "Fallback #2 (Secondary)",
+                                        _ => "Fallback Mirror",
+                                    };
+                                    div()
+                                        .id(SharedString::from(format!("ds-prov-{idx}")))
+                                        .p_3()
+                                        .rounded_md()
+                                        .bg(theme::color(if active {
+                                            theme::BORDER_STRONG
+                                        } else {
+                                            theme::BG_ELEVATED
+                                        }))
+                                        .border_1()
+                                        .border_color(theme::color(if active {
+                                            theme::ACCENT_PRIMARY
+                                        } else {
+                                            theme::BORDER_SUBTLE
+                                        }))
+                                        .flex()
+                                        .flex_row()
+                                        .items_center()
+                                        .justify_between()
+                                        .text_xs()
+                                        .cursor_pointer()
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            this.selected_provider_idx = idx;
+                                            cx.notify();
+                                        }))
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .flex_col()
+                                                .gap_1()
+                                                .child(
+                                                    div()
+                                                        .font_weight(FontWeight::BOLD)
+                                                        .text_color(theme::color(
+                                                            theme::TEXT_PRIMARY,
+                                                        ))
+                                                        .child(format!(
+                                                            "#{}  {}",
+                                                            idx + 1,
+                                                            prov.label()
+                                                        )),
+                                                )
+                                                .child(
+                                                    div()
+                                                        .text_color(theme::color(theme::TEXT_FAINT))
+                                                        .child(prov.tier_list_endpoint_url(
+                                                            ws.active_patch(),
+                                                        )),
+                                                ),
+                                        )
+                                        .child(if active {
+                                            Tag::primary().small().child("● Selected")
+                                        } else {
+                                            Tag::secondary().small().child(role_badge)
+                                        })
+                                }),
+                        ),
+                ),
         )
 }

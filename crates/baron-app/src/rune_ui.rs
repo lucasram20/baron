@@ -80,7 +80,7 @@ pub fn champ_square_avatar(name: &str, level: Option<u8>, small: bool) -> impl I
     let av = if small {
         Avatar::new().name(name.to_string()).small().rounded_md()
     } else {
-        Avatar::new().name(name.to_string()).medium().rounded_md()
+        Avatar::new().name(name.to_string()).rounded_md()
     };
 
     div()
