@@ -6,7 +6,7 @@ import SpotlightCard from "@/components/SpotlightCard";
 import { RankCrest } from "@/components/icons/LolIcons";
 import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
 import { champSquareUrl, itemIconUrl } from "@/lib/ddragon";
-import type { ProviderMeta } from "@/lib/tauri";
+import { isProviderAvailable, type ProviderMeta } from "@/lib/tauri";
 import { type ThemePreference, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import type { BaronRoute } from "@/types/baron";
@@ -534,16 +534,21 @@ export function DataStudioView({
         <p className="text-xs text-baron-ink-secondary">Only OP.GG tier data is implemented. Other providers and build data are unavailable; automatic failover is not implemented.</p>
         {providers.map((prov, idx) => {
           const active = prov.id === activeProviderId;
+          const available = isProviderAvailable(prov.id);
           return (
             <button
               key={prov.id}
               type="button"
+              disabled={!available}
+              title={available ? undefined : "Provider integration unavailable"}
               onClick={() => onSelectProvider(prov.id)}
               className={cn(
                 "flex items-center justify-between rounded-lg border p-3 text-left transition",
-                active
-                  ? "border-baron-accent bg-baron-accent/12"
-                  : "border-baron-border bg-baron-elevated hover:border-baron-border-strong",
+                !available
+                  ? "cursor-not-allowed border-baron-border bg-baron-elevated opacity-50"
+                  : active
+                    ? "border-baron-accent bg-baron-accent/12"
+                    : "border-baron-border bg-baron-elevated hover:border-baron-border-strong",
               )}
             >
               <div className="min-w-0 pr-4">

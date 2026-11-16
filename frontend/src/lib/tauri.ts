@@ -1,5 +1,9 @@
 import { AVAILABLE_PATCHES, AVAILABLE_PERIODS, LATEST_DDRAGON, LATEST_PATCH } from "./ddragon";
 
+export function isProviderAvailable(id: string): boolean {
+  return id === "opgg";
+}
+
 export interface ProviderMeta {
   id: string;
   label: string;

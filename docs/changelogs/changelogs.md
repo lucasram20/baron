@@ -4,6 +4,19 @@ All notable changes to **Baron** are documented in this single consolidated chan
 
 ---
 
+## [v0.1.0-dev.7] — 2026-11-16
+
+### Added
+- Connected the tier-list view to the official OP.GG MCP tier-list tool, with a session handshake, lane selection, error handling, and OP.GG attribution.
+- Added provider response and transport tests, plus an opt-in hosted live OP.GG check.
+
+### Changed
+- Replaced the tier-list mock rows and hardcoded build dialog with live OP.GG data and explicit loading, empty, and error states. Patch, rank, region, and period filtering are not available for this feed.
+- Disabled U.GG, DPM.LOL, LoLalytics, MetaSRC, and Meraki in provider selectors until verified integrations are available. Automatic failover and provider build data are not yet implemented.
+- Rejected sample and unsupported tier-list and build payloads instead of presenting them as provider data. Other application views still contain sample data.
+
+---
+
 ## [v0.1.0-dev.6] — 2026-11-16
 
 ### Fixed

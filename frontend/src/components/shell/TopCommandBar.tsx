@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/command";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AVAILABLE_PATCHES, AVAILABLE_PERIODS } from "@/lib/ddragon";
-import type { ProviderMeta } from "@/lib/tauri";
+import { isProviderAvailable, type ProviderMeta } from "@/lib/tauri";
 import { type ThemePreference, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import type { BaronRoute } from "@/types/baron";
@@ -292,23 +292,28 @@ export function TopCommandBar({
                 <div className="mt-1 flex flex-col gap-1">
                   {providers.map((prov) => {
                     const active = prov.id === activeProviderId;
+                    const available = isProviderAvailable(prov.id);
                     return (
                       <button
                         key={prov.id}
                         type="button"
+                        disabled={!available}
+                        title={available ? undefined : "Provider integration unavailable"}
                         onClick={() => {
                           onSelectProvider(prov.id);
                           onToggleProviderOpen();
                         }}
                         className={cn(
                           "flex items-center justify-between rounded-md px-2.5 py-2 text-xs transition",
-                          active
-                            ? "bg-baron-accent/18 font-bold text-baron-ink ring-1 ring-baron-accent/50"
-                            : "text-baron-ink-secondary hover:bg-baron-hover hover:text-baron-ink",
+                          !available
+                            ? "cursor-not-allowed text-baron-ink-muted opacity-50"
+                            : active
+                              ? "bg-baron-accent/18 font-bold text-baron-ink ring-1 ring-baron-accent/50"
+                              : "text-baron-ink-secondary hover:bg-baron-hover hover:text-baron-ink",
                         )}
                       >
                         <span>{prov.label}</span>
-                        <span className="text-[10px] text-baron-ink-muted">{prov.roleTag}</span>
+                        <span className="text-[10px] text-baron-ink-muted">{available ? "Tier list" : "Unavailable"}</span>
                       </button>
                     );
                   })}

@@ -43,6 +43,10 @@ jobs:
         working-directory: frontend
         run: bun run lint
 
+      - name: Test provider availability
+        working-directory: frontend
+        run: bun test tests/provider-availability.test.js
+
       - name: Typecheck frontend (TypeScript)
         working-directory: frontend
         run: bun run typecheck
