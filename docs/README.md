@@ -12,8 +12,8 @@ Welcome to the documentation for **Baron** — a 100% free, pure native Rust + G
      2. **Live Client Data API** (`https://127.0.0.1:2999/liveclientdata/*`, real-time active game telemetry)
      3. **Data Dragon & CommunityDragon** (static champion/item/rune/augment/skin rarity CDNs)
      4. **Riot Games Official Web API** (`Match-V5`, `Match-V5 Timeline`, `Account-V1`, `League-V4` with SQLite caching)
-3. [**Rust + GPUI Component Technical Architecture**](file:///C:/Users/manue/desktop/projects/baron/docs/spec/architecture-gpui.md)
-   - System architecture diagram, pure native `gpui` + `gpui-component` mapping (`TitleBar`, `Root`, `DockArea`, `DataTable`, `AreaChart`, `RadarChart`, `VirtualList`), Tokio-to-GPUI async bridge, SQLite schema (`baron.db`), and workspace crate structure.
+3. [**Rust Technical Architecture & Tauri v2 Frontend Framework Research**](file:///C:/Users/manue/desktop/projects/baron/docs/spec/architecture-gpui.md)
+   - System architecture diagram, pure native Rust backend crates (`baron-core`, `baron-db`, `baron-lcu`, `baron-riot`), SQLite schema (`baron.db`), `gpui-kit` mapping, and **Section 6: Tauri v2 Frontend Framework Benchmark & Memory/Storage Research (`SolidJS` vs. `Svelte 5 Runes` vs. `Preact` vs. `Vue` vs. `Leptos` vs. `React`)**.
 4. [**UI/UX Architecture & Anti-Clutter Design Specification**](file:///C:/Users/manue/desktop/projects/baron/docs/spec/ui-ux-design.md)
    - Reference dissection of **DPM.lol**, **U.GG**, and **OP.GG** (what to adopt vs. what clutter to strip), 3-layer progressive disclosure rules, native 3-zone desktop shell, screen-by-screen wireframes, and dark-mode GPUI design tokens.
 5. [**Implementation Plan**](file:///C:/Users/manue/desktop/projects/baron/docs/spec/implementation-plan.md)
