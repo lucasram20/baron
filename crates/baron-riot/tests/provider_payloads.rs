@@ -2,6 +2,17 @@ use baron_core::sample_dashboard_data;
 use baron_riot::{parse_fallback_build_json, parse_fallback_tier_list_json, FallbackProvider};
 
 #[test]
+#[ignore = "opt-in live request to the public OP.GG MCP server"]
+fn live_opgg_tier_list() {
+    let rows = baron_riot::fetch_opgg_tier_list(baron_core::models::Role::Top)
+        .expect("live OP.GG MCP request should succeed");
+    assert!(!rows.is_empty(), "OP.GG returned no top lane data");
+    assert!(rows
+        .iter()
+        .all(|row| row.role == baron_core::models::Role::Top));
+}
+
+#[test]
 fn providers_reject_baron_sample_rows_as_provider_responses() {
     let rows = sample_dashboard_data().tier_list;
     let sample_json = serde_json::to_string(&rows).expect("serialize sample rows");
