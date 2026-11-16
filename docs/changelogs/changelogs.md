@@ -14,6 +14,7 @@ All notable changes to **Baron** are documented in this single consolidated chan
 - Replaced the tier-list mock rows and hardcoded build dialog with live OP.GG data and explicit loading, empty, and error states. Patch, rank, region, and period filtering are not available for this feed.
 - Disabled U.GG, DPM.LOL, LoLalytics, MetaSRC, and Meraki in provider selectors until verified integrations are available. Automatic failover and provider build data are not yet implemented.
 - Rejected sample and unsupported tier-list and build payloads instead of presenting them as provider data. Other application views still contain sample data.
+- Updated the README and agent guidance for the current Tauri architecture, live provider support, and remaining limitations.
 
 ---
 

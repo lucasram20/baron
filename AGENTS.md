@@ -18,7 +18,7 @@
   - **Exclusive Package Manager & VoidZero Tooling:** Use **Bun** (`bun install`, `bun run`, `bunx`, `bun.lock`) and **VoidZero `Oxc`** (`oxlint` `1.93.0+`) exclusively for all frontend dependencies, builds, and linting. **STRICTLY FORBIDDEN:** NEVER use `npm`, `pnpm`, `yarn`, `package-lock.json`, `pnpm-lock.yaml`, or slow ESLint plugin chains.
 - **100% Native Rust Backend Crates (Unchanged):**
   - **League Client & Live Game (`baron-lcu`):** `irelia` (`0.11.2+`) and local `lockfile` / `https://127.0.0.1:2999/liveclientdata/*` clients.
-  - **Riot Web API & Meta Providers (`baron-riot`):** `riven` (`2.81+`), Data Dragon (`ddragon.leagueoflegends.com`), CommunityDragon (`raw.communitydragon.org`), and the 6-provider pipeline (`OP.GG` #1 direct JSON API → `U.GG` #2 fallback → `DPM.LOL` → `LoLalytics` → `MetaSRC` → `Meraki CDN`).
+  - **Riot Web API & Meta Providers (`baron-riot`):** Data Dragon and CommunityDragon URL support plus OP.GG's official MCP tier-list integration. U.GG, DPM.LOL, LoLalytics, MetaSRC, and Meraki tier lists, provider builds, and automatic failover are not implemented. Do not treat sample or unverified data as live.
   - **Local Storage (`baron-db`):** `rusqlite` (`0.32+`, `bundled`) storing immutable match summaries, `Match-V5` timelines, LP snapshots, multi-account registries, cached builds, and custom leaderboards in `baron.db`.
 
 ## 3. UI/UX & DPM v1.8.1 Design System
@@ -48,7 +48,7 @@ baron/
     ├── baron-core/             # Domain models, Baron Score (0-100) + MVP/ACE engine, Match-V5 timeline math
     ├── baron-db/               # SQLite schema migrations & local cache repository (baron.db)
     ├── baron-lcu/              # Zero-key LCU lockfile/REST/WS, auto-runes/items, Live Client (2999), Skin Vault
-    └── baron-riot/             # DDragon 16.22 / CDragon URLs, Riot Web API & OP.GG/U.GG fallback providers
+    └── baron-riot/             # DDragon / CDragon URLs, Riot data models & OP.GG MCP tier lists
 ```
 - **Verification & GitHub-Hosted CI/CD (Strict No-Local-Cargo-Build Rule):**
   - **NEVER** run `cargo test`, `cargo build`, `cargo check`, or `cargo run` locally — local Cargo builds (`target/`) consume excessive disk storage and RAM. Never leave a local `target/` directory in the workspace.
