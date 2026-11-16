@@ -3,6 +3,8 @@ resolver = "2"
 members = [
     "crates/baron-core",
     "crates/baron-db",
+    "crates/baron-lcu",
+    "crates/baron-riot",
 ]
 
 [workspace.package]
