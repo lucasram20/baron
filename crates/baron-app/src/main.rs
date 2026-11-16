@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod helpers;
+mod rune_ui;
 mod theme;
 mod views;
 mod workspace;
@@ -16,7 +17,7 @@ fn main() {
             Theme::change(ThemeMode::Dark, None, cx);
 
             let mut options = TitleBar::window_options();
-            options.window_min_size = Some(size(px(1180.), px(760.)));
+            options.window_min_size = Some(size(px(1260.), px(800.)));
             if let Some(ref mut tb) = options.titlebar {
                 tb.title = Some("Baron".into());
             }
