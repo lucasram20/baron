@@ -3,6 +3,14 @@ use serde_json::Value;
 
 use crate::web_api::RiotApiParseError;
 
+#[cfg(test)]
+mod transport_tests;
+
+#[cfg(test)]
+fn fetch_tier_list_from(_url: &str, _role: Role) -> Result<Vec<ChampionTierEntry>, String> {
+    Err("MCP transport is not implemented".to_string())
+}
+
 fn invalid() -> RiotApiParseError {
     RiotApiParseError::InvalidPayload("unsupported OP.GG MCP tier response".to_string())
 }
