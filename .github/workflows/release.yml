@@ -75,7 +75,7 @@ jobs:
         run: cargo test --workspace
 
       - name: Build Baron release binary
-        run: cargo build --release -p baron-app
+        run: cargo build --release -p baron-app --features custom-protocol
 
       - name: Resolve stable tag
         id: meta

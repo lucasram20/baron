@@ -106,7 +106,7 @@ const FALLBACK_BOOTSTRAP: BaronBootstrapPayload = {
   },
 };
 
-function isTauriRuntime(): boolean {
+export function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
@@ -117,7 +117,8 @@ export async function fetchBootstrapData(patch?: string): Promise<BaronBootstrap
   try {
     const { invoke } = await import("@tauri-apps/api/core");
     return await invoke<BaronBootstrapPayload>("get_bootstrap_data", { patch: patch ?? null });
-  } catch {
+  } catch (err) {
+    console.warn("Tauri invoke(get_bootstrap_data) failed, using fallback:", err);
     return FALLBACK_BOOTSTRAP;
   }
 }

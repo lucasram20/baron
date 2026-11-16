@@ -12,6 +12,12 @@ path = "src/main.rs"
 name = "baron_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+# Embed ../frontend/out by default so `cargo build --release -p baron-app` serves
+# static Next.js assets rather than connecting to devUrl localhost:3000.
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
 [build-dependencies]
 tauri-build = { version = "2.7", features = [] }
 

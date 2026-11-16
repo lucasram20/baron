@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Baron",
         "width": 1340,
         "height": 840,
