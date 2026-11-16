@@ -106,7 +106,7 @@ export interface SkinPosterItem {
   champion: string;
   skinNum: number;
   priceLabel: string;
-  rarity: "Standard" | "Epic" | "Legendary" | "Mythic" | "Ultimate" | "Exalted" | "Transcendent";
+  rarity: "Standard" | "Rare" | "Epic" | "Legendary" | "Mythic" | "Ultimate" | "Exalted" | "Transcendent";
   owned: boolean;
   year: number;
 }

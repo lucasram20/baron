@@ -1,9 +1,38 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Search, Settings } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  BarChart3,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Crown,
+  Database,
+  Eye,
+  Home,
+  Layers,
+  Monitor,
+  Moon,
+  RefreshCw,
+  Search,
+  Settings,
+  Sparkles,
+  Sun,
+  Swords,
+} from "lucide-react";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AVAILABLE_PATCHES, AVAILABLE_PERIODS } from "@/lib/ddragon";
 import type { ProviderMeta } from "@/lib/tauri";
+import { type ThemePreference, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import type { BaronRoute } from "@/types/baron";
 
@@ -28,6 +57,44 @@ interface TopCommandBarProps {
   onNavigate: (route: BaronRoute) => void;
 }
 
+const THEME_OPTIONS: { id: ThemePreference; label: string; icon: typeof Sun }[] = [
+  { id: "light", label: "Light mode", icon: Sun },
+  { id: "dark", label: "Cool-black dark", icon: Moon },
+  { id: "system", label: "Use system default", icon: Monitor },
+];
+
+const QUICK_ROUTES: { route: BaronRoute; label: string; hint: string }[] = [
+  { route: "champselect", label: "Champ Select", hint: "Live 5v5 draft & auto-runes" },
+  { route: "postgame", label: "Post-game", hint: "Scoreboard, Baron Score & @14m curve" },
+  { route: "tierlist", label: "Tierlist & Builds", hint: "Meta rankings & patch winrates" },
+  { route: "spectate", label: "Spectate", hint: "Live high-elo Challenger games" },
+  { route: "collections", label: "Collections", hint: "Skin vault & RP portfolio" },
+  { route: "dashboard", label: "Dashboard", hint: "Summoner overview & LP delta" },
+  { route: "leaderboards", label: "Leaderboards", hint: "Regional Challenger ladder" },
+  { route: "datastudio", label: "Data Studio", hint: "Provider routing & LCU diagnostics" },
+];
+
+function RouteGlyph({ route }: { route: BaronRoute }) {
+  switch (route) {
+    case "champselect":
+      return <Sparkles className="h-4 w-4 text-baron-gold" />;
+    case "postgame":
+      return <Swords className="h-4 w-4 text-baron-gold" />;
+    case "tierlist":
+      return <BarChart3 className="h-4 w-4 text-baron-accent-soft" />;
+    case "spectate":
+      return <Eye className="h-4 w-4 text-baron-cyan" />;
+    case "collections":
+      return <Layers className="h-4 w-4 text-baron-ace" />;
+    case "leaderboards":
+      return <Crown className="h-4 w-4 text-baron-gold" />;
+    case "datastudio":
+      return <Database className="h-4 w-4 text-baron-ink-secondary" />;
+    default:
+      return <Home className="h-4 w-4 text-baron-ink-secondary" />;
+  }
+}
+
 export function TopCommandBar({
   searchQuery,
   onSearchChange,
@@ -48,14 +115,15 @@ export function TopCommandBar({
   onForward,
   onNavigate,
 }: TopCommandBarProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const { preference, setPreference } = useTheme();
   const activeProvider = providers.find((p) => p.id === activeProviderId) ?? providers[0];
 
   useEffect(() => {
     const handleKey = (ev: KeyboardEvent) => {
       if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "k") {
         ev.preventDefault();
-        inputRef.current?.focus();
+        setCommandOpen((prev) => !prev);
       }
     };
     window.addEventListener("keydown", handleKey);
@@ -63,198 +131,326 @@ export function TopCommandBar({
   }, []);
 
   return (
-    <header className="relative z-40 flex h-11 shrink-0 items-center justify-between border-b border-baron-border bg-baron-sidebar px-4">
-      {/* Left History Controls */}
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={onBack}
-          title="Back"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-baron-surface hover:text-slate-100"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={onForward}
-          title="Forward"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-baron-surface hover:text-slate-100"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          title="Refresh Data"
-          onClick={() => onSelectPatch(patch)}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-baron-surface hover:text-slate-100"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-        </button>
-      </div>
+    <>
+      <header className="relative z-40 flex h-11 shrink-0 items-center justify-between border-b border-baron-border bg-baron-sidebar px-4">
+        {/* Left History Controls */}
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onBack}
+                aria-label="Back"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-baron-ink-secondary transition hover:bg-baron-hover hover:text-baron-ink"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Previous view</TooltipContent>
+          </Tooltip>
 
-      {/* Centered Ctrl+K Command Search Bar */}
-      <div className="flex h-8 w-[440px] items-center gap-2 rounded-md border border-baron-border bg-baron-surface px-2.5 focus-within:border-baron-accent">
-        <Search className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-        <input
-          ref={inputRef}
-          type="text"
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search a player, a champion, a team, a pro..."
-          className="w-full bg-transparent text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none"
-        />
-        <div className="flex shrink-0 items-center gap-1">
-          <kbd className="rounded border border-baron-border-strong bg-baron-elevated px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">
-            Ctrl
-          </kbd>
-          <kbd className="rounded border border-baron-border-strong bg-baron-elevated px-1.5 py-0.5 text-[10px] font-semibold text-slate-400">
-            K
-          </kbd>
-        </div>
-      </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onForward}
+                aria-label="Forward"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-baron-ink-secondary transition hover:bg-baron-hover hover:text-baron-ink"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Next view</TooltipContent>
+          </Tooltip>
 
-      {/* Right Action Pills: Patch/Period Popover, API Provider Mode Dropdown, LCU Status */}
-      <div className="flex items-center gap-2">
-        {/* Patch & Period Trigger + Popover */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={onTogglePatchPopover}
-            className="flex h-7 items-center gap-1.5 rounded-md border border-baron-border bg-baron-surface px-2.5 text-xs font-semibold text-slate-200 transition hover:border-baron-border-strong"
-          >
-            <span>Patch {patch}</span>
-            <span className="text-[10px] text-slate-400">· {period}</span>
-            <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-          </button>
-
-          {patchPopoverOpen && (
-            <div className="absolute right-0 top-9 z-50 w-[280px] rounded-xl border border-baron-border-strong bg-[#0D1017] p-3 shadow-2xl">
-              <div className="mb-2 text-[10px] font-bold tracking-wider text-slate-400">
-                PERIOD
-              </div>
-              <div className="mb-3 grid grid-cols-3 gap-1.5">
-                {AVAILABLE_PERIODS.map((p) => {
-                  const active = period === p;
-                  return (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => onSelectPeriod(p)}
-                      className={cn(
-                        "h-8 rounded-md text-xs font-medium transition",
-                        active
-                          ? "bg-[#3A3D4B] font-bold text-white ring-1 ring-slate-500/50"
-                          : "bg-[#1A1D26] text-slate-300 hover:bg-[#232735]",
-                      )}
-                    >
-                      {p}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mb-2 text-[10px] font-bold tracking-wider text-slate-400">
-                PATCH
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {AVAILABLE_PATCHES.map((ver) => {
-                  const active = patch === ver;
-                  return (
-                    <button
-                      key={ver}
-                      type="button"
-                      onClick={() => {
-                        onSelectPatch(ver);
-                        onTogglePatchPopover();
-                      }}
-                      className={cn(
-                        "h-8 rounded-md text-xs font-medium transition",
-                        active
-                          ? "bg-[#3A3D4B] font-bold text-white ring-1 ring-slate-500/50"
-                          : "bg-[#1A1D26] text-slate-300 hover:bg-[#232735]",
-                      )}
-                    >
-                      {ver}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Refresh Data"
+                onClick={() => onSelectPatch(patch)}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-baron-ink-secondary transition hover:bg-baron-hover hover:text-baron-ink"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Refresh patch &amp; LCU state</TooltipContent>
+          </Tooltip>
         </div>
 
-        {/* API Provider Mode Dropdown (OP.GG #1 -> U.GG #2 -> ...) */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={onToggleProviderOpen}
-            className="flex h-7 items-center gap-1.5 rounded-md border border-indigo-500/40 bg-indigo-500/15 px-2.5 text-xs font-semibold text-indigo-200 transition hover:bg-indigo-500/25"
-          >
-            <span>API: {activeProvider?.label ?? "OP.GG"}</span>
-            <ChevronDown className="h-3.5 w-3.5" />
-          </button>
-
-          {providerOpen && (
-            <div className="absolute right-0 top-9 z-50 w-[240px] rounded-xl border border-baron-border-strong bg-[#0D1017] p-2 shadow-2xl">
-              <div className="px-2 py-1 text-[10px] font-bold tracking-wider text-slate-400">
-                API PROVIDER MODE
-              </div>
-              <div className="mt-1 flex flex-col gap-1">
-                {providers.map((prov) => {
-                  const active = prov.id === activeProviderId;
-                  return (
-                    <button
-                      key={prov.id}
-                      type="button"
-                      onClick={() => {
-                        onSelectProvider(prov.id);
-                        onToggleProviderOpen();
-                      }}
-                      className={cn(
-                        "flex items-center justify-between rounded-md px-2.5 py-2 text-xs transition",
-                        active
-                          ? "bg-indigo-500/20 font-bold text-white ring-1 ring-indigo-500/50"
-                          : "text-slate-300 hover:bg-baron-elevated",
-                      )}
-                    >
-                      <span>{prov.label}</span>
-                      <span className="text-[10px] text-slate-400">{prov.roleTag}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* LCU Connection Pill */}
-        <div
-          className={cn(
-            "flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-bold",
-            lcuConnected
-              ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-300"
-              : "border-indigo-500/35 bg-indigo-500/15 text-indigo-300",
-          )}
-          title={lcuMessage}
+        {/* Centered Ctrl+K Command Palette Trigger */}
+        <button
+          type="button"
+          onClick={() => setCommandOpen(true)}
+          className="flex h-8 w-[420px] items-center justify-between gap-2 rounded-md border border-baron-border bg-baron-surface px-2.5 text-left transition hover:border-baron-border-strong focus:border-baron-accent focus:outline-none"
         >
-          <span
-            className={cn(
-              "h-2 w-2 rounded-full",
-              lcuConnected ? "bg-emerald-400" : "bg-indigo-400",
+          <span className="flex min-w-0 items-center gap-2">
+            <Search className="h-3.5 w-3.5 shrink-0 text-baron-ink-muted" />
+            <span className="truncate text-xs text-baron-ink-muted">
+              {searchQuery ? searchQuery : "Search a player, a champion, a team, a pro..."}
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1">
+            <kbd className="rounded border border-baron-border-strong bg-baron-elevated px-1.5 py-0.5 text-[10px] font-semibold text-baron-ink-secondary">
+              Ctrl
+            </kbd>
+            <kbd className="rounded border border-baron-border-strong bg-baron-elevated px-1.5 py-0.5 text-[10px] font-semibold text-baron-ink-secondary">
+              K
+            </kbd>
+          </span>
+        </button>
+
+        {/* Right Action Controls */}
+        <div className="flex items-center gap-2">
+          {/* Patch & Period Trigger + Popover */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={onTogglePatchPopover}
+              className="flex h-7 items-center gap-1.5 rounded-md border border-baron-border bg-baron-surface px-2.5 text-xs font-semibold text-baron-ink transition hover:border-baron-border-strong"
+            >
+              <span>Patch {patch}</span>
+              <span className="text-[10px] text-baron-ink-muted">· {period}</span>
+              <ChevronDown className="h-3.5 w-3.5 text-baron-ink-muted" />
+            </button>
+
+            {patchPopoverOpen && (
+              <div className="absolute right-0 top-9 z-50 w-[280px] rounded-xl border border-baron-border-strong bg-baron-sidebar p-3 shadow-2xl">
+                <div className="mb-2 text-[10px] font-bold tracking-wider text-baron-ink-muted">
+                  PERIOD
+                </div>
+                <div className="mb-3 grid grid-cols-3 gap-1.5">
+                  {AVAILABLE_PERIODS.map((p) => {
+                    const active = period === p;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => onSelectPeriod(p)}
+                        className={cn(
+                          "h-8 rounded-md text-xs font-medium transition",
+                          active
+                            ? "bg-baron-accent font-bold text-white"
+                            : "bg-baron-elevated text-baron-ink-secondary hover:bg-baron-hover hover:text-baron-ink",
+                        )}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mb-2 text-[10px] font-bold tracking-wider text-baron-ink-muted">
+                  PATCH
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {AVAILABLE_PATCHES.map((ver) => {
+                    const active = patch === ver;
+                    return (
+                      <button
+                        key={ver}
+                        type="button"
+                        onClick={() => {
+                          onSelectPatch(ver);
+                          onTogglePatchPopover();
+                        }}
+                        className={cn(
+                          "h-8 rounded-md text-xs font-medium transition",
+                          active
+                            ? "bg-baron-accent font-bold text-white"
+                            : "bg-baron-elevated text-baron-ink-secondary hover:bg-baron-hover hover:text-baron-ink",
+                        )}
+                      >
+                        {ver}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
-          />
-          <span>{lcuConnected ? "LCU Live" : "LCU Ready"}</span>
-        </div>
+          </div>
 
-        <button
-          type="button"
-          title="Data Studio & API Settings"
-          onClick={() => onNavigate("datastudio")}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-baron-surface hover:text-slate-100"
-        >
-          <Settings className="h-4 w-4" />
-        </button>
-      </div>
-    </header>
+          {/* API Provider Mode Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={onToggleProviderOpen}
+              className="flex h-7 items-center gap-1.5 rounded-md border border-baron-accent/40 bg-baron-accent/12 px-2.5 text-xs font-semibold text-baron-accent-soft transition hover:bg-baron-accent/20"
+            >
+              <span>API: {activeProvider?.label ?? "OP.GG"}</span>
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+
+            {providerOpen && (
+              <div className="absolute right-0 top-9 z-50 w-[240px] rounded-xl border border-baron-border-strong bg-baron-sidebar p-2 shadow-2xl">
+                <div className="px-2 py-1 text-[10px] font-bold tracking-wider text-baron-ink-muted">
+                  API PROVIDER MODE
+                </div>
+                <div className="mt-1 flex flex-col gap-1">
+                  {providers.map((prov) => {
+                    const active = prov.id === activeProviderId;
+                    return (
+                      <button
+                        key={prov.id}
+                        type="button"
+                        onClick={() => {
+                          onSelectProvider(prov.id);
+                          onToggleProviderOpen();
+                        }}
+                        className={cn(
+                          "flex items-center justify-between rounded-md px-2.5 py-2 text-xs transition",
+                          active
+                            ? "bg-baron-accent/18 font-bold text-baron-ink ring-1 ring-baron-accent/50"
+                            : "text-baron-ink-secondary hover:bg-baron-hover hover:text-baron-ink",
+                        )}
+                      >
+                        <span>{prov.label}</span>
+                        <span className="text-[10px] text-baron-ink-muted">{prov.roleTag}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 3-State Theme Switcher: Light / Cool-Black Dark / System */}
+          <div
+            role="group"
+            aria-label="Theme preference"
+            className="flex h-7 items-center rounded-md border border-baron-border bg-baron-surface p-0.5"
+          >
+            {THEME_OPTIONS.map((opt) => {
+              const Icon = opt.icon;
+              const active = preference === opt.id;
+              return (
+                <Tooltip key={opt.id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setPreference(opt.id)}
+                      aria-label={opt.label}
+                      className={cn(
+                        "flex h-5.5 w-6 items-center justify-center rounded transition",
+                        active
+                          ? "bg-baron-accent text-white"
+                          : "text-baron-ink-muted hover:text-baron-ink",
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>{opt.label}</TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+
+          {/* LCU Connection Pill */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className={cn(
+                  "flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-bold",
+                  lcuConnected
+                    ? "border-baron-emerald/40 bg-baron-emerald/12 text-baron-emerald"
+                    : "border-baron-accent/35 bg-baron-accent/12 text-baron-accent-soft",
+                )}
+              >
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    lcuConnected ? "bg-baron-emerald" : "bg-baron-accent-soft",
+                  )}
+                />
+                <span>{lcuConnected ? "LCU Live" : "LCU Ready"}</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>{lcuMessage}</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Data Studio & Settings"
+                onClick={() => onNavigate("datastudio")}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-baron-ink-secondary transition hover:bg-baron-hover hover:text-baron-ink"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Data Studio &amp; Provider Diagnostics</TooltipContent>
+          </Tooltip>
+        </div>
+      </header>
+
+      <CommandDialog open={commandOpen} onOpenChange={setCommandOpen}>
+        <CommandInput
+          value={searchQuery}
+          onValueChange={onSearchChange}
+          placeholder="Search a player, a champion, a view, or switch theme..."
+        />
+        <CommandList className="bg-baron-sidebar text-baron-ink">
+          <CommandEmpty>No matching player, champion, or action.</CommandEmpty>
+          <CommandGroup heading="Views">
+            {QUICK_ROUTES.map((item) => (
+              <CommandItem
+                key={item.route}
+                onSelect={() => {
+                  onNavigate(item.route);
+                  setCommandOpen(false);
+                }}
+                className="flex items-center justify-between gap-3"
+              >
+                <span className="flex items-center gap-2">
+                  <RouteGlyph route={item.route} />
+                  <span className="font-semibold">{item.label}</span>
+                </span>
+                <span className="text-[11px] text-baron-ink-muted">{item.hint}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+          <CommandSeparator />
+          <CommandGroup heading="Pro Players & Summoners">
+            {[
+              { label: "Faker · T1 · Ahri", target: "spectate" as BaronRoute },
+              { label: "Gumayusi · T1 · Jinx / Ashe", target: "champselect" as BaronRoute },
+              { label: "Nyx#DPM · Ranked Solo/Duo (Victory +21 LP)", target: "postgame" as BaronRoute },
+              { label: "Chovy · GEN · Lucian", target: "spectate" as BaronRoute },
+            ].map((p) => (
+              <CommandItem
+                key={p.label}
+                onSelect={() => {
+                  onNavigate(p.target);
+                  setCommandOpen(false);
+                }}
+              >
+                {p.label}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+          <CommandSeparator />
+          <CommandGroup heading="Appearance Theme">
+            {THEME_OPTIONS.map((opt) => {
+              const Icon = opt.icon;
+              return (
+                <CommandItem
+                  key={opt.id}
+                  onSelect={() => {
+                    setPreference(opt.id);
+                    setCommandOpen(false);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{opt.label}</span>
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+    </>
   );
 }

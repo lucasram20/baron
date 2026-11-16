@@ -2,8 +2,17 @@
 
 import { useState } from "react";
 import { Activity, BarChart2, Shield, Swords } from "lucide-react";
+import { ObjectiveBadge, RankCrest } from "@/components/icons/LolIcons";
+import { NumberTicker } from "@/components/ui/number-ticker";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { POSTGAME_PARTICIPANTS } from "@/data/mockDpm";
-import { champSquareUrl, itemIconUrl, runeIconUrl, spellIconUrl } from "@/lib/ddragon";
+import {
+  champSplashUrl,
+  champSquareUrl,
+  itemIconUrl,
+  runeIconUrl,
+  spellIconUrl,
+} from "@/lib/ddragon";
 import { cn } from "@/lib/utils";
 import type { ScoreboardParticipant } from "@/types/baron";
 
@@ -11,6 +20,9 @@ interface PostGameViewProps {
   ddVersion: string;
   goldCurve: [number, number][];
 }
+
+const BLUE_BANS = ["Zed", "Rengar", "Akali", "Hecarim", "Caitlyn"];
+const RED_BANS = ["Katarina", "Vayne", "Fizz", "Lucian", "Shaco"];
 
 function ScoreRing({ score, large = false }: { score: number; large?: boolean }) {
   const color =
@@ -27,8 +39,7 @@ function ScoreRing({ score, large = false }: { score: number; large?: boolean })
           cx={size / 2}
           cy={size / 2}
           r={r}
-          fill="rgba(17,21,31,0.8)"
-          stroke="#1E2536"
+          className="fill-baron-surface stroke-baron-border"
           strokeWidth={large ? 3 : 2.5}
         />
         <circle
@@ -45,7 +56,7 @@ function ScoreRing({ score, large = false }: { score: number; large?: boolean })
       </svg>
       <span
         className={cn(
-          "absolute font-extrabold text-slate-100",
+          "absolute font-extrabold text-baron-ink",
           large ? "text-base" : "text-[11px]",
         )}
       >
@@ -66,21 +77,22 @@ export function PostGameView({ ddVersion, goldCurve }: PostGameViewProps) {
     <div
       key={`${p.team}-${p.name}`}
       className={cn(
-        "grid grid-cols-[54px_245px_188px_132px_74px_150px_48px] items-center border-b border-baron-border-muted px-3 py-2 text-xs transition",
-        p.isYou ? "bg-blue-500/12" : "hover:bg-baron-elevated/60",
+        "relative grid grid-cols-[54px_245px_188px_132px_74px_150px_48px] items-center border-b border-baron-border-muted px-3 py-2 text-xs transition",
+        p.isYou ? "bg-baron-victory/10" : "hover:bg-baron-hover/65",
       )}
     >
+      {p.isYou && <span className="absolute top-0 bottom-0 left-0 w-px bg-baron-victory" />}
       <div>
         {p.badge === "MVP" ? (
-          <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-black text-amber-400 ring-1 ring-amber-400/50">
+          <span className="rounded bg-baron-gold/18 px-2 py-0.5 text-[10px] font-black text-baron-gold ring-1 ring-baron-gold/50">
             MVP
           </span>
         ) : p.badge === "ACE" ? (
-          <span className="rounded bg-purple-500/20 px-2 py-0.5 text-[10px] font-black text-purple-300 ring-1 ring-purple-400/50">
+          <span className="rounded bg-baron-ace/18 px-2 py-0.5 text-[10px] font-black text-baron-ace ring-1 ring-baron-ace/50">
             ACE
           </span>
         ) : (
-          <span className="text-slate-400">{p.place}</span>
+          <span className="font-medium text-baron-ink-muted">{p.place}</span>
         )}
       </div>
 
@@ -92,7 +104,7 @@ export function PostGameView({ ddVersion, goldCurve }: PostGameViewProps) {
             alt={p.champion}
             className="h-9 w-9 rounded-md object-cover ring-1 ring-baron-border"
           />
-          <span className="absolute -right-1 -bottom-1 rounded bg-baron-canvas px-1 text-[9px] font-bold text-slate-200 ring-1 ring-baron-border">
+          <span className="absolute -right-1 -bottom-1 rounded bg-baron-canvas px-1 text-[9px] font-bold text-baron-ink ring-1 ring-baron-border">
             {p.level}
           </span>
         </div>
@@ -122,55 +134,64 @@ export function PostGameView({ ddVersion, goldCurve }: PostGameViewProps) {
         </div>
         <div className="min-w-0 pl-0.5">
           <div className="flex items-center gap-1">
-            <span className="truncate font-bold text-slate-100">{p.name}</span>
-            <span className="text-[10px] text-slate-500">{p.tag}</span>
+            <span className="truncate font-bold text-baron-ink">{p.name}</span>
+            <span className="text-[10px] text-baron-ink-muted">{p.tag}</span>
             {p.isYou && (
-              <span className="rounded bg-indigo-500/30 px-1 text-[9px] font-bold text-indigo-200">
+              <span className="rounded bg-baron-accent/25 px-1 text-[9px] font-bold text-baron-accent-soft">
                 YOU
               </span>
             )}
           </div>
-          <div className="text-[11px] text-slate-400">
-            <span className="font-semibold text-sky-400">{p.rankBadge}</span> {p.champion}
+          <div className="flex items-center gap-1 text-[11px] text-baron-ink-secondary">
+            <RankCrest tier={p.rankBadge} className="h-3.5 w-3.5" />
+            <span className="font-semibold text-baron-cyan">{p.rankBadge}</span>
+            <span>{p.champion}</span>
           </div>
         </div>
       </div>
 
       {/* 6 Items */}
       <div className="flex items-center gap-1">
-        {p.items.map((id, i) => (
-          <img
-            key={`${id}-${i}`}
-            src={itemIconUrl(id, ddVersion)}
-            alt={String(id)}
-            className={cn(
-              "h-6 w-6 rounded border border-baron-border",
-              i === 5 && "rounded-full",
-            )}
-          />
+        {p.items.map((id, idx) => (
+          <Tooltip key={`${p.name}-slot-${idx}`}>
+            <TooltipTrigger asChild>
+              <img
+                src={itemIconUrl(id, ddVersion)}
+                alt={`Item ${id}`}
+                className={cn(
+                  "h-6 w-6 rounded border border-baron-border",
+                  idx === 5 && "rounded-full",
+                )}
+              />
+            </TooltipTrigger>
+            <TooltipContent>Item ID #{id}</TooltipContent>
+          </Tooltip>
         ))}
       </div>
 
       {/* KDA */}
       <div>
-        <div className="font-bold text-slate-100">
+        <div className="font-bold text-baron-ink">
           {p.kills} / <span className="text-baron-defeat">{p.deaths}</span> / {p.assists}
         </div>
-        <div className="text-[10px] text-slate-400">{p.kdaLine}</div>
+        <div className="text-[10px] text-baron-ink-secondary">{p.kdaLine}</div>
       </div>
 
       {/* CS / Vision */}
       <div>
-        <div className="font-bold text-slate-100">{p.csTop}</div>
-        <div className="text-[10px] text-slate-400">{p.csSub}</div>
+        <div className="font-bold text-baron-ink">{p.csTop}</div>
+        <div className="text-[10px] text-baron-ink-secondary">{p.csSub}</div>
       </div>
 
       {/* Damage + Proportional Bar */}
       <div className="pr-3">
-        <div className="mb-1 text-[11px] font-bold text-slate-100">{p.dmgLabel}</div>
+        <div className="mb-1 text-[11px] font-bold text-baron-ink">{p.dmgLabel}</div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-baron-elevated">
           <div
-            className={cn("h-full rounded-full", p.team === "blue" ? "bg-baron-victory" : "bg-baron-defeat")}
+            className={cn(
+              "h-full rounded-full",
+              p.team === "blue" ? "bg-baron-victory" : "bg-baron-defeat",
+            )}
             style={{ width: `${Math.round(p.dmgRatio * 100)}%` }}
           />
         </div>
@@ -185,17 +206,24 @@ export function PostGameView({ ddVersion, goldCurve }: PostGameViewProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Match Hero Card */}
-      <div className="overflow-hidden rounded-xl border border-baron-border bg-baron-surface">
-        <div className="flex items-center justify-between border-b border-baron-border px-5 py-4">
+      {/* Match Hero Card with Subtle Right-Faded Ahri Splash Art */}
+      <div className="relative overflow-hidden rounded-xl border border-baron-border bg-baron-surface">
+        <img
+          src={champSplashUrl("Ahri", 0)}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 right-0 h-[108px] w-[420px] object-cover object-top opacity-20 [mask-image:linear-gradient(to_left,black_15%,transparent_95%)]"
+        />
+
+        <div className="relative flex items-center justify-between border-b border-baron-border px-5 py-4">
           <div className="flex items-center gap-3.5">
             <div className="relative">
               <img
                 src={champSquareUrl("Ahri", ddVersion)}
                 alt="Ahri"
-                className="h-14 w-14 rounded-lg object-cover ring-1 ring-blue-500/40"
+                className="h-14 w-14 rounded-lg object-cover ring-1 ring-baron-victory/50"
               />
-              <span className="absolute -right-1 -bottom-1 rounded bg-baron-canvas px-1.5 text-[10px] font-bold text-slate-200 ring-1 ring-baron-border">
+              <span className="absolute -right-1 -bottom-1 rounded bg-baron-canvas px-1.5 text-[10px] font-bold text-baron-ink ring-1 ring-baron-border">
                 17
               </span>
             </div>
@@ -214,18 +242,19 @@ export function PostGameView({ ddVersion, goldCurve }: PostGameViewProps) {
             <img
               src={runeIconUrl("perk-images/Styles/Domination/Electrocute/Electrocute.png")}
               alt="Electrocute"
-              className="h-8 w-8 rounded-full bg-baron-elevated p-0.5 ring-1 ring-rose-500/40"
+              className="h-8 w-8 rounded-full bg-baron-elevated p-0.5 ring-1 ring-baron-defeat/40"
             />
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-slate-50">
-                  Nyx<span className="text-slate-400">#DPM</span>
+                <span className="text-base font-bold text-baron-ink">
+                  Nyx<span className="text-baron-ink-muted">#DPM</span>
                 </span>
-                <span className="rounded bg-blue-500/20 px-2 py-0.5 text-[11px] font-bold text-sky-300 ring-1 ring-blue-500/40">
-                  ◆ D4
+                <span className="inline-flex items-center gap-1 rounded bg-baron-victory/15 px-2 py-0.5 text-[11px] font-bold text-baron-cyan ring-1 ring-baron-victory/40">
+                  <RankCrest tier="DIAMOND" className="h-3.5 w-3.5" />
+                  <span>D4</span>
                 </span>
               </div>
-              <div className="mt-1 text-xs text-slate-400">
+              <div className="mt-1 text-xs text-baron-ink-secondary">
                 Ahri · Ranked Solo/Duo · 33:07 · 6 minutes ago
               </div>
             </div>
@@ -235,7 +264,7 @@ export function PostGameView({ ddVersion, goldCurve }: PostGameViewProps) {
             <ScoreRing score={75} large />
             <div className="text-right">
               <div className="text-xl font-extrabold text-baron-victory">Victory</div>
-              <span className="inline-block rounded bg-blue-500/20 px-2 py-0.5 text-xs font-bold text-sky-300">
+              <span className="inline-block rounded bg-baron-victory/15 px-2 py-0.5 text-xs font-bold text-baron-cyan">
                 +21 LP
               </span>
             </div>
@@ -252,8 +281,8 @@ export function PostGameView({ ddVersion, goldCurve }: PostGameViewProps) {
             { top: "25", sub: "Vision score" },
           ].map((m) => (
             <div key={m.sub} className="px-5 py-3">
-              <div className="text-lg font-extrabold text-slate-50">{m.top}</div>
-              <div className="text-xs text-slate-400">{m.sub}</div>
+              <div className="text-lg font-extrabold text-baron-ink">{m.top}</div>
+              <div className="text-xs text-baron-ink-muted">{m.sub}</div>
             </div>
           ))}
         </div>
@@ -276,8 +305,8 @@ export function PostGameView({ ddVersion, goldCurve }: PostGameViewProps) {
               className={cn(
                 "flex items-center gap-1.5 border-b-2 pb-2.5 text-xs font-semibold transition",
                 active
-                  ? "border-baron-victory text-slate-50"
-                  : "border-transparent text-slate-400 hover:text-slate-200",
+                  ? "border-baron-victory text-baron-ink"
+                  : "border-transparent text-baron-ink-muted hover:text-baron-ink",
               )}
             >
               {t.icon}
@@ -289,87 +318,146 @@ export function PostGameView({ ddVersion, goldCurve }: PostGameViewProps) {
 
       {activeTab === "scoreboard" ? (
         <div className="overflow-hidden rounded-xl border border-baron-border bg-baron-surface">
-          <div className="flex items-center justify-between border-b border-baron-border bg-blue-500/10 px-4 py-2 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-baron-victory">Victory</span>
-              <span className="text-slate-400">Blue side</span>
+          {/* Blue Side Header with Objectives & Bans */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-baron-border bg-baron-victory/10 px-4 py-2 text-xs">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-baron-victory">Victory</span>
+                <span className="text-baron-ink-secondary">Blue side</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <ObjectiveBadge kind="tower" count={8} team="blue" />
+                <ObjectiveBadge kind="grub" count={3} team="blue" />
+                <ObjectiveBadge kind="herald" count={1} team="blue" />
+                <ObjectiveBadge kind="dragon" count={2} team="blue" />
+                <ObjectiveBadge kind="baron" count={1} team="blue" />
+              </div>
             </div>
-            <div className="text-slate-400">Towers 8 · Voidgrubs 3 · Herald 1 · Dragons 2 · Baron 1</div>
-            <div className="font-bold text-slate-200">31 / 24 / 60 KDA · 68.5k gold</div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-baron-ink-muted">Bans</span>
+              <div className="flex items-center gap-1">
+                {BLUE_BANS.map((champ) => (
+                  <img
+                    key={champ}
+                    src={champSquareUrl(champ, ddVersion)}
+                    alt={`Banned ${champ}`}
+                    className="h-4.5 w-4.5 rounded-sm border border-baron-border opacity-60 grayscale"
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="font-bold text-baron-ink">
+              31 / 24 / 60 KDA <span className="ml-2 text-baron-ink-secondary">68.5k gold</span>
+            </div>
           </div>
           {bluePlayers.map(renderRow)}
 
-          <div className="flex items-center justify-between border-b border-baron-border bg-rose-500/10 px-4 py-2 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-baron-defeat">Defeat</span>
-              <span className="text-slate-400">Red side</span>
+          {/* Red Side Header with Objectives & Bans */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-baron-border bg-baron-defeat/10 px-4 py-2 text-xs">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-baron-defeat">Defeat</span>
+                <span className="text-baron-ink-secondary">Red side</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <ObjectiveBadge kind="tower" count={5} team="red" />
+                <ObjectiveBadge kind="grub" count={0} team="red" />
+                <ObjectiveBadge kind="herald" count={0} team="red" />
+                <ObjectiveBadge kind="dragon" count={2} team="red" />
+                <ObjectiveBadge kind="baron" count={0} team="red" />
+              </div>
             </div>
-            <div className="text-slate-400">Towers 5 · Voidgrubs 0 · Herald 0 · Dragons 2 · Baron 0</div>
-            <div className="font-bold text-slate-200">24 / 31 / 50 KDA · 63.2k gold</div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-baron-ink-muted">Bans</span>
+              <div className="flex items-center gap-1">
+                {RED_BANS.map((champ) => (
+                  <img
+                    key={champ}
+                    src={champSquareUrl(champ, ddVersion)}
+                    alt={`Banned ${champ}`}
+                    className="h-4.5 w-4.5 rounded-sm border border-baron-border opacity-60 grayscale"
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="font-bold text-baron-ink">
+              24 / 31 / 50 KDA <span className="ml-2 text-baron-ink-secondary">63.2k gold</span>
+            </div>
           </div>
           {redPlayers.map(renderRow)}
         </div>
-      ) : (
-        <div className="grid grid-cols-[1fr_320px] gap-3">
+      ) : activeTab === "details" ? (
+        <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border border-baron-border bg-baron-surface p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-200">
-                Team Gold Advantage Timeline (@14:00: +1,850g)
-              </span>
-              <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-300">
-                XP @14: +410 · CS @14: +14
-              </span>
-            </div>
-            <svg viewBox="0 0 500 160" className="h-44 w-full">
-              <defs>
-                <linearGradient id="goldFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.45" />
-                  <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.02" />
-                </linearGradient>
-              </defs>
-              <line x1="0" y1="130" x2="500" y2="130" stroke="#1E2536" strokeWidth="1" />
+            <h3 className="text-sm font-bold text-baron-ink">Team Gold Lead Curve (0 → 33m)</h3>
+            <p className="mb-3 text-xs text-baron-ink-secondary">
+              Computed locally in Rust (`baron-core::timeline`) from Match-V5 frame diffs
+            </p>
+            <svg viewBox="0 0 420 150" className="h-40 w-full">
+              <line x1="20" y1="115" x2="400" y2="115" className="stroke-baron-border-strong" strokeWidth="1" />
               <polyline
                 fill="none"
                 stroke="#3B82F6"
-                strokeWidth="2.5"
+                strokeWidth="3"
                 points={goldCurve
-                  .map(([m, g]) => `${(m / 33) * 480 + 10},${130 - (g / 5600) * 110}`)
+                  .map(([min, lead]) => {
+                    const x = 20 + (min / 33) * 380;
+                    const y = 115 - Math.max(-25, Math.min(95, (lead / 6000) * 90));
+                    return `${x},${y}`;
+                  })
                   .join(" ")}
               />
-              <polygon
-                fill="url(#goldFill)"
-                points={`10,130 ${goldCurve
-                  .map(([m, g]) => `${(m / 33) * 480 + 10},${130 - (g / 5600) * 110}`)
-                  .join(" ")} 490,130`}
-              />
             </svg>
+            <div className="flex justify-between text-[11px] text-baron-ink-muted">
+              <span>0:00</span>
+              <span className="font-semibold text-baron-emerald">@14:00: +1,850g lead</span>
+              <span className="font-semibold text-baron-victory">@33:07: +5,300g finish</span>
+            </div>
           </div>
+
           <div className="rounded-xl border border-baron-border bg-baron-surface p-4">
-            <div className="mb-2 text-xs font-bold text-slate-200">6-Axis Combat Profile (Ahri)</div>
-            <div className="space-y-2 pt-2 text-xs">
+            <h3 className="text-sm font-bold text-baron-ink">@14m Laning Differentials (Nyx vs Orianna)</h3>
+            <div className="mt-4 grid grid-cols-3 gap-3">
               {[
-                ["DPM", 84],
-                ["GPM", 79],
-                ["CS / min", 86],
-                ["Kill Participation", 72],
-                ["Vision / min", 68],
-                ["DMG / Gold", 81],
-              ].map(([label, val]) => (
-                <div key={String(label)}>
-                  <div className="mb-1 flex justify-between text-slate-300">
-                    <span>{label}</span>
-                    <span className="font-bold text-indigo-300">{val}</span>
+                { label: "GOLD@14", val: "+840g" },
+                { label: "CS@14", val: "+14 CS" },
+                { label: "XP@14", val: "+620 XP" },
+              ].map((s) => (
+                <div
+                  key={s.label}
+                  className="rounded-lg border border-baron-border bg-baron-elevated p-3 text-center"
+                >
+                  <div className="text-[10px] font-bold tracking-wider text-baron-ink-muted">
+                    {s.label}
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-baron-elevated">
-                    <div
-                      className="h-full rounded-full bg-baron-accent"
-                      style={{ width: `${val}%` }}
-                    />
-                  </div>
+                  <div className="mt-1 text-lg font-extrabold text-baron-emerald">{s.val}</div>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Baron Score (You)", val: 75, suffix: " / 100 · Rank 4th" },
+            { label: "Damage Share", val: 27, suffix: "% of Blue Team" },
+            { label: "Objective Participation", val: 82, suffix: "% KP on Dragons & Barons" },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-xl border border-baron-border bg-baron-surface p-4"
+            >
+              <div className="text-xs font-bold text-baron-ink-muted">{stat.label}</div>
+              <div className="mt-2 flex items-baseline gap-1 text-2xl font-black text-baron-accent-soft">
+                <NumberTicker value={stat.val} />
+                <span className="text-sm font-semibold text-baron-ink-secondary">{stat.suffix}</span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

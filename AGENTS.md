@@ -14,7 +14,7 @@
 - **Frontend UI & Styling (`frontend/`):**
   - **Framework:** **Next.js `16.4.6+`** (`output: 'export'`, `images: { unoptimized: true }`, React 19, strictly TypeScript) compiling to pure static `frontend/out/` assets.
   - **Styling:** **Tailwind CSS `4.3.5+`** (`@tailwindcss/postcss`, Oxide engine) with CSS-first `@theme` design tokens in `frontend/src/app/globals.css`.
-  - **Component Registries & MCP:** Use the shared [`components.json`](components.json) registry and **`shadcn` MCP server** (`@shadcn`, `@react-bits`, `@aceternity` across Antigravity, Claude Code, and OpenCode, plus `21st.dev` CLI & `lucide-react`) to inspect and install UI components cleanly via `bunx shadcn@latest add ...`.
+  - **Component Registries & MCP:** Use the shared [`components.json`](components.json) registry and **`shadcn` MCP server** (`@shadcn`, `@react-bits`, `@aceternity`, `@magicui` across Antigravity, Claude Code, and OpenCode, plus `21st.dev` CLI & `lucide-react`) to inspect and install UI components cleanly via `bunx shadcn@latest add ...`.
   - **Exclusive Package Manager & VoidZero Tooling:** Use **Bun** (`bun install`, `bun run`, `bunx`, `bun.lock`) and **VoidZero `Oxc`** (`oxlint` `1.93.0+`) exclusively for all frontend dependencies, builds, and linting. **STRICTLY FORBIDDEN:** NEVER use `npm`, `pnpm`, `yarn`, `package-lock.json`, `pnpm-lock.yaml`, or slow ESLint plugin chains.
 - **100% Native Rust Backend Crates (Unchanged):**
   - **League Client & Live Game (`baron-lcu`):** `irelia` (`0.11.2+`) and local `lockfile` / `https://127.0.0.1:2999/liveclientdata/*` clients.

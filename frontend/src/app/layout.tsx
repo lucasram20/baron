@@ -1,5 +1,7 @@
-import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/lib/theme";
+import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,8 +12,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-baron-canvas text-slate-50 antialiased">{children}</body>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className="bg-baron-canvas text-baron-ink antialiased">
+        <ThemeProvider>
+          <TooltipProvider delayDuration={180}>{children}</TooltipProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

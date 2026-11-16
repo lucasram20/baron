@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { ArrowLeftRight, Download } from "lucide-react";
+import { LaneIcon } from "@/components/icons/LolIcons";
+import { BorderBeam } from "@/components/ui/border-beam";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   ASHE_BUILDS,
   BLUE_BANS,
@@ -51,7 +54,7 @@ function DraftPortraitCard({ slot }: { slot: DraftSlot }) {
         />
         <div
           className={cn(
-            "absolute inset-0 bg-gradient-to-t via-baron-canvas/35 to-transparent",
+            "absolute inset-0 bg-gradient-to-t via-black/35 to-transparent",
             TIER_GRADIENT[slot.tier],
           )}
         />
@@ -63,7 +66,10 @@ function DraftPortraitCard({ slot }: { slot: DraftSlot }) {
         </div>
       </div>
       <div className="flex items-center justify-between px-0.5 text-[11px]">
-        <span className="text-slate-400">{slot.role}</span>
+        <span className="flex items-center gap-1 text-baron-ink-muted">
+          <LaneIcon role={slot.role} className="h-3 w-3" />
+          <span>{slot.role}</span>
+        </span>
         <span
           className={cn(
             "font-semibold",
@@ -71,7 +77,7 @@ function DraftPortraitCard({ slot }: { slot: DraftSlot }) {
               ? "text-baron-victory"
               : slot.deltaPositive === false
                 ? "text-baron-defeat"
-                : "text-slate-500",
+                : "text-baron-ink-muted",
           )}
         >
           {slot.delta}
@@ -111,9 +117,9 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
               <img
                 src={champSquareUrl(champ, ddVersion)}
                 alt={champ}
-                className="h-full w-full object-cover grayscale opacity-75"
+                className="h-full w-full object-cover opacity-70 grayscale"
               />
-              <span className="absolute inset-0 bg-baron-canvas/35" />
+              <span className="absolute inset-0 bg-black/25" />
             </div>
           ))}
         </div>
@@ -121,7 +127,7 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
         <div className="flex max-w-xl flex-1 flex-col gap-1.5">
           <div className="flex items-center justify-between text-xs font-bold">
             <span className="text-sm text-baron-victory">54%</span>
-            <span className="text-[10px] font-semibold tracking-widest text-slate-400">
+            <span className="text-[10px] font-semibold tracking-widest text-baron-ink-muted">
               WIN PROBABILITY
             </span>
             <span className="text-sm text-baron-defeat">46%</span>
@@ -137,9 +143,9 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
               <img
                 src={champSquareUrl(champ, ddVersion)}
                 alt={champ}
-                className="h-full w-full object-cover grayscale opacity-75"
+                className="h-full w-full object-cover opacity-70 grayscale"
               />
-              <span className="absolute inset-0 bg-baron-canvas/35" />
+              <span className="absolute inset-0 bg-black/25" />
             </div>
           ))}
         </div>
@@ -161,40 +167,38 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
                 key={r}
                 points={`90,${80 - r} ${90 + r * 0.866},${80 - r * 0.5} ${90 + r * 0.866},${80 + r * 0.5} 90,${80 + r} ${90 - r * 0.866},${80 + r * 0.5} ${90 - r * 0.866},${80 - r * 0.5}`}
                 fill="none"
-                stroke="#1E2536"
+                className="stroke-baron-border-strong"
                 strokeWidth="1"
               />
             ))}
-            {/* Blue Team Comp Polygon */}
             <polygon
               points="90,34 134,58 138,108 90,126 52,102 48,54"
-              fill="rgba(59, 130, 246, 0.28)"
+              fill="rgba(59, 130, 246, 0.25)"
               stroke="#3B82F6"
               strokeWidth="1.75"
             />
-            {/* Red Team Comp Polygon */}
             <polygon
               points="90,46 124,62 120,100 90,118 46,104 58,64"
-              fill="rgba(244, 63, 94, 0.24)"
+              fill="rgba(244, 63, 94, 0.22)"
               stroke="#F43F5E"
               strokeWidth="1.75"
             />
-            <text x="90" y="13" textAnchor="middle" fill="#64748B" fontSize="8" fontWeight="700">
+            <text x="90" y="13" textAnchor="middle" className="fill-baron-ink-muted" fontSize="8" fontWeight="700">
               EARLY
             </text>
-            <text x="150" y="54" textAnchor="start" fill="#64748B" fontSize="8" fontWeight="700">
+            <text x="150" y="54" textAnchor="start" className="fill-baron-ink-muted" fontSize="8" fontWeight="700">
               MID
             </text>
-            <text x="150" y="112" textAnchor="start" fill="#64748B" fontSize="8" fontWeight="700">
+            <text x="150" y="112" textAnchor="start" className="fill-baron-ink-muted" fontSize="8" fontWeight="700">
               LATE
             </text>
-            <text x="90" y="152" textAnchor="middle" fill="#64748B" fontSize="8" fontWeight="700">
+            <text x="90" y="152" textAnchor="middle" className="fill-baron-ink-muted" fontSize="8" fontWeight="700">
               DAMAGE CRIT
             </text>
-            <text x="30" y="112" textAnchor="end" fill="#64748B" fontSize="8" fontWeight="700">
+            <text x="30" y="112" textAnchor="end" className="fill-baron-ink-muted" fontSize="8" fontWeight="700">
               CROWD CTRL
             </text>
-            <text x="30" y="54" textAnchor="end" fill="#64748B" fontSize="8" fontWeight="700">
+            <text x="30" y="54" textAnchor="end" className="fill-baron-ink-muted" fontSize="8" fontWeight="700">
               SYNERGY
             </text>
           </svg>
@@ -216,9 +220,9 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
               <img
                 src={champSquareUrl("Ashe", ddVersion)}
                 alt="Ashe"
-                className="h-8 w-8 rounded-md object-cover ring-1 ring-indigo-500/60"
+                className="h-8 w-8 rounded-md object-cover ring-1 ring-baron-accent/60"
               />
-              <span className="text-xs font-bold text-slate-100">Ashe</span>
+              <span className="text-xs font-bold text-baron-ink">Ashe</span>
             </div>
             <div className="flex items-center gap-1 rounded-md border border-baron-border bg-baron-elevated p-0.5">
               {["Top", "Jg", "Mid", "Bot", "Sup"].map((r) => (
@@ -229,8 +233,8 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
                   className={cn(
                     "rounded px-1.5 py-0.5 text-[10px] font-semibold transition",
                     selectedRole === r
-                      ? "bg-indigo-500/25 text-indigo-200 ring-1 ring-indigo-500/60"
-                      : "text-slate-400 hover:text-slate-200",
+                      ? "bg-baron-accent text-white"
+                      : "text-baron-ink-secondary hover:text-baron-ink",
                   )}
                 >
                   {r}
@@ -239,7 +243,7 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
             </div>
           </div>
 
-          <div className="text-[10px] font-bold tracking-wider text-slate-500">BUILDS</div>
+          <div className="text-[10px] font-bold tracking-wider text-baron-ink-muted">BUILDS</div>
           <div className="flex flex-col gap-1.5">
             {ASHE_BUILDS.map((b) => {
               const active = b.id === selectedBuildId;
@@ -251,7 +255,7 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
                   className={cn(
                     "flex items-center justify-between rounded-lg border px-2.5 py-2 text-left transition",
                     active
-                      ? "border-indigo-500/60 bg-indigo-500/15"
+                      ? "border-baron-accent/70 bg-baron-accent/12"
                       : "border-baron-border bg-baron-elevated hover:border-baron-border-strong",
                   )}
                 >
@@ -259,12 +263,12 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
                     <div
                       className={cn(
                         "truncate text-xs font-bold",
-                        active ? "text-indigo-300" : "text-slate-100",
+                        active ? "text-baron-accent-soft" : "text-baron-ink",
                       )}
                     >
                       {b.name}
                     </div>
-                    <div className="text-[11px] text-slate-500">{b.games}</div>
+                    <div className="text-[11px] text-baron-ink-muted">{b.games}</div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     {b.coreItems.slice(1, 3).map((id) => (
@@ -279,10 +283,10 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
                       className={cn(
                         "ml-1 rounded px-1.5 py-0.5 text-[11px] font-bold",
                         b.accent === "emerald"
-                          ? "bg-emerald-500/20 text-emerald-300"
+                          ? "bg-baron-emerald/15 text-baron-emerald"
                           : b.accent === "rose"
-                            ? "bg-rose-500/20 text-rose-300"
-                            : "bg-indigo-500/20 text-indigo-300",
+                            ? "bg-baron-defeat/15 text-baron-defeat"
+                            : "bg-baron-accent/15 text-baron-accent-soft",
                       )}
                     >
                       {b.winRate}
@@ -293,24 +297,26 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
             })}
           </div>
 
-          <div className="pt-1 text-[10px] font-bold tracking-wider text-slate-500">PRO BUILDS</div>
+          <div className="pt-1 text-[10px] font-bold tracking-wider text-baron-ink-muted">
+            PRO BUILDS
+          </div>
           <div className="flex flex-col divide-y divide-baron-border-muted">
             {PRO_BUILDS.map((pro) => (
               <div key={pro.player} className="flex items-center justify-between py-1.5">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-baron-elevated text-[10px] font-bold text-slate-300 ring-1 ring-baron-border">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-baron-elevated text-[10px] font-bold text-baron-ink-secondary ring-1 ring-baron-border">
                     {pro.team}
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-slate-100">{pro.player}</div>
-                    <div className="text-[10px] text-slate-500">{pro.when}</div>
+                    <div className="text-xs font-semibold text-baron-ink">{pro.player}</div>
+                    <div className="text-[10px] text-baron-ink-muted">{pro.when}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
                   <img
                     src={runeIconUrl(pro.keystoneIcon)}
                     alt={pro.player}
-                    className="h-5 w-5 rounded-full bg-baron-canvas p-0.5 ring-1 ring-amber-500/40"
+                    className="h-5 w-5 rounded-full bg-baron-canvas p-0.5 ring-1 ring-baron-gold/40"
                   />
                   {pro.items.map((id) => (
                     <img
@@ -328,24 +334,34 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
 
         {/* Column 2: Visual Primary + Secondary Rune Tree + Skill Max Order */}
         <div className="relative flex flex-col justify-between overflow-hidden rounded-xl border border-baron-border bg-baron-surface p-4">
+          {autoRunes && (
+            <BorderBeam
+              size={140}
+              duration={12}
+              colorFrom="#6366F1"
+              colorTo="#38BDF8"
+              borderWidth={1}
+            />
+          )}
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-bold text-slate-100">Runes</span>
+              <span className="text-sm font-bold text-baron-ink">Runes</span>
               <button
                 type="button"
                 onClick={handleImportRunes}
-                className="flex items-center gap-1 rounded-md border border-baron-border bg-baron-elevated px-2 py-1 text-xs font-medium text-slate-300 transition hover:border-indigo-500/50 hover:text-white"
+                className="flex items-center gap-1 rounded-md border border-baron-border bg-baron-elevated px-2.5 py-1 text-xs font-medium text-baron-ink-secondary transition hover:border-baron-accent hover:text-baron-ink"
               >
                 <Download className="h-3 w-3" />
                 <span>Import</span>
               </button>
               {injectStatus && (
-                <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">
+                <span className="rounded bg-baron-emerald/15 px-2 py-0.5 text-[11px] font-semibold text-baron-emerald">
                   {injectStatus}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
+            <div className="flex items-center gap-2 text-xs text-baron-ink-secondary">
               <span>Auto-Runes</span>
               <Switch checked={autoRunes} onCheckedChange={setAutoRunes} />
             </div>
@@ -356,43 +372,50 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
             <div className="flex flex-col items-center gap-5">
               <div className="flex items-center gap-2.5">
                 {RUNE_STYLES_PRIMARY.map((style) => (
-                  <div
-                    key={style.id}
-                    className={cn(
-                      "flex h-7 w-7 items-center justify-center rounded-full border p-1",
-                      style.active
-                        ? "border-amber-400/80 bg-amber-500/15"
-                        : "border-baron-border bg-baron-elevated opacity-35 grayscale",
-                    )}
-                  >
-                    <img src={runeIconUrl(style.icon)} alt={style.name} className="h-4 w-4" />
-                  </div>
+                  <Tooltip key={style.id}>
+                    <TooltipTrigger asChild>
+                      <div
+                        className={cn(
+                          "flex h-7 w-7 items-center justify-center rounded-full border p-1",
+                          style.active
+                            ? "border-baron-gold/80 bg-baron-gold/15"
+                            : "border-baron-border bg-baron-elevated opacity-35 grayscale",
+                        )}
+                      >
+                        <img src={runeIconUrl(style.icon)} alt={style.name} className="h-4 w-4" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>{style.name}</TooltipContent>
+                  </Tooltip>
                 ))}
               </div>
 
               {PRECISION_ROWS.map((row, rowIdx) => (
-                <div key={rowIdx} className="flex items-center gap-4">
+                <div key={`p-${rowIdx}`} className="flex items-center gap-4">
                   {row.map((rune) => (
-                    <div
-                      key={rune.id}
-                      title={rune.name}
-                      className={cn(
-                        "flex items-center justify-center rounded-full border transition",
-                        rowIdx === 0 ? "h-12 w-12" : "h-9 w-9",
-                        rune.active
-                          ? "border-amber-400 bg-amber-500/15 shadow-[0_0_14px_rgba(245,158,11,0.35)]"
-                          : "border-baron-border bg-baron-elevated opacity-30 grayscale",
-                      )}
-                    >
-                      <img
-                        src={runeIconUrl(rune.icon)}
-                        alt={rune.name}
-                        className={cn(
-                          "rounded-full object-contain",
-                          rowIdx === 0 ? "h-9 w-9" : "h-7 w-7",
-                        )}
-                      />
-                    </div>
+                    <Tooltip key={rune.id}>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={cn(
+                            "flex items-center justify-center rounded-full border transition",
+                            rowIdx === 0 ? "h-12 w-12" : "h-9 w-9",
+                            rune.active
+                              ? "border-baron-gold bg-baron-gold/15"
+                              : "border-baron-border bg-baron-elevated opacity-30 grayscale",
+                          )}
+                        >
+                          <img
+                            src={runeIconUrl(rune.icon)}
+                            alt={rune.name}
+                            className={cn(
+                              "rounded-full object-contain",
+                              rowIdx === 0 ? "h-9 w-9" : "h-7 w-7",
+                            )}
+                          />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>{rune.name}</TooltipContent>
+                    </Tooltip>
                   ))}
                 </div>
               ))}
@@ -402,35 +425,42 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
             <div className="flex flex-col items-center gap-4">
               <div className="flex items-center gap-2.5">
                 {RUNE_STYLES_SECONDARY.map((style) => (
-                  <div
-                    key={style.id}
-                    className={cn(
-                      "flex h-7 w-7 items-center justify-center rounded-full border p-1",
-                      style.active
-                        ? "border-rose-400/80 bg-rose-500/15"
-                        : "border-baron-border bg-baron-elevated opacity-35 grayscale",
-                    )}
-                  >
-                    <img src={runeIconUrl(style.icon)} alt={style.name} className="h-4 w-4" />
-                  </div>
+                  <Tooltip key={style.id}>
+                    <TooltipTrigger asChild>
+                      <div
+                        className={cn(
+                          "flex h-7 w-7 items-center justify-center rounded-full border p-1",
+                          style.active
+                            ? "border-baron-defeat/80 bg-baron-defeat/15"
+                            : "border-baron-border bg-baron-elevated opacity-35 grayscale",
+                        )}
+                      >
+                        <img src={runeIconUrl(style.icon)} alt={style.name} className="h-4 w-4" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>{style.name}</TooltipContent>
+                  </Tooltip>
                 ))}
               </div>
 
               {DOMINATION_SECONDARY_ROWS.map((row, rowIdx) => (
-                <div key={rowIdx} className="flex items-center gap-4">
+                <div key={`s-${rowIdx}`} className="flex items-center gap-4">
                   {row.map((rune) => (
-                    <div
-                      key={rune.id}
-                      title={rune.name}
-                      className={cn(
-                        "flex h-9 w-9 items-center justify-center rounded-full border transition",
-                        rune.active
-                          ? "border-rose-500 bg-rose-500/15 shadow-[0_0_12px_rgba(244,63,94,0.3)]"
-                          : "border-baron-border bg-baron-elevated opacity-30 grayscale",
-                      )}
-                    >
-                      <img src={runeIconUrl(rune.icon)} alt={rune.name} className="h-7 w-7" />
-                    </div>
+                    <Tooltip key={rune.id}>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={cn(
+                            "flex h-9 w-9 items-center justify-center rounded-full border transition",
+                            rune.active
+                              ? "border-baron-defeat bg-baron-defeat/15"
+                              : "border-baron-border bg-baron-elevated opacity-30 grayscale",
+                          )}
+                        >
+                          <img src={runeIconUrl(rune.icon)} alt={rune.name} className="h-7 w-7" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>{rune.name}</TooltipContent>
+                    </Tooltip>
                   ))}
                 </div>
               ))}
@@ -439,35 +469,43 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
               <div className="mt-2 flex flex-col gap-2.5">
                 {[
                   [
-                    { label: "Adaptive", active: false, tone: "border-purple-400" },
-                    { label: "Attack Speed", active: true, tone: "border-amber-400" },
-                    { label: "Ability Haste", active: false, tone: "border-sky-400" },
+                    { label: "Adaptive", active: false, tone: "border-baron-ace" },
+                    { label: "Attack Speed", active: true, tone: "border-baron-gold" },
+                    { label: "Ability Haste", active: false, tone: "border-baron-cyan" },
                   ],
                   [
-                    { label: "Adaptive", active: true, tone: "border-purple-400" },
-                    { label: "Move Speed", active: false, tone: "border-sky-400" },
-                    { label: "Health Scaling", active: false, tone: "border-emerald-400" },
+                    { label: "Adaptive", active: true, tone: "border-baron-ace" },
+                    { label: "Move Speed", active: false, tone: "border-baron-cyan" },
+                    { label: "Health Scaling", active: false, tone: "border-baron-emerald" },
                   ],
                   [
-                    { label: "Health", active: true, tone: "border-emerald-400" },
-                    { label: "Tenacity", active: false, tone: "border-indigo-400" },
-                    { label: "Health Scaling", active: false, tone: "border-emerald-400" },
+                    { label: "Health", active: true, tone: "border-baron-emerald" },
+                    { label: "Tenacity", active: false, tone: "border-baron-accent" },
+                    { label: "Health Scaling", active: false, tone: "border-baron-emerald" },
                   ],
                 ].map((shardRow, rIdx) => (
-                  <div key={rIdx} className="flex items-center gap-4">
+                  <div key={`sh-${rIdx}`} className="flex items-center gap-4">
                     {shardRow.map((s) => (
-                      <div
-                        key={s.label + rIdx}
-                        title={s.label}
-                        className={cn(
-                          "flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-bold",
-                          s.active
-                            ? `${s.tone} bg-baron-hover text-slate-100`
-                            : "border-baron-border bg-baron-elevated text-slate-600 opacity-40",
-                        )}
-                      >
-                        ●
-                      </div>
+                      <Tooltip key={`${s.label}-${rIdx}`}>
+                        <TooltipTrigger asChild>
+                          <div
+                            className={cn(
+                              "flex h-6 w-6 items-center justify-center rounded-full border",
+                              s.active
+                                ? `${s.tone} bg-baron-hover`
+                                : "border-baron-border bg-baron-elevated opacity-40",
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "h-2 w-2 rounded-full",
+                                s.active ? "bg-baron-ink" : "bg-baron-ink-muted",
+                              )}
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>{s.label}</TooltipContent>
+                      </Tooltip>
                     ))}
                   </div>
                 ))}
@@ -478,17 +516,17 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
           {/* Bottom Skill Max Order Strip */}
           <div className="border-t border-baron-border pt-3">
             <div className="mb-2 flex items-center gap-2 text-xs">
-              <span className="font-bold text-slate-100">Skill max order</span>
-              <span className="text-slate-500">{activeBuild.games}</span>
+              <span className="font-bold text-baron-ink">Skill max order</span>
+              <span className="text-baron-ink-muted">{activeBuild.games}</span>
             </div>
             <div className="flex items-center gap-2">
               {activeBuild.skillOrder.map((key, idx) => (
                 <div key={key} className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md border border-indigo-500/40 bg-baron-elevated text-xs font-extrabold text-indigo-300">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md border border-baron-accent/40 bg-baron-elevated text-xs font-extrabold text-baron-accent-soft">
                     {key}
                   </div>
                   {idx < activeBuild.skillOrder.length - 1 && (
-                    <span className="text-xs text-slate-500">›</span>
+                    <span className="text-xs text-baron-ink-muted">›</span>
                   )}
                 </div>
               ))}
@@ -500,11 +538,11 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
         <div className="flex flex-col gap-4 rounded-xl border border-baron-border bg-baron-surface p-3.5">
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-bold text-slate-100">Summoners</span>
+              <span className="text-sm font-bold text-baron-ink">Summoners</span>
               <button
                 type="button"
                 onClick={handleImportRunes}
-                className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-100"
+                className="flex items-center gap-1 text-xs text-baron-ink-secondary hover:text-baron-ink"
               >
                 <Download className="h-3 w-3" />
                 <span>Import</span>
@@ -521,21 +559,21 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
                 alt="Heal"
                 className="h-9 w-9 rounded-md border border-baron-border"
               />
-              <ArrowLeftRight className="ml-1 h-3.5 w-3.5 text-slate-500" />
+              <ArrowLeftRight className="ml-1 h-3.5 w-3.5 text-baron-ink-muted" />
             </div>
           </div>
 
           <div className="border-t border-baron-border pt-3">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm font-bold text-slate-100">Items</span>
-              <div className="flex items-center gap-2 text-[11px] text-slate-400">
+              <span className="text-sm font-bold text-baron-ink">Items</span>
+              <div className="flex items-center gap-2 text-[11px] text-baron-ink-secondary">
                 <span>Auto</span>
                 <Switch checked={autoItems} onCheckedChange={setAutoItems} />
               </div>
             </div>
 
             <div className="mb-3">
-              <div className="mb-1.5 text-[11px] text-slate-400">Starting items</div>
+              <div className="mb-1.5 text-[11px] text-baron-ink-muted">Starting items</div>
               <div className="flex items-center gap-1.5">
                 {[1055, 2003].map((id) => (
                   <img
@@ -549,7 +587,7 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
             </div>
 
             <div className="mb-3">
-              <div className="mb-1.5 text-[11px] text-slate-400">Core build order</div>
+              <div className="mb-1.5 text-[11px] text-baron-ink-muted">Core build order</div>
               <div className="flex items-center gap-1.5">
                 {activeBuild.coreItems.map((id, idx) => (
                   <div key={id} className="flex items-center gap-1">
@@ -559,7 +597,7 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
                       className="h-8 w-8 rounded border border-baron-border"
                     />
                     {idx < activeBuild.coreItems.length - 1 && (
-                      <span className="text-xs text-slate-500">›</span>
+                      <span className="text-xs text-baron-ink-muted">›</span>
                     )}
                   </div>
                 ))}
@@ -567,7 +605,7 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
             </div>
 
             <div className="mb-3">
-              <div className="mb-1.5 text-[11px] text-slate-400">Completed items</div>
+              <div className="mb-1.5 text-[11px] text-baron-ink-muted">Completed items</div>
               <div className="grid grid-cols-5 gap-1.5">
                 {activeBuild.completedItems.map((item) => (
                   <div key={item.id} className="flex flex-col items-center gap-1">
@@ -576,7 +614,7 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
                       alt={String(item.id)}
                       className="h-8 w-8 rounded border border-baron-border"
                     />
-                    <span className="text-[10px] font-semibold text-slate-300">
+                    <span className="text-[10px] font-semibold text-baron-ink-secondary">
                       {item.winRate}
                     </span>
                   </div>
@@ -585,7 +623,7 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
             </div>
 
             <div>
-              <div className="mb-1.5 text-[11px] text-slate-400">Situational</div>
+              <div className="mb-1.5 text-[11px] text-baron-ink-muted">Situational</div>
               <div className="grid grid-cols-5 gap-1.5">
                 {activeBuild.situationalItems.map((item) => (
                   <div key={item.id} className="flex flex-col items-center gap-1">
@@ -594,7 +632,7 @@ export function ChampSelectView({ ddVersion }: ChampSelectViewProps) {
                       alt={String(item.id)}
                       className="h-8 w-8 rounded border border-baron-border"
                     />
-                    <span className="text-[10px] font-semibold text-slate-300">
+                    <span className="text-[10px] font-semibold text-baron-ink-secondary">
                       {item.winRate}
                     </span>
                   </div>

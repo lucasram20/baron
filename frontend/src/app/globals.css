@@ -1,45 +1,101 @@
 @import "tailwindcss";
 
+:root {
+  color-scheme: dark;
+  --baron-canvas: #07090e;
+  --baron-sidebar: #0a0d14;
+  --baron-surface: #0f131c;
+  --baron-elevated: #151b27;
+  --baron-hover: #1b2231;
+
+  --baron-border-muted: #141925;
+  --baron-border: #1d2536;
+  --baron-border-strong: #2b354b;
+
+  --baron-ink: #f4f7fc;
+  --baron-ink-secondary: #9aa7bd;
+  --baron-ink-muted: #66758f;
+
+  --baron-accent: #6366f1;
+  --baron-accent-soft: #818cf8;
+  --baron-victory: #3b82f6;
+  --baron-defeat: #f43f5e;
+  --baron-emerald: #10b981;
+  --baron-gold: #f59e0b;
+  --baron-ace: #a855f7;
+  --baron-cyan: #38bdf8;
+}
+
+html.light {
+  color-scheme: light;
+  --baron-canvas: #f2f5fa;
+  --baron-sidebar: #e9eef6;
+  --baron-surface: #ffffff;
+  --baron-elevated: #e7edf5;
+  --baron-hover: #dce4f0;
+
+  --baron-border-muted: #e3e9f2;
+  --baron-border: #cfd8e6;
+  --baron-border-strong: #b4c2d6;
+
+  --baron-ink: #0b1220;
+  --baron-ink-secondary: #435066;
+  --baron-ink-muted: #64748b;
+
+  --baron-accent: #4f46e5;
+  --baron-accent-soft: #4338ca;
+  --baron-victory: #2563eb;
+  --baron-defeat: #e11d48;
+  --baron-emerald: #059669;
+  --baron-gold: #d97706;
+  --baron-ace: #9333ea;
+  --baron-cyan: #0284c7;
+}
+
 @theme {
-  --color-baron-canvas: #090b10;
-  --color-baron-sidebar: #0b0e14;
-  --color-baron-surface: #11151f;
-  --color-baron-elevated: #161b28;
-  --color-baron-hover: #1c2233;
+  --color-baron-canvas: var(--baron-canvas);
+  --color-baron-sidebar: var(--baron-sidebar);
+  --color-baron-surface: var(--baron-surface);
+  --color-baron-elevated: var(--baron-elevated);
+  --color-baron-hover: var(--baron-hover);
 
-  --color-baron-border-muted: #151a26;
-  --color-baron-border: #1e2536;
-  --color-baron-border-strong: #2e3852;
+  --color-baron-border-muted: var(--baron-border-muted);
+  --color-baron-border: var(--baron-border);
+  --color-baron-border-strong: var(--baron-border-strong);
 
-  --color-baron-accent: #6366f1;
-  --color-baron-accent-soft: #818cf8;
-  --color-baron-victory: #3b82f6;
-  --color-baron-defeat: #f43f5e;
-  --color-baron-emerald: #10b981;
-  --color-baron-gold: #f59e0b;
-  --color-baron-ace: #a855f7;
-  --color-baron-cyan: #38bdf8;
+  --color-baron-ink: var(--baron-ink);
+  --color-baron-ink-secondary: var(--baron-ink-secondary);
+  --color-baron-ink-muted: var(--baron-ink-muted);
 
-  /* shadcn/ui dark theme mappings */
-  --color-background: #090b10;
-  --color-foreground: #f8fafc;
-  --color-card: #11151f;
-  --color-card-foreground: #f8fafc;
-  --color-popover: #0b0e14;
-  --color-popover-foreground: #f8fafc;
-  --color-primary: #6366f1;
-  --color-primary-foreground: #f8fafc;
-  --color-secondary: #161b28;
-  --color-secondary-foreground: #cbd5e1;
-  --color-muted: #161b28;
-  --color-muted-foreground: #94a3b8;
-  --color-accent: #1c2233;
-  --color-accent-foreground: #f8fafc;
-  --color-destructive: #f43f5e;
-  --color-destructive-foreground: #f8fafc;
-  --color-border: #1e2536;
-  --color-input: #1e2536;
-  --color-ring: #6366f1;
+  --color-baron-accent: var(--baron-accent);
+  --color-baron-accent-soft: var(--baron-accent-soft);
+  --color-baron-victory: var(--baron-victory);
+  --color-baron-defeat: var(--baron-defeat);
+  --color-baron-emerald: var(--baron-emerald);
+  --color-baron-gold: var(--baron-gold);
+  --color-baron-ace: var(--baron-ace);
+  --color-baron-cyan: var(--baron-cyan);
+
+  /* shadcn/ui semantic variable mappings */
+  --color-background: var(--baron-canvas);
+  --color-foreground: var(--baron-ink);
+  --color-card: var(--baron-surface);
+  --color-card-foreground: var(--baron-ink);
+  --color-popover: var(--baron-sidebar);
+  --color-popover-foreground: var(--baron-ink);
+  --color-primary: var(--baron-accent);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--baron-elevated);
+  --color-secondary-foreground: var(--baron-ink);
+  --color-muted: var(--baron-elevated);
+  --color-muted-foreground: var(--baron-ink-secondary);
+  --color-accent: var(--baron-hover);
+  --color-accent-foreground: var(--baron-ink);
+  --color-destructive: var(--baron-defeat);
+  --color-destructive-foreground: #ffffff;
+  --color-border: var(--baron-border);
+  --color-input: var(--baron-border);
+  --color-ring: var(--baron-accent);
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.625rem;
@@ -49,11 +105,16 @@
   html,
   body {
     height: 100%;
-    background-color: var(--color-baron-canvas);
-    color: #f8fafc;
+    background-color: var(--baron-canvas);
+    color: var(--baron-ink);
     font-feature-settings: "tnum" 1, "cv02" 1;
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: rgba(99, 102, 241, 0.3);
+    color: var(--baron-ink);
   }
 
   ::-webkit-scrollbar {
@@ -62,15 +123,15 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: #090b10;
+    background: var(--baron-canvas);
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #1e2536;
+    background: var(--baron-border-strong);
     border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #2e3852;
+    background: var(--baron-ink-muted);
   }
 }

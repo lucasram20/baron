@@ -11,6 +11,7 @@ import {
   Sparkles,
   Swords,
 } from "lucide-react";
+import { RankCrest } from "@/components/icons/LolIcons";
 import { champSquareUrl } from "@/lib/ddragon";
 import { cn } from "@/lib/utils";
 import type { BaronRoute } from "@/types/baron";
@@ -67,30 +68,30 @@ export function Sidebar({ activeRoute, onSelectRoute, ddVersion }: SidebarProps)
         type="button"
         onClick={() => onSelectRoute(item.route)}
         className={cn(
-          "group relative flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-[13px] font-medium transition-colors",
+          "group relative flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-[13px] font-medium transition-colors duration-150",
           active
             ? item.isInGame
-              ? "bg-amber-500/15 text-slate-50"
-              : "bg-indigo-500/15 text-slate-50"
-            : "text-slate-400 hover:bg-baron-surface hover:text-slate-100",
+              ? "bg-baron-gold/12 font-semibold text-baron-ink"
+              : "bg-baron-accent/12 font-semibold text-baron-ink"
+            : "text-baron-ink-secondary hover:bg-baron-hover hover:text-baron-ink",
         )}
       >
         {active && (
           <span
             className={cn(
-              "absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r",
+              "absolute top-1.5 bottom-1.5 left-0 w-[2.5px] rounded-r",
               item.isInGame ? "bg-baron-gold" : "bg-baron-accent",
             )}
           />
         )}
         <span
           className={cn(
-            "shrink-0",
+            "shrink-0 transition-colors",
             active
               ? item.isInGame
                 ? "text-baron-gold"
                 : "text-baron-accent-soft"
-              : "text-slate-400 group-hover:text-slate-200",
+              : "text-baron-ink-muted group-hover:text-baron-ink-secondary",
           )}
         >
           {item.icon}
@@ -108,13 +109,13 @@ export function Sidebar({ activeRoute, onSelectRoute, ddVersion }: SidebarProps)
           <img
             src="/baron_logo.png"
             alt="Baron"
-            className="h-8 w-8 shrink-0 object-contain drop-shadow-[0_0_8px_rgba(99,102,241,0.45)]"
+            className="h-8 w-8 shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(99,102,241,0.35)]"
           />
           <div className="flex flex-col leading-none">
-            <span className="text-[15px] font-extrabold tracking-tight text-slate-50">
+            <span className="text-[15px] font-extrabold tracking-tight text-baron-ink">
               BARON
             </span>
-            <span className="mt-1 text-[10px] font-semibold tracking-wider text-slate-500">
+            <span className="mt-1 text-[10px] font-semibold tracking-wider text-baron-ink-muted">
               APP V0.1.0
             </span>
           </div>
@@ -122,29 +123,29 @@ export function Sidebar({ activeRoute, onSelectRoute, ddVersion }: SidebarProps)
 
         {/* BARON CORE */}
         <div className="flex flex-col gap-1">
-          <span className="px-2 pb-1 text-[10px] font-bold tracking-wider text-slate-500">
+          <span className="px-2 pb-1 text-[10px] font-bold tracking-wider text-baron-ink-muted">
             BARON CORE
           </span>
           {renderItem(CORE_NAV[0])}
           <button
             type="button"
-            onClick={() => onSelectRoute("dashboard")}
-            className="ml-4 flex items-center gap-2 rounded px-2 py-1 text-left text-xs text-slate-300 transition hover:bg-baron-surface"
+            onClick={() => onSelectRoute("postgame")}
+            className="ml-4 flex items-center gap-2 rounded-md px-2 py-1 text-left text-xs text-baron-ink-secondary transition hover:bg-baron-hover hover:text-baron-ink"
           >
             <img
               src={champSquareUrl("Ahri", ddVersion)}
               alt="Nyx"
               className="h-4 w-4 rounded-sm object-cover ring-1 ring-baron-border"
             />
-            <span className="truncate font-semibold">Nyx</span>
-            <span className="text-[10px] text-slate-500">#DPM</span>
+            <span className="truncate font-semibold text-baron-ink">Nyx</span>
+            <span className="text-[10px] text-baron-ink-muted">#DPM</span>
           </button>
           {CORE_NAV.slice(1).map(renderItem)}
         </div>
 
         {/* BARON APP */}
         <div className="flex flex-col gap-1">
-          <span className="px-2 pb-1 text-[10px] font-bold tracking-wider text-slate-500">
+          <span className="px-2 pb-1 text-[10px] font-bold tracking-wider text-baron-ink-muted">
             BARON APP
           </span>
           {APP_NAV.map(renderItem)}
@@ -152,7 +153,7 @@ export function Sidebar({ activeRoute, onSelectRoute, ddVersion }: SidebarProps)
 
         {/* BARON INSIGHTS */}
         <div className="flex flex-col gap-1">
-          <span className="px-2 pb-1 text-[10px] font-bold tracking-wider text-slate-500">
+          <span className="px-2 pb-1 text-[10px] font-bold tracking-wider text-baron-ink-muted">
             BARON INSIGHTS
           </span>
           {INSIGHTS_NAV.map(renderItem)}
@@ -160,7 +161,7 @@ export function Sidebar({ activeRoute, onSelectRoute, ddVersion }: SidebarProps)
 
         {/* IN GAME */}
         <div className="flex flex-col gap-1">
-          <span className="px-2 pb-1 text-[10px] font-bold tracking-wider text-slate-500">
+          <span className="px-2 pb-1 text-[10px] font-bold tracking-wider text-baron-ink-muted">
             IN GAME
           </span>
           {IN_GAME_NAV.map(renderItem)}
@@ -171,26 +172,27 @@ export function Sidebar({ activeRoute, onSelectRoute, ddVersion }: SidebarProps)
       <button
         type="button"
         onClick={() => onSelectRoute("dashboard")}
-        className="flex items-center gap-2.5 rounded-lg border border-baron-border bg-baron-surface p-2 text-left transition hover:border-baron-border-strong"
+        className="flex items-center gap-2.5 rounded-lg border border-baron-border bg-baron-surface p-2 text-left transition hover:border-baron-border-strong hover:bg-baron-hover/60"
       >
         <div className="relative shrink-0">
           <img
             src={champSquareUrl("Ahri", ddVersion)}
             alt="Hide on bush"
-            className="h-10 w-10 rounded-md object-cover ring-1 ring-amber-500/40"
+            className="h-10 w-10 rounded-md object-cover ring-1 ring-baron-gold/50"
           />
-          <span className="absolute -top-1.5 -left-1.5 rounded bg-indigo-500 px-1 text-[9px] font-bold text-white">
+          <span className="absolute -top-1.5 -left-1.5 rounded bg-baron-accent px-1 text-[9px] font-bold text-white">
             KR
           </span>
-          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded bg-baron-canvas px-1 text-[9px] font-bold text-slate-300 ring-1 ring-baron-border">
+          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded bg-baron-canvas px-1 text-[9px] font-bold text-baron-ink ring-1 ring-baron-border">
             684
           </span>
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-xs font-bold text-slate-100">Hide on bush</div>
-          <div className="text-[11px] text-slate-400">#KR1</div>
-          <div className="mt-0.5 text-[10px] font-bold tracking-wide text-baron-cyan">
-            ◆ CHALLENGER
+          <div className="truncate text-xs font-bold text-baron-ink">Hide on bush</div>
+          <div className="text-[11px] text-baron-ink-muted">#KR1</div>
+          <div className="mt-0.5 flex items-center gap-1 text-[10px] font-bold tracking-wide text-baron-cyan">
+            <RankCrest tier="CHALLENGER" className="h-3.5 w-3.5" />
+            <span>CHALLENGER</span>
           </div>
         </div>
       </button>

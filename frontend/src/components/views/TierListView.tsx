@@ -1,10 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { ArrowDown, ArrowUp, BarChart3, HelpCircle, Search } from "lucide-react";
+import { LaneIcon } from "@/components/icons/LolIcons";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TIER_LIST_ROWS } from "@/data/mockDpm";
-import { champSquareUrl } from "@/lib/ddragon";
+import { champSplashUrl, champSquareUrl } from "@/lib/ddragon";
 import { cn } from "@/lib/utils";
 import type { TierListRow } from "@/types/baron";
 
@@ -14,18 +23,49 @@ interface TierListViewProps {
   activeProviderLabel: string;
 }
 
+type SortField = "rank" | "tier" | "winRate" | "pickRate" | "games";
+
 const TIER_TEXT: Record<TierListRow["tier"], string> = {
-  "S+": "text-amber-400",
-  S: "text-indigo-300",
-  A: "text-sky-400",
-  B: "text-emerald-400",
+  "S+": "text-baron-gold",
+  S: "text-baron-ace",
+  A: "text-baron-cyan",
+  B: "text-baron-emerald",
 };
+
+const TIER_ORDER: Record<TierListRow["tier"], number> = {
+  "S+": 4,
+  S: 3,
+  A: 2,
+  B: 1,
+};
+
+const ROLE_FILTERS = [
+  { id: "*", label: "All roles" },
+  { id: "Top", label: "Top" },
+  { id: "Jg", label: "Jungle" },
+  { id: "Mid", label: "Mid" },
+  { id: "Bot", label: "Bot" },
+  { id: "Sup", label: "Support" },
+] as const;
 
 export function TierListView({ ddVersion, patch, activeProviderLabel }: TierListViewProps) {
   const [mode, setMode] = useState("Ranked");
   const [roleFilter, setRoleFilter] = useState("*");
+  const [rankFilter, setRankFilter] = useState("emerald+");
+  const [regionFilter, setRegionFilter] = useState("all");
   const [offMeta, setOffMeta] = useState(false);
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<SortField>("tier");
+  const [sortAsc, setSortAsc] = useState(false);
+
+  const toggleSort = (field: SortField) => {
+    if (sortBy === field) {
+      setSortAsc((prev) => !prev);
+    } else {
+      setSortBy(field);
+      setSortAsc(field === "rank");
+    }
+  };
 
   const filteredRows = TIER_LIST_ROWS.filter((r) => {
     if (roleFilter !== "*" && r.role !== roleFilter) return false;
@@ -33,21 +73,43 @@ export function TierListView({ ddVersion, patch, activeProviderLabel }: TierList
       return false;
     }
     return true;
+  }).toSorted((a, b) => {
+    let diff = 0;
+    if (sortBy === "rank") diff = a.rank - b.rank;
+    else if (sortBy === "tier") diff = TIER_ORDER[a.tier] - TIER_ORDER[b.tier] || a.rank - b.rank;
+    else if (sortBy === "winRate") diff = parseFloat(a.winRate) - parseFloat(b.winRate);
+    else if (sortBy === "pickRate") diff = parseFloat(a.pickRate) - parseFloat(b.pickRate);
+    else diff = parseInt(a.games.replace(/\D/g, ""), 10) - parseInt(b.games.replace(/\D/g, ""), 10);
+    return sortAsc ? diff : -diff;
   });
+
+  const renderSortIcon = (field: SortField) => {
+    if (sortBy !== field) return null;
+    return sortAsc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+  };
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-baseline gap-4">
-          <h1 className="text-2xl font-extrabold text-slate-50">Tierlist</h1>
-          <p className="text-xs text-slate-400">
+      {/* Header Banner matching DPM Tierlist */}
+      <div className="relative flex items-center justify-between overflow-hidden rounded-xl border border-baron-border bg-baron-surface px-5 py-3.5">
+        <img
+          src={champSplashUrl("Syndra", 0)}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute right-24 top-0 h-full w-[38%] object-cover object-center opacity-18 [mask-image:linear-gradient(to_right,transparent,black_45%,transparent)]"
+        />
+        <div className="relative flex items-center gap-4">
+          <div className="flex items-center gap-2.5">
+            <BarChart3 className="h-5 w-5 text-baron-accent-soft" />
+            <h1 className="text-2xl font-extrabold tracking-tight text-baron-ink">Tierlist</h1>
+          </div>
+          <p className="max-w-md text-xs text-baron-ink-secondary">
             Explore Baron Tierlists ({activeProviderLabel} · Patch {patch}) and stay ahead of the
-            meta!
+            meta with current champion rankings.
           </p>
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg border border-baron-border bg-baron-surface p-1">
+        <div className="relative flex items-center gap-1 rounded-lg border border-baron-border bg-baron-elevated p-1">
           {["Ranked", "Aram", "Arena", "Duo"].map((m) => (
             <button
               key={m}
@@ -56,8 +118,8 @@ export function TierListView({ ddVersion, patch, activeProviderLabel }: TierList
               className={cn(
                 "rounded-md px-3 py-1 text-xs font-semibold transition",
                 mode === m
-                  ? "bg-baron-accent text-white"
-                  : "text-slate-400 hover:text-slate-100",
+                  ? "bg-baron-accent text-white shadow-sm"
+                  : "text-baron-ink-secondary hover:text-baron-ink",
               )}
             >
               {m}
@@ -67,97 +129,144 @@ export function TierListView({ ddVersion, patch, activeProviderLabel }: TierList
       </div>
 
       {/* Filter Toolbar */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 rounded-lg border border-baron-border bg-baron-surface p-1">
-            {["*", "Top", "Jg", "Mid", "Bot", "Sup"].map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRoleFilter(r)}
-                className={cn(
-                  "rounded-md px-2.5 py-1 text-xs font-bold transition",
-                  roleFilter === r
-                    ? "bg-baron-accent text-white"
-                    : "text-slate-400 hover:text-slate-100",
-                )}
-              >
-                {r}
-              </button>
+            {ROLE_FILTERS.map((r) => (
+              <Tooltip key={r.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={r.label}
+                    onClick={() => setRoleFilter(r.id)}
+                    className={cn(
+                      "flex h-7 w-8 items-center justify-center rounded-md transition",
+                      roleFilter === r.id
+                        ? "bg-baron-accent text-white"
+                        : "text-baron-ink-muted hover:bg-baron-hover hover:text-baron-ink",
+                    )}
+                  >
+                    <LaneIcon role={r.id} className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{r.label}</TooltipContent>
+              </Tooltip>
             ))}
           </div>
 
-          <span className="rounded-lg border border-baron-border bg-baron-surface px-3 py-1.5 text-xs font-bold text-emerald-400">
-            ◆ EMERALD+
-          </span>
-          <span className="rounded-lg border border-baron-border bg-baron-surface px-3 py-1.5 text-xs font-semibold text-slate-200">
-            ALL REGIONS
-          </span>
-          <span className="rounded-lg border border-baron-border bg-baron-surface px-3 py-1.5 text-xs font-semibold text-slate-200">
+          <Select value={rankFilter} onValueChange={setRankFilter}>
+            <SelectTrigger size="sm" className="h-8 w-[142px] border-baron-border bg-baron-surface text-xs font-bold text-baron-emerald">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="emerald+">EMERALD+</SelectItem>
+              <SelectItem value="diamond+">DIAMOND+</SelectItem>
+              <SelectItem value="master+">MASTER+</SelectItem>
+              <SelectItem value="all">ALL RANKS</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={regionFilter} onValueChange={setRegionFilter}>
+            <SelectTrigger size="sm" className="h-8 w-[138px] border-baron-border bg-baron-surface text-xs font-semibold text-baron-ink">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">ALL REGIONS</SelectItem>
+              <SelectItem value="kr">KR</SelectItem>
+              <SelectItem value="euw">EUW</SelectItem>
+              <SelectItem value="na">NA</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <span className="rounded-lg border border-baron-border bg-baron-surface px-3 py-1.5 text-xs font-semibold text-baron-ink">
             {patch}
           </span>
 
-          <div className="ml-1 flex items-center gap-2 text-xs text-slate-400">
+          <div className="ml-1 flex items-center gap-2 text-xs text-baron-ink-secondary">
             <Switch checked={offMeta} onCheckedChange={setOffMeta} />
             <span className="font-semibold tracking-wide">OFF-META</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" aria-label="Off-meta explanation" className="text-baron-ink-muted hover:text-baron-ink">
+                  <HelpCircle className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Include low pickrate flex and off-meta lane picks</TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
-        <div className="flex h-8 w-56 items-center gap-2 rounded-lg border border-baron-border bg-baron-surface px-2.5">
-          <Search className="h-3.5 w-3.5 text-slate-500" />
+        <div className="flex h-8 w-56 items-center gap-2 rounded-lg border border-baron-border bg-baron-surface px-2.5 focus-within:border-baron-accent">
+          <Search className="h-3.5 w-3.5 text-baron-ink-muted" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search a champion"
-            className="w-full bg-transparent text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none"
+            className="w-full bg-transparent text-xs text-baron-ink placeholder:text-baron-ink-muted focus:outline-none"
           />
         </div>
       </div>
 
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-baron-border bg-baron-surface">
-        <div className="grid grid-cols-[64px_1fr_110px_110px_120px_110px_110px] border-b border-baron-border px-4 py-2.5 text-[11px] font-bold tracking-wider text-slate-500">
-          <div>RANK</div>
+        <div className="grid grid-cols-[64px_1fr_110px_110px_120px_110px_110px] border-b border-baron-border px-4 py-2.5 text-[11px] font-bold tracking-wider text-baron-ink-muted">
+          <button type="button" onClick={() => toggleSort("rank")} className="flex items-center gap-1 text-left hover:text-baron-ink">
+            <span>RANK</span>
+            {renderSortIcon("rank")}
+          </button>
           <div>CHAMPION</div>
           <div>LANE</div>
-          <div>TIER ▼</div>
-          <div>WINRATE</div>
-          <div>PICKRATE</div>
-          <div className="text-right">GAMES</div>
+          <button type="button" onClick={() => toggleSort("tier")} className="flex items-center gap-1 text-left hover:text-baron-ink">
+            <span>TIER</span>
+            {renderSortIcon("tier")}
+          </button>
+          <button type="button" onClick={() => toggleSort("winRate")} className="flex items-center gap-1 text-left hover:text-baron-ink">
+            <span>WINRATE</span>
+            {renderSortIcon("winRate")}
+          </button>
+          <button type="button" onClick={() => toggleSort("pickRate")} className="flex items-center gap-1 text-left hover:text-baron-ink">
+            <span>PICKRATE</span>
+            {renderSortIcon("pickRate")}
+          </button>
+          <button type="button" onClick={() => toggleSort("games")} className="flex items-center justify-end gap-1 hover:text-baron-ink">
+            <span>GAMES</span>
+            {renderSortIcon("games")}
+          </button>
         </div>
-        {filteredRows.map((row) => (
+
+        {filteredRows.map((row, idx) => (
           <div
             key={row.champion}
-            className="grid grid-cols-[64px_1fr_110px_110px_120px_110px_110px] items-center border-b border-baron-border-muted px-4 py-2 text-xs hover:bg-baron-elevated/60"
+            className="grid grid-cols-[64px_1fr_110px_110px_120px_110px_110px] items-center border-b border-baron-border-muted px-4 py-2 text-xs transition hover:bg-baron-hover/65"
           >
-            <div className="font-semibold text-slate-400">{row.rank}</div>
+            <div className="font-semibold text-baron-ink-muted">{idx + 1}</div>
             <div className="flex items-center gap-3">
               <img
                 src={champSquareUrl(row.champion, ddVersion)}
                 alt={row.champion}
                 className="h-8 w-8 rounded-md object-cover ring-1 ring-baron-border"
               />
-              <span className="font-bold text-slate-100">{row.champion}</span>
+              <span className="font-bold text-baron-ink">{row.champion}</span>
             </div>
-            <div>
-              <div className="font-semibold text-slate-200">{row.role}</div>
-              <div className="text-[10px] text-slate-500">{row.rolePct}</div>
+            <div className="flex flex-col items-start gap-0.5">
+              <LaneIcon role={row.role} className="h-3.5 w-3.5 text-baron-ink-secondary" />
+              <div className="text-[10px] text-baron-ink-muted">{row.rolePct}</div>
             </div>
-            <div className={cn("text-sm font-black", TIER_TEXT[row.tier])}>{row.tier}</div>
+            <div className={cn("text-base font-black", TIER_TEXT[row.tier])}>{row.tier}</div>
             <div>
-              <div className="font-bold text-slate-100">{row.winRate}</div>
+              <div className="font-bold text-baron-ink">{row.winRate}</div>
               <div
                 className={cn(
                   "text-[10px] font-semibold",
-                  row.deltaPositive ? "text-emerald-400" : "text-baron-defeat",
+                  row.deltaPositive ? "text-baron-emerald" : "text-baron-defeat",
                 )}
               >
                 {row.delta}
               </div>
             </div>
-            <div className="font-bold text-slate-200">{row.pickRate}</div>
-            <div className="text-right text-slate-300">{row.games}</div>
+            <div className="font-bold text-baron-ink">{row.pickRate}</div>
+            <div className="text-right text-baron-ink-secondary">{row.games}</div>
           </div>
         ))}
       </div>
