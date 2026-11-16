@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/logo/baron_logo.png" alt="Baron Logo" width="128" height="128" />
+
 # Baron
 
 **A 100% Free, Ad-Free, Zero-Subscription Native Rust League of Legends Companion & Analytics App**

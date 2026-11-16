@@ -1,6 +1,7 @@
 use baron_core::models::Account;
 
 /// Formats K/D/A as "kills/deaths/assists".
+#[allow(dead_code)]
 pub fn format_kda(kills: i32, deaths: i32, assists: i32) -> String {
     format!("{kills}/{deaths}/{assists}")
 }

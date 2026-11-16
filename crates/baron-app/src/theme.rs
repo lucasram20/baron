@@ -8,7 +8,6 @@ pub const BG_SIDEBAR: u32 = 0x0B0E14;
 pub const BG_SURFACE: u32 = 0x11151F;
 pub const BG_ELEVATED: u32 = 0x161B28;
 pub const LAYER_02: u32 = 0x1C2233;
-pub const LAYER_03: u32 = 0x232B3E;
 
 // Borders (`border_muted`, `border_base`, `border_strong`)
 pub const BORDER_MUTED: u32 = 0x151A26;

@@ -39,6 +39,7 @@ impl ActiveRoute {
     }
 }
 
+#[allow(dead_code)]
 pub struct BaronWorkspace {
     pub route: ActiveRoute,
     pub search_input: Entity<InputState>,
@@ -588,20 +589,7 @@ impl BaronWorkspace {
                             .flex_row()
                             .items_center()
                             .gap_2()
-                            .child(
-                                div()
-                                    .w(px(28.))
-                                    .h(px(28.))
-                                    .rounded_md()
-                                    .bg(theme::color(theme::ACCENT_PRIMARY))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .text_sm()
-                                    .font_weight(FontWeight::BOLD)
-                                    .text_color(theme::color(theme::TEXT_PRIMARY))
-                                    .child("B"),
-                            )
+                            .child(img("logo/baron_logo.png").w(px(32.)).h(px(32.)))
                             .child(
                                 div()
                                     .flex()
@@ -824,11 +812,17 @@ impl Render for BaronWorkspace {
                 TitleBar::new().child(
                     div()
                         .flex()
+                        .flex_row()
                         .items_center()
-                        .text_xs()
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(theme::color(theme::TEXT_SECONDARY))
-                        .child("Baron"),
+                        .gap_2()
+                        .child(img("logo/baron_logo.png").w(px(16.)).h(px(16.)))
+                        .child(
+                            div()
+                                .text_xs()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(theme::color(theme::TEXT_SECONDARY))
+                                .child("Baron"),
+                        ),
                 ),
             )
             .child(self.render_top_command_bar(cx))
