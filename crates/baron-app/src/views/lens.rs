@@ -62,7 +62,7 @@ fn render_h2h_banner(
                 .flex_row()
                 .justify_between()
                 .items_center()
-                .child(div().text_sm().font_bold().child(format!(
+                .child(div().text_sm().font_weight(FontWeight::BOLD).child(format!(
                     "Lane Head-to-Head @14:00 ({} vs Opponent)",
                     p.role.label()
                 )))
@@ -81,7 +81,7 @@ fn render_h2h_banner(
                     div()
                         .flex_1()
                         .p_2()
-                        .rounded()
+                        .rounded_md()
                         .bg(theme::color(theme::BG_ELEVATED))
                         .child(
                             div()
@@ -94,26 +94,26 @@ fn render_h2h_banner(
                     div()
                         .flex_1()
                         .p_2()
-                        .rounded()
+                        .rounded_md()
                         .bg(theme::color(theme::BG_ELEVATED))
                         .child(
                             div()
                                 .flex()
                                 .justify_center()
-                                .child(format!("XP @14: {:+d}", xp_diff)),
+                                .child(format!("XP @14: {:+}", xp_diff)),
                         ),
                 )
                 .child(
                     div()
                         .flex_1()
                         .p_2()
-                        .rounded()
+                        .rounded_md()
                         .bg(theme::color(theme::BG_ELEVATED))
                         .child(
                             div()
                                 .flex()
                                 .justify_center()
-                                .child(format!("CS @14: {:+d}", cs_diff)),
+                                .child(format!("CS @14: {:+}", cs_diff)),
                         ),
                 ),
         )
@@ -175,7 +175,7 @@ fn render_charts(m: &baron_core::models::MatchSummary, p: &ParticipantStats) -> 
                 .child(
                     div()
                         .text_xs()
-                        .font_semibold()
+                        .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme::color(theme::TEXT_SECONDARY))
                         .child("Team Gold Advantage (Timeline)"),
                 )
@@ -202,7 +202,7 @@ fn render_charts(m: &baron_core::models::MatchSummary, p: &ParticipantStats) -> 
                 .child(
                     div()
                         .text_xs()
-                        .font_semibold()
+                        .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme::color(theme::TEXT_SECONDARY))
                         .child("6-Axis Combat Profile"),
                 )
@@ -234,7 +234,7 @@ fn render_scoreboard(m: &baron_core::models::MatchSummary) -> impl IntoElement {
                 .flex_row()
                 .justify_between()
                 .text_xs()
-                .font_semibold()
+                .font_weight(FontWeight::SEMIBOLD)
                 .text_color(theme::color(theme::TEXT_SECONDARY))
                 .child(div().w(px(140.)).child("Champion / Player"))
                 .child(div().w(px(60.)).child("Role"))
@@ -257,12 +257,12 @@ fn render_scoreboard(m: &baron_core::models::MatchSummary) -> impl IntoElement {
                 .items_center()
                 .text_xs()
                 .p_1()
-                .rounded()
+                .rounded_md()
                 .bg(theme::color_alpha(tint, 0.1))
                 .child(
                     div()
                         .w(px(140.))
-                        .font_semibold()
+                        .font_weight(FontWeight::SEMIBOLD)
                         .child(format!("{} ({})", pt.champion_name, pt.game_name)),
                 )
                 .child(

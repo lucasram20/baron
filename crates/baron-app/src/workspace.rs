@@ -4,6 +4,7 @@ use baron_lcu::OwnedSkinEntry;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::tag::Tag;
+use gpui_kit::component::ScrollableElement;
 use gpui_kit::component::Sizable as _;
 use gpui_kit::*;
 
@@ -82,7 +83,7 @@ impl BaronWorkspace {
             .child(Input::new(&self.search_input).cleanable(true));
         let brand = div()
             .text_base()
-            .font_bold()
+            .font_weight(FontWeight::BOLD)
             .text_color(theme::color(theme::TEXT_PRIMARY))
             .child("Baron");
 
@@ -185,14 +186,17 @@ impl Render for BaronWorkspace {
             .child(
                 div()
                     .flex_1()
+                    .min_h_0()
                     .flex()
                     .flex_row()
                     .overflow_hidden()
                     .child(self.render_nav_rail(cx))
                     .child(
                         div()
+                            .id("baron-main-canvas")
                             .flex_1()
-                            .overflow_y_scroll()
+                            .h_full()
+                            .overflow_y_scrollbar()
                             .p_4()
                             .child(self.render_route(window, cx)),
                     ),
@@ -204,7 +208,7 @@ impl Render for BaronWorkspace {
 mod tests {
     use super::*;
 
-    #[test]
+    #[::core::prelude::v1::test]
     fn test_route_labels() {
         for (r, expected) in [
             (ActiveRoute::Home, "Home"),

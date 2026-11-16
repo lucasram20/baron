@@ -30,7 +30,7 @@ pub fn render_tier_list(
                 .child(
                     div()
                         .text_sm()
-                        .font_bold()
+                        .font_weight(FontWeight::BOLD)
                         .child("Meta Champion Tier List (Solo/Duo)"),
                 )
                 .child(
@@ -67,7 +67,7 @@ pub fn render_tier_list(
                         .flex_row()
                         .justify_between()
                         .text_xs()
-                        .font_semibold()
+                        .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme::color(theme::TEXT_SECONDARY))
                         .child(div().w(px(40.)).child("Rank"))
                         .child(div().w(px(140.)).child("Champion"))
@@ -86,12 +86,17 @@ pub fn render_tier_list(
                         .items_center()
                         .text_xs()
                         .p_1()
-                        .rounded()
-                        .child(div().w(px(40.)).font_bold().child(format!("#{}", t.rank)))
+                        .rounded_md()
+                        .child(
+                            div()
+                                .w(px(40.))
+                                .font_weight(FontWeight::BOLD)
+                                .child(format!("#{}", t.rank)),
+                        )
                         .child(
                             div()
                                 .w(px(140.))
-                                .font_semibold()
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .child(t.champion_name.clone()),
                         )
                         .child(
@@ -108,7 +113,7 @@ pub fn render_tier_list(
                         .child(
                             div()
                                 .w(px(80.))
-                                .font_semibold()
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .child(format!("{:.1}%", t.win_rate)),
                         )
                         .child(
@@ -150,7 +155,7 @@ pub fn render_leaderboard(
                 .child(
                     div()
                         .text_sm()
-                        .font_bold()
+                        .font_weight(FontWeight::BOLD)
                         .child("Baron Friends & Rivals Leaderboard"),
                 )
                 .child(Tag::primary().small().child("Season 2026")),
@@ -171,7 +176,7 @@ pub fn render_leaderboard(
                         .flex_row()
                         .justify_between()
                         .text_xs()
-                        .font_semibold()
+                        .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme::color(theme::TEXT_SECONDARY))
                         .child(div().w(px(40.)).child("Rank"))
                         .child(div().w(px(160.)).child("Summoner"))
@@ -188,12 +193,17 @@ pub fn render_leaderboard(
                         .items_center()
                         .text_xs()
                         .p_1()
-                        .rounded()
-                        .child(div().w(px(40.)).font_bold().child(format!("#{}", m.rank)))
+                        .rounded_md()
+                        .child(
+                            div()
+                                .w(px(40.))
+                                .font_weight(FontWeight::BOLD)
+                                .child(format!("#{}", m.rank)),
+                        )
                         .child(
                             div()
                                 .w(px(160.))
-                                .font_semibold()
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .child(format!("{} #{}", m.game_name, m.tag_line)),
                         )
                         .child(
@@ -204,14 +214,14 @@ pub fn render_leaderboard(
                         .child(
                             div()
                                 .w(px(80.))
-                                .font_semibold()
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .child(format!("{:.1}%", m.win_rate)),
                         )
                         .child(
                             div().w(px(90.)).child(
                                 Tag::success()
                                     .small()
-                                    .child(format!("+{:+d} LP", m.net_lp_7d)),
+                                    .child(format!("{:+} LP", m.net_lp_7d)),
                             ),
                         )
                         .child(
@@ -252,7 +262,12 @@ pub fn render_skin_vault(
                         .flex_row()
                         .justify_between()
                         .items_center()
-                        .child(div().text_base().font_bold().child("Skin Collection Vault"))
+                        .child(
+                            div()
+                                .text_base()
+                                .font_weight(FontWeight::BOLD)
+                                .child("Skin Collection Vault"),
+                        )
                         .child(
                             Tag::warning()
                                 .small()
@@ -305,7 +320,7 @@ pub fn render_skin_vault(
                 .child(
                     div()
                         .text_xs()
-                        .font_semibold()
+                        .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme::color(theme::TEXT_SECONDARY))
                         .child("Owned Skin Inventory"),
                 )
@@ -317,11 +332,11 @@ pub fn render_skin_vault(
                         .items_center()
                         .text_xs()
                         .p_1()
-                        .rounded()
+                        .rounded_md()
                         .child(
                             div()
                                 .w(px(140.))
-                                .font_semibold()
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .child(s.champion_name.clone()),
                         )
                         .child(div().flex_1().child(s.name.clone()))

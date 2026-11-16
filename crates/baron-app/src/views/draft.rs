@@ -47,7 +47,7 @@ fn render_header_strip(ws: &BaronWorkspace, cx: &Context<BaronWorkspace>) -> imp
                 .child(
                     div()
                         .text_sm()
-                        .font_semibold()
+                        .font_weight(FontWeight::SEMIBOLD)
                         .child(format!("Target: {}", ws.data.draft.champion_name)),
                 ),
         )
@@ -168,11 +168,9 @@ fn render_draft_columns(ws: &BaronWorkspace) -> impl IntoElement {
                                 .flex_row()
                                 .justify_between()
                                 .items_center()
-                                .child(div().text_base().font_bold().child(format!(
-                                    "{} — {}",
-                                    draft.champion_name,
-                                    draft.role.label()
-                                )))
+                                .child(div().text_base().font_weight(FontWeight::BOLD).child(
+                                    format!("{} — {}", draft.champion_name, draft.role.label()),
+                                ))
                                 .child(
                                     Tag::warning()
                                         .small()
@@ -199,7 +197,7 @@ fn render_draft_columns(ws: &BaronWorkspace) -> impl IntoElement {
                         .child(
                             div()
                                 .text_xs()
-                                .font_semibold()
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(theme::color(theme::MVP_GOLD))
                                 .child(format!(
                                     "Matchup Shift: vs {}",
@@ -225,11 +223,11 @@ fn render_draft_columns(ws: &BaronWorkspace) -> impl IntoElement {
                         .child(
                             div()
                                 .text_xs()
-                                .font_semibold()
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(theme::color(theme::TEXT_SECONDARY))
                                 .child("Rune Configuration"),
                         )
-                        .child(div().text_sm().font_bold().child(format!(
+                        .child(div().text_sm().font_weight(FontWeight::BOLD).child(format!(
                             "{} ({})",
                             draft.runes.primary_tree, draft.runes.keystone
                         )))
@@ -242,7 +240,7 @@ fn render_draft_columns(ws: &BaronWorkspace) -> impl IntoElement {
                         .child(
                             div()
                                 .text_sm()
-                                .font_bold()
+                                .font_weight(FontWeight::BOLD)
                                 .child(format!("Secondary: {}", draft.runes.secondary_tree)),
                         )
                         .child(
@@ -266,14 +264,14 @@ fn render_draft_columns(ws: &BaronWorkspace) -> impl IntoElement {
                         .child(
                             div()
                                 .text_xs()
-                                .font_semibold()
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(theme::color(theme::TEXT_SECONDARY))
                                 .child("Skill Priority"),
                         )
                         .child(
                             div()
                                 .text_sm()
-                                .font_bold()
+                                .font_weight(FontWeight::BOLD)
                                 .text_color(theme::color(theme::ACCENT_PRIMARY))
                                 .child(format!(
                                     "{} > {} > {}",
@@ -303,7 +301,7 @@ fn render_draft_columns(ws: &BaronWorkspace) -> impl IntoElement {
                         .child(
                             div()
                                 .text_xs()
-                                .font_semibold()
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(theme::color(theme::TEXT_SECONDARY))
                                 .child("Item Build Path"),
                         )
@@ -316,7 +314,7 @@ fn render_draft_columns(ws: &BaronWorkspace) -> impl IntoElement {
                         .child(
                             div()
                                 .text_xs()
-                                .font_semibold()
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .child(format!("Core: {}", draft.core_items.join(" -> "))),
                         )
                         .child(
@@ -350,7 +348,7 @@ fn render_draft_columns(ws: &BaronWorkspace) -> impl IntoElement {
                                 .child(
                                     div()
                                         .text_xs()
-                                        .font_semibold()
+                                        .font_weight(FontWeight::SEMIBOLD)
                                         .text_color(theme::color(theme::TEXT_SECONDARY))
                                         .child("LCU Injected Payload"),
                                 )
@@ -359,7 +357,7 @@ fn render_draft_columns(ws: &BaronWorkspace) -> impl IntoElement {
                         .child(
                             div()
                                 .p_2()
-                                .rounded()
+                                .rounded_md()
                                 .bg(theme::color(theme::BG_ELEVATED))
                                 .overflow_hidden()
                                 .child(

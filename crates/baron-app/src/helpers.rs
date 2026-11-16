@@ -36,7 +36,7 @@ pub fn matches_search_query(account: &Account, query: &str) -> bool {
 mod tests {
     use super::*;
 
-    #[test]
+    #[::core::prelude::v1::test]
     fn test_helpers_kda_and_gold() {
         assert_eq!(format_kda(10, 2, 8), "10/2/8");
         assert_eq!(format_kda_ratio(10, 2, 8), "9.00:1");
@@ -46,7 +46,7 @@ mod tests {
         assert_eq!(format_gold_diff(0), "+0g");
     }
 
-    #[test]
+    #[::core::prelude::v1::test]
     fn test_helpers_search_matching() {
         let acc = Account {
             puuid: "p1".into(),

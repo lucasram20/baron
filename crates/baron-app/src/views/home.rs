@@ -61,10 +61,15 @@ fn render_bento_header(ws: &BaronWorkspace) -> impl IntoElement {
                         .flex_row()
                         .justify_between()
                         .items_center()
-                        .child(div().text_base().font_bold().child(format!(
-                            "{} #{}",
-                            ws.data.account.game_name, ws.data.account.tag_line
-                        )))
+                        .child(
+                            div()
+                                .text_base()
+                                .font_weight(FontWeight::BOLD)
+                                .child(format!(
+                                    "{} #{}",
+                                    ws.data.account.game_name, ws.data.account.tag_line
+                                )),
+                        )
                         .child(Tag::success().small().child("Today: +58 LP")),
                 )
                 .child(
@@ -75,7 +80,7 @@ fn render_bento_header(ws: &BaronWorkspace) -> impl IntoElement {
                         .child(
                             div()
                                 .text_sm()
-                                .font_semibold()
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(theme::color(theme::MVP_GOLD))
                                 .child(format!(
                                     "{} {} ({} LP)",
@@ -108,7 +113,7 @@ fn render_bento_header(ws: &BaronWorkspace) -> impl IntoElement {
                 .child(
                     div()
                         .text_xs()
-                        .font_semibold()
+                        .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme::color(theme::TEXT_SECONDARY))
                         .child("LP Progression"),
                 )
@@ -136,11 +141,16 @@ fn render_bento_header(ws: &BaronWorkspace) -> impl IntoElement {
                 .child(
                     div()
                         .text_xs()
-                        .font_semibold()
+                        .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme::color(theme::TEXT_SECONDARY))
                         .child("Recent Form (Last 20)"),
                 )
-                .child(div().text_lg().font_bold().child("65.0% WR • 3.42:1"))
+                .child(
+                    div()
+                        .text_lg()
+                        .font_weight(FontWeight::BOLD)
+                        .child("65.0% WR • 3.42:1"),
+                )
                 .child(
                     div()
                         .text_xs()
@@ -174,7 +184,7 @@ fn render_body(ws: &BaronWorkspace, cx: &Context<BaronWorkspace>) -> impl IntoEl
                         .child(
                             div()
                                 .text_xs()
-                                .font_semibold()
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(theme::color(theme::TEXT_SECONDARY))
                                 .child("Session Monitor"),
                         )
@@ -194,7 +204,7 @@ fn render_body(ws: &BaronWorkspace, cx: &Context<BaronWorkspace>) -> impl IntoEl
                         .child(
                             div()
                                 .text_xs()
-                                .font_semibold()
+                                .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(theme::color(theme::TEXT_SECONDARY))
                                 .child("Champion Pool"),
                         )
@@ -204,7 +214,11 @@ fn render_body(ws: &BaronWorkspace, cx: &Context<BaronWorkspace>) -> impl IntoEl
                                 .flex_row()
                                 .justify_between()
                                 .text_xs()
-                                .child(div().font_semibold().child(cp.champion_name.clone()))
+                                .child(
+                                    div()
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .child(cp.champion_name.clone()),
+                                )
                                 .child(
                                     div()
                                         .text_color(theme::color(theme::TEXT_SECONDARY))
@@ -222,7 +236,7 @@ fn render_body(ws: &BaronWorkspace, cx: &Context<BaronWorkspace>) -> impl IntoEl
                 .child(
                     div()
                         .text_sm()
-                        .font_semibold()
+                        .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme::color(theme::TEXT_SECONDARY))
                         .child("Match History"),
                 )
@@ -268,7 +282,11 @@ fn render_match_row(
                         .flex_row()
                         .items_center()
                         .gap_3()
-                        .child(div().font_bold().child(p.champion_name.clone()))
+                        .child(
+                            div()
+                                .font_weight(FontWeight::BOLD)
+                                .child(p.champion_name.clone()),
+                        )
                         .child(
                             div()
                                 .text_xs()
@@ -323,7 +341,7 @@ fn render_match_row(
         row = row.child(
             div()
                 .p_2()
-                .rounded()
+                .rounded_md()
                 .bg(theme::color(theme::BG_ELEVATED))
                 .flex()
                 .flex_row()
@@ -331,7 +349,7 @@ fn render_match_row(
                 .items_center()
                 .text_xs()
                 .child(div().child(format!(
-                    "Gold @14: {:+d}g • DPM: {} ({:.1}% dmg share)",
+                    "Gold @14: {:+}g • DPM: {} ({:.1}% dmg share)",
                     p.gold_diff_14,
                     p.dpm as i32,
                     p.team_damage_share * 100.0

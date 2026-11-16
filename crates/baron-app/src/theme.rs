@@ -30,7 +30,7 @@ pub fn color_alpha(hex: u32, alpha: f32) -> Hsla {
 mod tests {
     use super::*;
 
-    #[test]
+    #[::core::prelude::v1::test]
     fn test_theme_colors() {
         let c = color(BG_CANVAS);
         assert!((c.r - 9.0 / 255.0).abs() < 0.01);
