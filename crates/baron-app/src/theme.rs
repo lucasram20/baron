@@ -10,8 +10,10 @@ pub const TEXT_MUTED: u32 = 0x6B7280;
 pub const ACCENT_PRIMARY: u32 = 0x6366F1;
 pub const VICTORY_BLUE: u32 = 0x3B82F6;
 pub const DEFEAT_ROSE: u32 = 0xF43F5E;
+#[allow(dead_code)]
 pub const POSITIVE_EMERALD: u32 = 0x10B981;
 pub const MVP_GOLD: u32 = 0xF59E0B;
+#[allow(dead_code)]
 pub const ACE_PURPLE: u32 = 0xA855F7;
 
 /// Converts a 24-bit RGB hex literal to a GPUI `Rgba` color.

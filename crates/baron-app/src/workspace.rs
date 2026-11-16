@@ -43,6 +43,8 @@ pub struct BaronWorkspace {
     pub expanded_match_id: Option<String>,
     pub data: DashboardSampleData,
     pub skins: Vec<OwnedSkinEntry>,
+    // ponytail: persisted DB handle ready for live LCU/Riot sync wiring
+    #[allow(dead_code)]
     pub db: BaronDatabase,
 }
 
@@ -119,12 +121,12 @@ impl BaronWorkspace {
 
     fn render_nav_rail(&self, cx: &Context<Self>) -> impl IntoElement {
         let routes = [
-            (ActiveRoute::Home, "Home"),
-            (ActiveRoute::LiveDraft, "Live Draft"),
-            (ActiveRoute::DpmLens, "DPM Lens"),
-            (ActiveRoute::TierList, "Tier List"),
-            (ActiveRoute::Leaderboards, "Leaderboards"),
-            (ActiveRoute::SkinVault, "Skin Vault"),
+            ActiveRoute::Home,
+            ActiveRoute::LiveDraft,
+            ActiveRoute::DpmLens,
+            ActiveRoute::TierList,
+            ActiveRoute::Leaderboards,
+            ActiveRoute::SkinVault,
         ];
 
         div()
@@ -137,7 +139,8 @@ impl BaronWorkspace {
             .flex()
             .flex_col()
             .gap_1()
-            .children(routes.into_iter().map(|(r, label)| {
+            .children(routes.into_iter().map(|r| {
+                let label = r.label();
                 let btn = if self.route == r {
                     Button::new(label).label(label).small().primary()
                 } else {

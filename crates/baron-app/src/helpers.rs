@@ -20,6 +20,7 @@ pub fn format_gold_diff(diff: i32) -> String {
 }
 
 /// Tests whether an account matches a search query (by name or tag).
+#[allow(dead_code)]
 pub fn matches_search_query(account: &Account, query: &str) -> bool {
     let q = query.trim().to_lowercase();
     if q.is_empty() {

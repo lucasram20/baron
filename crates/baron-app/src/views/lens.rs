@@ -85,7 +85,8 @@ fn render_h2h_banner(
                         .bg(theme::color(theme::BG_ELEVATED))
                         .child(
                             div()
-                                .text_center()
+                                .flex()
+                                .justify_center()
                                 .child(format!("Gold @14: {}", format_gold_diff(gold_diff))),
                         ),
                 )
@@ -95,7 +96,12 @@ fn render_h2h_banner(
                         .p_2()
                         .rounded()
                         .bg(theme::color(theme::BG_ELEVATED))
-                        .child(div().text_center().child(format!("XP @14: {:+d}", xp_diff))),
+                        .child(
+                            div()
+                                .flex()
+                                .justify_center()
+                                .child(format!("XP @14: {:+d}", xp_diff)),
+                        ),
                 )
                 .child(
                     div()
@@ -103,7 +109,12 @@ fn render_h2h_banner(
                         .p_2()
                         .rounded()
                         .bg(theme::color(theme::BG_ELEVATED))
-                        .child(div().text_center().child(format!("CS @14: {:+d}", cs_diff))),
+                        .child(
+                            div()
+                                .flex()
+                                .justify_center()
+                                .child(format!("CS @14: {:+d}", cs_diff)),
+                        ),
                 ),
         )
 }

@@ -76,6 +76,7 @@ mod tests {
     use super::*;
     use crate::models::Role;
 
+    #[allow(clippy::too_many_arguments)]
     fn make_test_player(
         puuid: &str,
         win: bool,
