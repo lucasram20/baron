@@ -1,0 +1,106 @@
+name: Stable Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+    tags-ignore:
+      - "v*-*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release version tag (e.g. v0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-stable-release:
+    name: Build Stable Release (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: baron-windows-x86_64.zip
+            bin_path: target/release/baron-app.exe
+          - os: macos-latest
+            artifact_name: baron-macos-universal.tar.gz
+            bin_path: target/release/baron-app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run workspace tests
+        run: cargo test --workspace
+
+      - name: Build Baron release binary
+        run: cargo build --release -p baron-app
+
+      - name: Resolve stable tag
+        id: meta
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tag = "${{ inputs.tag_name }}"
+          } else {
+            $tag = "${{ github.ref_name }}"
+          }
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Package Windows release artifact
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item "${{ matrix.bin_path }}" dist/Baron.exe
+          Copy-Item README.md, LICENSE dist/
+          Compress-Archive -Path dist/* -DestinationPath "${{ matrix.artifact_name }}" -Force
+          $hash = (Get-FileHash "${{ matrix.artifact_name }}" -Algorithm SHA256).Hash.ToLower()
+          "$hash  ${{ matrix.artifact_name }}" | Out-File -Encoding ascii "${{ matrix.artifact_name }}.sha256"
+
+      - name: Package macOS release artifact
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp "${{ matrix.bin_path }}" dist/baron
+          cp README.md LICENSE dist/
+          tar -czf "${{ matrix.artifact_name }}" -C dist .
+          shasum -a 256 "${{ matrix.artifact_name }}" > "${{ matrix.artifact_name }}.sha256"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            ${{ matrix.artifact_name }}
+            ${{ matrix.artifact_name }}.sha256
+
+      - name: Publish Official Stable Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: "Baron ${{ steps.meta.outputs.tag }}"
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            ${{ matrix.artifact_name }}
+            ${{ matrix.artifact_name }}.sha256

@@ -1,0 +1,111 @@
+name: Pre-Release (Dev Builds)
+
+on:
+  push:
+    branches: [dev]
+    tags:
+      - "v*-dev*"
+      - "v*-alpha*"
+      - "v*-beta*"
+      - "v*-rc*"
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: "Optional pre-release tag (defaults to v0.1.0-dev.<short_sha>)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pre-release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-dev-release:
+    name: Build Dev Pre-Release (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: baron-windows-x86_64-dev.zip
+            bin_path: target/release/baron-app.exe
+          - os: macos-latest
+            artifact_name: baron-macos-universal-dev.tar.gz
+            bin_path: target/release/baron-app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run workspace tests
+        run: cargo test --workspace
+
+      - name: Build Baron release binary
+        run: cargo build --release -p baron-app
+
+      - name: Resolve release tag
+        id: meta
+        shell: pwsh
+        run: |
+          $shortSha = "${{ github.sha }}".Substring(0, 7)
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ inputs.version_tag }}" -ne "") {
+            $tag = "${{ inputs.version_tag }}"
+          } elseif ("${{ github.ref_type }}" -eq "tag") {
+            $tag = "${{ github.ref_name }}"
+          } else {
+            $tag = "v0.1.0-dev.$shortSha"
+          }
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Package Windows dev artifact
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item "${{ matrix.bin_path }}" dist/Baron.exe
+          Copy-Item README.md, LICENSE dist/
+          Compress-Archive -Path dist/* -DestinationPath "${{ matrix.artifact_name }}" -Force
+          $hash = (Get-FileHash "${{ matrix.artifact_name }}" -Algorithm SHA256).Hash.ToLower()
+          "$hash  ${{ matrix.artifact_name }}" | Out-File -Encoding ascii "${{ matrix.artifact_name }}.sha256"
+
+      - name: Package macOS dev artifact
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp "${{ matrix.bin_path }}" dist/baron
+          cp README.md LICENSE dist/
+          tar -czf "${{ matrix.artifact_name }}" -C dist .
+          shasum -a 256 "${{ matrix.artifact_name }}" > "${{ matrix.artifact_name }}.sha256"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            ${{ matrix.artifact_name }}
+            ${{ matrix.artifact_name }}.sha256
+
+      - name: Publish GitHub Pre-Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: "Baron ${{ steps.meta.outputs.tag }} (Dev Pre-Release)"
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            ${{ matrix.artifact_name }}
+            ${{ matrix.artifact_name }}.sha256

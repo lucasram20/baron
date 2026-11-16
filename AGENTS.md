@@ -41,5 +41,13 @@ crates/
 ├── baron-riot/   # Data Dragon / CommunityDragon URLs & Riot Web API (Match-V5 / Account-V1 / League-V4)
 └── baron-app/    # Pure native Rust desktop app built with gpui-kit (Window title: "Baron")
 ```
-- **Verification Before Completion:** Always run `cargo test --workspace` and `cargo check --workspace` after edits and verify exact passing output before committing or reporting success.
+- **Verification & GitHub-Hosted CI/CD (Strict No-Local-Build Rule):**
+  - **NEVER** run `cargo test`, `cargo build`, `cargo check`, or `cargo run` locally — local Cargo builds (`target/`) consume excessive disk storage and RAM. Never leave a local `target/` directory in the workspace.
+  - All formatting (`cargo fmt --all -- --check`), linting (`cargo clippy --workspace --all-targets -- -D warnings`), compilation (`cargo check`), testing (`cargo test --workspace`), and release packaging run exclusively on GitHub-hosted Actions runners:
+    - [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — CI testing & linting on pushes (`main`, `dev`, `feat/**`, `fix/**`) and PRs.
+    - [`.github/workflows/pre-release.yml`](.github/workflows/pre-release.yml) — Automated dev pre-release builds on `dev` pushes, `v*-dev*`/`v*-alpha*`/`v*-beta*`/`v*-rc*` tags, or manual dispatch.
+    - [`.github/workflows/release.yml`](.github/workflows/release.yml) — Official stable release builds on semver tags (`vX.Y.Z`) or manual dispatch.
+- **Ponytail Anti-Bloat & Code Discipline:**
+  - Keep code minimal, flat, and free of unrequested abstractions or boilerplate. Follow the Ponytail ladder: YAGNI → reuse existing `baron-core` helpers/types → Rust `std` → existing workspace deps (`serde`, `serde_json`, `rusqlite`, `gpui-kit`) → minimal working code.
+  - Avoid adding extra third-party crates when `std` or an existing dependency already covers the requirement cleanly. Mark deliberate simplifications with `// ponytail: <ceiling and upgrade path>`.
 - **Documentation References:** Consult [docs/spec/prd.md](docs/spec/prd.md), [docs/spec/api-data-sources.md](docs/spec/api-data-sources.md), [docs/spec/architecture-gpui.md](docs/spec/architecture-gpui.md), and [docs/spec/ui-ux-design.md](docs/spec/ui-ux-design.md) before altering architecture or UI flows.

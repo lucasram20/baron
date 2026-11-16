@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev, "feat/**", "fix/**"]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-and-test:
+    name: Format, Clippy, Check & Test (windows-latest)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy lints
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Check all workspace targets
+        run: cargo check --workspace --bins
+
+      - name: Run workspace test suite
+        run: cargo test --workspace --verbose
