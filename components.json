@@ -5,17 +5,17 @@
   "tsx": true,
   "tailwind": {
     "config": "",
-    "css": "ui/src/app/globals.css",
+    "css": "frontend/src/app/globals.css",
     "baseColor": "zinc",
     "cssVariables": true
   },
   "iconLibrary": "lucide",
   "aliases": {
-    "components": "@/components",
-    "utils": "@/lib/utils",
-    "ui": "@/components/ui",
-    "lib": "@/lib",
-    "hooks": "@/hooks"
+    "components": "./frontend/src/components",
+    "utils": "./frontend/src/lib/utils",
+    "ui": "./frontend/src/components/ui",
+    "lib": "./frontend/src/lib",
+    "hooks": "./frontend/src/hooks"
   },
   "registries": {
     "@react-bits": "https://reactbits.dev/r/{name}.json",

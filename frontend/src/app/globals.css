@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@theme {
+  --color-baron-canvas: #090b10;
+  --color-baron-sidebar: #0b0e14;
+  --color-baron-surface: #11151f;
+  --color-baron-elevated: #161b28;
+  --color-baron-hover: #1c2233;
+
+  --color-baron-border-muted: #151a26;
+  --color-baron-border: #1e2536;
+  --color-baron-border-strong: #2e3852;
+
+  --color-baron-accent: #6366f1;
+  --color-baron-accent-soft: #818cf8;
+  --color-baron-victory: #3b82f6;
+  --color-baron-defeat: #f43f5e;
+  --color-baron-emerald: #10b981;
+  --color-baron-gold: #f59e0b;
+  --color-baron-ace: #a855f7;
+  --color-baron-cyan: #38bdf8;
+
+  /* shadcn/ui dark theme mappings */
+  --color-background: #090b10;
+  --color-foreground: #f8fafc;
+  --color-card: #11151f;
+  --color-card-foreground: #f8fafc;
+  --color-popover: #0b0e14;
+  --color-popover-foreground: #f8fafc;
+  --color-primary: #6366f1;
+  --color-primary-foreground: #f8fafc;
+  --color-secondary: #161b28;
+  --color-secondary-foreground: #cbd5e1;
+  --color-muted: #161b28;
+  --color-muted-foreground: #94a3b8;
+  --color-accent: #1c2233;
+  --color-accent-foreground: #f8fafc;
+  --color-destructive: #f43f5e;
+  --color-destructive-foreground: #f8fafc;
+  --color-border: #1e2536;
+  --color-input: #1e2536;
+  --color-ring: #6366f1;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+    background-color: var(--color-baron-canvas);
+    color: #f8fafc;
+    font-feature-settings: "tnum" 1, "cv02" 1;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #090b10;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #1e2536;
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2e3852;
+  }
+}

@@ -22,7 +22,7 @@
 
 ```mermaid
 flowchart TD
-    subgraph NextUI["Next.js 16.4.6 Static Export (ui/ -> ui/out/)"]
+    subgraph NextUI["Next.js 16.4.6 Static Export (frontend/ -> frontend/out/)"]
         Shell["DPM v1.8.1 App Shell\n(204px Sidebar + Baron Logo + Ctrl+K Top Bar)"]
         Popovers["Interactive Popovers\n(Patch 16.22..16.10 & Period 7/14/30d\n+ API Mode Dropdown: OP.GG / U.GG)"]
         Screens["8 Core Screens\n(Champ Select, Spectate, Post-game, Tierlist,\nCollections, Dashboard, Leaderboards, Data Studio)"]
@@ -41,7 +41,7 @@ flowchart TD
         Bun --> NextUI
     end
 
-    subgraph TauriCore["Tauri v2 Native Rust Host (crates/baron-app)"]
+    subgraph TauriCore["Tauri v2 Native Rust Host (src-tauri/, crate baron-app)"]
         IPC["#[tauri::command] & Event Emitter"]
         BCore["baron-core\n(Baron Score 0-100, MVP/ACE, @14m Math)"]
         BDb["baron-db\n(rusqlite local baron.db)"]
@@ -62,45 +62,46 @@ flowchart TD
 
 ```text
 baron/
-├── Cargo.toml                  # Rust workspace (baron-core, baron-db, baron-lcu, baron-riot, baron-app)
+├── Cargo.toml                  # Rust workspace (crates/* + src-tauri)
 ├── assets/
 │   └── logo/
 │       ├── baron_logo.png      # Transparent 512x512 Baron mascot logo
 │       └── baron.ico           # Multi-resolution (256..16px) Windows app & NSIS installer icon
 ├── installer/
 │   └── baron.nsi               # NSIS installer packaging Baron.exe + baron.ico
-├── ui/                         # Next.js 16.4.6 + Bun + VoidZero (Oxlint) Frontend
+├── frontend/                   # Next.js 16.4.6 (strict TS) + Bun + VoidZero (Oxlint) UI
 │   ├── bun.lock                # Bun lockfile (NEVER package-lock.json or pnpm-lock.yaml)
 │   ├── package.json            # Bun scripts + Next 16.4.6 + React 19 + @tauri-apps/api 2.12.4
 │   ├── next.config.ts          # output: 'export', images: { unoptimized: true }
 │   ├── .oxlintrc.json          # VoidZero Oxlint 1.93.0 configuration
-│   ├── tsconfig.json
+│   ├── tsconfig.json           # strict: true TypeScript config
 │   └── src/
 │       ├── app/                # Next.js App Router (layout.tsx, page.tsx, globals.css)
 │       ├── components/
 │       │   ├── ui/             # shadcn/ui + 21st.dev + React Bits + Aceternity UI primitives
 │       │   ├── shell/          # Sidebar, TopCommandBar, PatchPeriodPopover, ApiModeDropdown
-│       │   └── views/          # ChampSelectView, SpectateView, PostGameView, TierListView, CollectionView, DashboardView
+│       │   └── views/          # ChampSelectView, SpectateView, PostGameView, TierListView, CollectionView, SecondaryViews
 │       └── lib/
 │           └── tauri.ts        # Typed @tauri-apps/api invoke() wrappers with browser preview fallback
+├── src-tauri/                  # Tauri v2 Native Rust Host (package: baron-app, Title: "Baron")
+│   ├── Cargo.toml
+│   ├── build.rs
+│   ├── tauri.conf.json
+│   └── src/
+│       ├── lib.rs              # #[tauri::command] handlers bridging baron-core/db/lcu/riot to Next.js
+│       └── main.rs
 └── crates/
     ├── baron-core/             # 100% Pure Rust: Domain models, Baron Score, @14m timeline math
     ├── baron-db/               # 100% Pure Rust: SQLite (baron.db) schema & repository
     ├── baron-lcu/              # 100% Pure Rust: LCU REST/WS, auto-runes, Live Client 2999, Skin Vault
-    ├── baron-riot/             # 100% Pure Rust: OP.GG #1 / U.GG #2 / LoLalytics / MetaSRC + DDragon 16.22
-    └── baron-app/              # Tauri v2 Native Rust Binary (Title: "Baron", Icon: baron.ico)
-        ├── Cargo.toml
-        ├── build.rs
-        ├── tauri.conf.json
-        └── src/
-            └── main.rs         # #[tauri::command] handlers bridging baron-core/db/lcu/riot to Next.js
+    └── baron-riot/             # 100% Pure Rust: OP.GG #1 / U.GG #2 / LoLalytics / MetaSRC + DDragon 16.22
 ```
 
 ---
 
 ## 4. Exact Configuration Specifications
 
-### 4.1 `ui/package.json` (Bun + Next.js `16.4.6` + VoidZero `oxlint` `1.93.0`)
+### 4.1 `frontend/package.json` (Bun + Next.js `16.4.6` + VoidZero `oxlint` `1.93.0`)
 Strictly managed by **Bun** (`packageManager: "bun@1.3.0"`). `npm` and `pnpm` are forbidden:
 
 ```json
@@ -138,8 +139,8 @@ Strictly managed by **Bun** (`packageManager: "bun@1.3.0"`). `npm` and `pnpm` ar
 }
 ```
 
-### 4.2 `ui/next.config.ts` (Static Export for Tauri v2 — Zero Runtime Server)
-Next.js compiles all pages and components at build time into `ui/out/` so Tauri v2 ships pure static assets with zero Node.js server overhead:
+### 4.2 `frontend/next.config.ts` (Static Export for Tauri v2 — Zero Runtime Server)
+Next.js compiles all pages and components at build time into `frontend/out/` so Tauri v2 ships pure static assets with zero Node.js server overhead:
 
 ```typescript
 import type { NextConfig } from "next";
@@ -156,7 +157,7 @@ const nextConfig: NextConfig = {
 export default nextConfig;
 ```
 
-### 4.3 `ui/.oxlintrc.json` (VoidZero `Oxlint` Configuration)
+### 4.3 `frontend/.oxlintrc.json` (VoidZero `Oxlint` Configuration)
 Replaces ESLint with VoidZero's Rust-based `oxlint`:
 
 ```json
@@ -174,11 +175,11 @@ Replaces ESLint with VoidZero's Rust-based `oxlint`:
 }
 ```
 
-### 4.4 `ui/src/app/globals.css` & `ui/postcss.config.mjs` (Tailwind CSS `4.3.5` Unified `@theme` Styling)
-Tailwind CSS `4.3.5` uses the Rust-powered **Oxide engine** (`@tailwindcss/postcss`) and eliminates `tailwind.config.js` in favor of a single, unified CSS-first `@theme` token configuration in `ui/src/app/globals.css` shared across all **DPM v1.8.1** screens, `shadcn/ui`, `21st.dev`, `React Bits`, and `Aceternity UI` components:
+### 4.4 `frontend/src/app/globals.css` & `frontend/postcss.config.mjs` (Tailwind CSS `4.3.5` Unified `@theme` Styling)
+Tailwind CSS `4.3.5` uses the Rust-powered **Oxide engine** (`@tailwindcss/postcss`) and eliminates `tailwind.config.js` in favor of a single, unified CSS-first `@theme` token configuration in `frontend/src/app/globals.css` shared across all **DPM v1.8.1** screens, `shadcn/ui`, `21st.dev`, `React Bits`, and `Aceternity UI` components:
 
 ```javascript
-// ui/postcss.config.mjs
+// frontend/postcss.config.mjs
 export default {
   plugins: {
     "@tailwindcss/postcss": {},
@@ -187,7 +188,7 @@ export default {
 ```
 
 ```css
-/* ui/src/app/globals.css */
+/* frontend/src/app/globals.css */
 @import "tailwindcss";
 
 @theme {
@@ -225,8 +226,8 @@ export default {
 }
 ```
 
-### 4.5 `crates/baron-app/tauri.conf.json`
-Connects Tauri v2 directly to `bun` and `../../ui/out`:
+### 4.5 `src-tauri/tauri.conf.json`
+Connects Tauri v2 directly to `bun` and `../frontend/out`:
 
 ```json
 {
@@ -235,10 +236,10 @@ Connects Tauri v2 directly to `bun` and `../../ui/out`:
   "version": "0.1.0",
   "identifier": "com.baron.companion",
   "build": {
-    "beforeDevCommand": "bun --cwd ../../ui run dev",
-    "beforeBuildCommand": "bun --cwd ../../ui run build",
+    "beforeDevCommand": "bun --cwd ../frontend run dev",
+    "beforeBuildCommand": "bun --cwd ../frontend run build",
     "devUrl": "http://localhost:3000",
-    "frontendDist": "../../ui/out"
+    "frontendDist": "../frontend/out"
   },
   "app": {
     "windows": [
@@ -286,13 +287,13 @@ All domain calculations, SQLite queries (`baron.db`), LCU lockfile detection, an
 ## 6. GitHub-Hosted CI/CD Workflow Integration (`Bun` + `VoidZero Oxlint` + `Cargo`)
 
 In compliance with the **Strict No-Local-Build Rule**, all frontend and backend verification runs on GitHub-hosted Actions runners:
-1. **Frontend Verification (`ui/`):**
+1. **Frontend Verification (`frontend/`):**
    - `uses: oven-sh/setup-bun@v2`
    - `bun install --frozen-lockfile`
    - `bun run lint` (executes VoidZero **`oxlint --deny-warnings src`** in `<100ms`)
    - `bun run typecheck` (`tsc --noEmit`)
-   - `bun run build` (generates static `ui/out/` bundle)
-2. **Backend & Desktop Packaging (`crates/`):**
+   - `bun run build` (generates static `frontend/out/` bundle)
+2. **Backend & Desktop Packaging (`crates/` & `src-tauri/`):**
    - `cargo fmt --all -- --check`
    - `cargo clippy --workspace --all-targets -- -D warnings`
    - `cargo test --workspace`

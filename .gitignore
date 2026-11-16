@@ -1,6 +1,9 @@
 /target/
 /.superpowers/
 /.serena/
+/frontend/node_modules/
+/frontend/.next/
+/frontend/out/
 *.db
 *.db-shm
 *.db-wal

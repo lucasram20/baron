@@ -9,11 +9,11 @@
 - **Mission:** A 100% free, zero-ad, zero-subscription, local-first desktop companion and deep analytics platform for League of Legends replacing bloated or paywalled apps (OP.GG, Blitz.gg, U.GG, DPM.lol).
 
 ## 2. Technology Architecture (Tauri v2 + Next.js Frontend + 100% Rust Backend)
-- **Desktop Host & IPC (`baron-app`):**
+- **Desktop Host & IPC (`src-tauri/`, crate `baron-app`):**
   - **Tauri v2** (`tauri = "2"`, `@tauri-apps/api = "2.12.4"`) using the OS native system WebView (`Edge WebView2` on Windows, `WKWebView` on macOS) — zero bundled Chromium, zero Electron, zero Overwolf, and zero Node.js server at runtime.
-- **Frontend UI & Styling (`ui/`):**
-  - **Framework:** **Next.js `16.4.6+`** (`output: 'export'`, `images: { unoptimized: true }`, React 19, TypeScript) compiling to pure static `ui/out/` assets.
-  - **Styling:** **Tailwind CSS `4.3.5+`** (`@tailwindcss/postcss`, Oxide engine) with CSS-first `@theme` design tokens in `ui/src/app/globals.css`.
+- **Frontend UI & Styling (`frontend/`):**
+  - **Framework:** **Next.js `16.4.6+`** (`output: 'export'`, `images: { unoptimized: true }`, React 19, strictly TypeScript) compiling to pure static `frontend/out/` assets.
+  - **Styling:** **Tailwind CSS `4.3.5+`** (`@tailwindcss/postcss`, Oxide engine) with CSS-first `@theme` design tokens in `frontend/src/app/globals.css`.
   - **Component Registries & MCP:** Use the shared [`components.json`](components.json) registry and **`shadcn` MCP server** (`@shadcn`, `@react-bits`, `@aceternity` across Antigravity, Claude Code, and OpenCode, plus `21st.dev` CLI & `lucide-react`) to inspect and install UI components cleanly via `bunx shadcn@latest add ...`.
   - **Exclusive Package Manager & VoidZero Tooling:** Use **Bun** (`bun install`, `bun run`, `bunx`, `bun.lock`) and **VoidZero `Oxc`** (`oxlint` `1.93.0+`) exclusively for all frontend dependencies, builds, and linting. **STRICTLY FORBIDDEN:** NEVER use `npm`, `pnpm`, `yarn`, `package-lock.json`, `pnpm-lock.yaml`, or slow ESLint plugin chains.
 - **100% Native Rust Backend Crates (Unchanged):**
@@ -42,13 +42,13 @@ baron/
 ├── components.json             # Shared shadcn / @react-bits / @aceternity MCP registry config
 ├── assets/logo/                # Transparent Baron mascot PNG & multi-size Windows ICO
 ├── installer/baron.nsi         # NSIS Windows installer (Title: "Baron", Icon: baron.ico)
-├── ui/                         # Next.js 16.4.6 + Tailwind CSS 4.3.5 + Bun + VoidZero (Oxlint) frontend
+├── frontend/                   # Next.js 16.4.6 (strict TS) + Tailwind CSS 4.3.5 + Bun + VoidZero (Oxlint) UI
+├── src-tauri/                  # Tauri v2 desktop host crate (baron-app; Window title: "Baron")
 └── crates/
     ├── baron-core/             # Domain models, Baron Score (0-100) + MVP/ACE engine, Match-V5 timeline math
     ├── baron-db/               # SQLite schema migrations & local cache repository (baron.db)
     ├── baron-lcu/              # Zero-key LCU lockfile/REST/WS, auto-runes/items, Live Client (2999), Skin Vault
-    ├── baron-riot/             # DDragon 16.22 / CDragon URLs, Riot Web API & OP.GG/U.GG fallback providers
-    └── baron-app/              # Desktop host binary (Tauri v2 migration target; Window title: "Baron")
+    └── baron-riot/             # DDragon 16.22 / CDragon URLs, Riot Web API & OP.GG/U.GG fallback providers
 ```
 - **Verification & GitHub-Hosted CI/CD (Strict No-Local-Cargo-Build Rule):**
   - **NEVER** run `cargo test`, `cargo build`, `cargo check`, or `cargo run` locally — local Cargo builds (`target/`) consume excessive disk storage and RAM. Never leave a local `target/` directory in the workspace.

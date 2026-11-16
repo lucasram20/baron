@@ -49,6 +49,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Lint & typecheck frontend
+        working-directory: frontend
+        run: |
+          bun run lint
+          bun run typecheck
+
+      - name: Build frontend static export (Next.js)
+        working-directory: frontend
+        run: bun run build
+
       - name: Install stable Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
