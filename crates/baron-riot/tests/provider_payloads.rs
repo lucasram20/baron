@@ -1,5 +1,5 @@
 use baron_core::sample_dashboard_data;
-use baron_riot::{parse_fallback_tier_list_json, FallbackProvider};
+use baron_riot::{parse_fallback_build_json, parse_fallback_tier_list_json, FallbackProvider};
 
 #[test]
 fn providers_reject_baron_sample_rows_as_provider_responses() {
@@ -19,6 +19,29 @@ fn providers_reject_baron_sample_rows_as_provider_responses() {
             "Baron sample rows must not be accepted as a {provider:?} response"
         );
     }
+}
+
+#[test]
+fn providers_reject_sample_builds() {
+    let sample = serde_json::to_string(&sample_dashboard_data().draft).unwrap();
+    for provider in [
+        FallbackProvider::OpGg,
+        FallbackProvider::UGg,
+        FallbackProvider::DpmLol,
+        FallbackProvider::Lolalytics,
+        FallbackProvider::MetaSrc,
+        FallbackProvider::MerakiCdn,
+    ] {
+        assert!(parse_fallback_build_json(provider, &sample).is_err());
+    }
+}
+
+#[test]
+fn opgg_tier_transport_uses_documented_mcp_endpoint() {
+    assert_eq!(
+        FallbackProvider::OpGg.tier_list_endpoint_url("16.22"),
+        "https://mcp-api.op.gg/mcp"
+    );
 }
 
 #[test]
