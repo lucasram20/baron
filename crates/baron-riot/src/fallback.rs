@@ -78,9 +78,7 @@ impl FallbackProvider {
 
     pub fn tier_list_endpoint_url(&self, patch: &str) -> String {
         match self {
-            Self::OpGg => format!(
-                "https://lol-api-champion.op.gg/api/global/champions/ranked?tier=emerald_plus&version={patch}"
-            ),
+            Self::OpGg => "https://mcp-api.op.gg/mcp".to_string(),
             Self::UGg => {
                 format!("https://stats2.u.gg/lol/1.5/tier_list/{patch}/ranked_solo_5x5.json")
             }
@@ -115,14 +113,15 @@ pub fn extract_lolalytics_qwik_json(html: &str) -> Option<&str> {
     Some(html[start..end].trim())
 }
 
-/// Parses provider / normalized JSON into `DraftRecommendation`.
+/// Reject build payloads until a provider-specific adapter is verified.
 pub fn parse_fallback_build_json(
-    _provider: FallbackProvider,
-    raw_json: &str,
+    provider: FallbackProvider,
+    _raw_json: &str,
 ) -> Result<DraftRecommendation, RiotApiParseError> {
-    // ponytail: normalized build adapter; REA MCP passive updates can adapt remote schema changes
-    serde_json::from_str(raw_json)
-        .map_err(|e| RiotApiParseError::InvalidPayload(format!("build parse error: {e}")))
+    Err(RiotApiParseError::InvalidPayload(format!(
+        "{} build response is not supported",
+        provider.label()
+    )))
 }
 
 /// Parses provider / normalized JSON into a list of `ChampionTierEntry`.
@@ -186,9 +185,7 @@ mod tests {
 
         let sample = baron_core::models::sample_dashboard_data();
         let build_json = serde_json::to_string(&sample.draft).unwrap();
-        let draft = parse_fallback_build_json(FallbackProvider::OpGg, &build_json)
-            .expect("valid draft parse");
-        assert_eq!(draft.champion_name, "Ahri");
+        assert!(parse_fallback_build_json(FallbackProvider::OpGg, &build_json).is_err());
 
         let tier_json = serde_json::to_string(&sample.tier_list).unwrap();
         assert!(parse_fallback_tier_list_json(FallbackProvider::UGg, &tier_json).is_err());

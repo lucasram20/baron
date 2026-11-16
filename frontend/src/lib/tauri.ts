@@ -40,7 +40,7 @@ export const DEFAULT_PROVIDERS: ProviderMeta[] = [
     id: "opgg",
     label: "OP.GG",
     roleTag: "Primary #1",
-    tierListUrl: `https://lol-api-champion.op.gg/api/global/champions/ranked?tier=emerald_plus&version=${LATEST_PATCH}`,
+    tierListUrl: "https://mcp-api.op.gg/mcp",
     sampleBuildUrl: `https://lol-api-champion.op.gg/api/global/champions/ranked/103/MID?tier=emerald_plus&version=${LATEST_PATCH}`,
   },
   {
