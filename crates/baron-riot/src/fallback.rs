@@ -127,10 +127,14 @@ pub fn parse_fallback_build_json(
 
 /// Parses provider / normalized JSON into a list of `ChampionTierEntry`.
 pub fn parse_fallback_tier_list_json(
-    _provider: FallbackProvider,
+    provider: FallbackProvider,
     raw_json: &str,
 ) -> Result<Vec<ChampionTierEntry>, RiotApiParseError> {
-    // ponytail: normalized tier list adapter; REA MCP passive updates can adapt remote schema changes
+    if provider == FallbackProvider::OpGg {
+        return Err(RiotApiParseError::InvalidPayload(
+            "OP.GG tier list adapter is not implemented".to_string(),
+        ));
+    }
     serde_json::from_str(raw_json)
         .map_err(|e| RiotApiParseError::InvalidPayload(format!("tier list parse error: {e}")))
 }
