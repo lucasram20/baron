@@ -1,6 +1,6 @@
+use crate::web_api::RiotApiParseError;
 use baron_core::models::{ChampionTierEntry, DraftRecommendation, Role};
 use serde::{Deserialize, Serialize};
-use crate::web_api::RiotApiParseError;
 
 /// Third-party / community data providers used as fallback mirrors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -32,10 +32,17 @@ impl FallbackProvider {
 
     pub fn tier_list_endpoint_url(&self, patch: &str) -> String {
         match self {
-            Self::UGg => format!("https://stats2.u.gg/lol/1.5/tier_list/{patch}/ranked_solo_5x5.json"),
-            Self::OpGg => format!("https://op.gg/api/v1.0/internal/bypass/champions/tier-list?patch={patch}"),
+            Self::UGg => {
+                format!("https://stats2.u.gg/lol/1.5/tier_list/{patch}/ranked_solo_5x5.json")
+            }
+            Self::OpGg => {
+                format!("https://op.gg/api/v1.0/internal/bypass/champions/tier-list?patch={patch}")
+            }
             Self::DpmLol => format!("https://dpm.lol/api/v1/tier-list?patch={patch}"),
-            Self::MerakiCdn => "https://cdn.merakianalytics.com/riot/lol/resources/latest/en-US/champions.json".to_string(),
+            Self::MerakiCdn => {
+                "https://cdn.merakianalytics.com/riot/lol/resources/latest/en-US/champions.json"
+                    .to_string()
+            }
         }
     }
 }
@@ -88,11 +95,13 @@ mod tests {
     fn test_fallback_parsers() {
         let sample = baron_core::models::sample_dashboard_data();
         let build_json = serde_json::to_string(&sample.draft).unwrap();
-        let draft = parse_fallback_build_json(FallbackProvider::UGg, &build_json).expect("valid draft parse");
+        let draft = parse_fallback_build_json(FallbackProvider::UGg, &build_json)
+            .expect("valid draft parse");
         assert_eq!(draft.champion_name, "Ahri");
 
         let tier_json = serde_json::to_string(&sample.tier_list).unwrap();
-        let list = parse_fallback_tier_list_json(FallbackProvider::OpGg, &tier_json).expect("valid tier list parse");
+        let list = parse_fallback_tier_list_json(FallbackProvider::OpGg, &tier_json)
+            .expect("valid tier list parse");
         assert_eq!(list.len(), 8);
         assert_eq!(list[0].champion_name, "Ahri");
     }

@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use crate::models::{CombatRadarMetrics, LaneDiffAt14, ParticipantStats, Role, TimelineFrameSample};
+use crate::models::{
+    CombatRadarMetrics, LaneDiffAt14, ParticipantStats, Role, TimelineFrameSample,
+};
 
 /// Computes the exact Gold, XP, and CS differential at a target minute (e.g. minute 14)
 /// between a participant and their direct enemy lane counterpart.
@@ -158,7 +160,7 @@ mod tests {
             vision_per_min: 2.0,      // 80.0
             kill_participation: 0.70, // 70.0
             team_damage_share: 0.30,
-            team_gold_share: 0.20,    // ratio = 1.5 -> (1.5 / 1.5) * 100 = 100.0
+            team_gold_share: 0.20, // ratio = 1.5 -> (1.5 / 1.5) * 100 = 100.0
             gold_diff_14: 1000,
             xp_diff_14: 500,
             cs_diff_14: 20,

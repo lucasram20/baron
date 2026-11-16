@@ -134,7 +134,11 @@ impl BaronDatabase {
     }
 
     /// Retrieves chronological LP progression snapshots for a specific account and queue type.
-    pub fn get_lp_history(&self, puuid: &str, queue_type: &str) -> rusqlite::Result<Vec<LpSnapshot>> {
+    pub fn get_lp_history(
+        &self,
+        puuid: &str,
+        queue_type: &str,
+    ) -> rusqlite::Result<Vec<LpSnapshot>> {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare(
             "SELECT puuid, queue_type, tier, division, lp, wins, losses, match_id, recorded_at
@@ -202,7 +206,9 @@ impl BaronDatabase {
     pub fn get_cached_match_json(&self, match_id: &str) -> rusqlite::Result<Option<String>> {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare("SELECT raw_json FROM matches WHERE match_id = ?1")?;
-        let res = stmt.query_row(params![match_id], |row| row.get(0)).optional()?;
+        let res = stmt
+            .query_row(params![match_id], |row| row.get(0))
+            .optional()?;
         Ok(res)
     }
 
@@ -224,10 +230,15 @@ impl BaronDatabase {
     }
 
     /// Fetches cached raw Match-V5 timeline JSON by match ID.
-    pub fn get_cached_match_timeline_json(&self, match_id: &str) -> rusqlite::Result<Option<String>> {
+    pub fn get_cached_match_timeline_json(
+        &self,
+        match_id: &str,
+    ) -> rusqlite::Result<Option<String>> {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare("SELECT raw_json FROM match_timelines WHERE match_id = ?1")?;
-        let res = stmt.query_row(params![match_id], |row| row.get(0)).optional()?;
+        let res = stmt
+            .query_row(params![match_id], |row| row.get(0))
+            .optional()?;
         Ok(res)
     }
 
@@ -299,7 +310,14 @@ impl BaronDatabase {
             ON CONFLICT(patch, champion_id, role, vs_champion_id) DO UPDATE SET
                 build_json = excluded.build_json,
                 updated_at = excluded.updated_at",
-            params![patch, champion_id, role, vs_champion_id, build_json, updated_at],
+            params![
+                patch,
+                champion_id,
+                role,
+                vs_champion_id,
+                build_json,
+                updated_at
+            ],
         )?;
         Ok(())
     }
@@ -318,7 +336,9 @@ impl BaronDatabase {
              WHERE patch = ?1 AND champion_id = ?2 AND role = ?3 AND vs_champion_id = ?4",
         )?;
         let res = stmt
-            .query_row(params![patch, champion_id, role, vs_champion_id], |row| row.get(0))
+            .query_row(params![patch, champion_id, role, vs_champion_id], |row| {
+                row.get(0)
+            })
             .optional()?;
         Ok(res)
     }
@@ -354,7 +374,8 @@ mod tests {
         let mut acc1_updated = acc1.clone();
         acc1_updated.summoner_level = 685;
         acc1_updated.updated_at = 1715001000;
-        db.upsert_account(&acc1_updated).expect("failed to update acc1");
+        db.upsert_account(&acc1_updated)
+            .expect("failed to update acc1");
 
         let accounts = db.list_accounts().expect("failed to list accounts");
         assert_eq!(accounts.len(), 1);
@@ -505,12 +526,16 @@ mod tests {
             .create_leaderboard("Flex Squad", 1710001000)
             .expect("create leaderboard 2");
 
-        db.add_leaderboard_member(id1, "puuid-faker").expect("add faker");
-        db.add_leaderboard_member(id1, "puuid-chovy").expect("add chovy");
+        db.add_leaderboard_member(id1, "puuid-faker")
+            .expect("add faker");
+        db.add_leaderboard_member(id1, "puuid-chovy")
+            .expect("add chovy");
         // Test idempotency of duplicate member insertion
-        db.add_leaderboard_member(id1, "puuid-faker").expect("re-add faker idempotent");
+        db.add_leaderboard_member(id1, "puuid-faker")
+            .expect("re-add faker idempotent");
 
-        db.add_leaderboard_member(id2, "puuid-member-a").expect("add member a");
+        db.add_leaderboard_member(id2, "puuid-member-a")
+            .expect("add member a");
 
         let leaderboards = db.list_leaderboards().expect("list leaderboards");
         assert_eq!(leaderboards.len(), 2);
@@ -535,7 +560,8 @@ mod tests {
         let build_json = r#"{"items":[6653,3020,3089],"runes":{"keystone":"Electrocute"}}"#;
 
         assert_eq!(
-            db.get_champion_build(patch, champ_id, role, vs_champ).unwrap(),
+            db.get_champion_build(patch, champ_id, role, vs_champ)
+                .unwrap(),
             None
         );
 
@@ -543,7 +569,9 @@ mod tests {
             .expect("cache champion build");
 
         assert_eq!(
-            db.get_champion_build(patch, champ_id, role, vs_champ).unwrap().as_deref(),
+            db.get_champion_build(patch, champ_id, role, vs_champ)
+                .unwrap()
+                .as_deref(),
             Some(build_json)
         );
     }
@@ -571,7 +599,13 @@ mod tests {
 
     #[test]
     fn test_open_path_persistence() {
-        let temp_dir = std::env::temp_dir().join(format!("baron_test_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let temp_dir = std::env::temp_dir().join(format!(
+            "baron_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         let db_file = temp_dir.join("test_baron.db");
 
         {

@@ -36,7 +36,9 @@ pub fn calculate_baron_score(stats: &ParticipantStats) -> f64 {
 /// All other participants receive `PerformanceBadge::None`.
 ///
 /// Returns a vector of `(puuid, rounded_score, badge)` tuples, where scores are rounded to 1 decimal place.
-pub fn assign_match_badges(participants: &[ParticipantStats]) -> Vec<(String, f64, PerformanceBadge)> {
+pub fn assign_match_badges(
+    participants: &[ParticipantStats],
+) -> Vec<(String, f64, PerformanceBadge)> {
     let mut scored: Vec<(String, u16, bool, f64)> = participants
         .iter()
         .map(|p| (p.puuid.clone(), p.team_id, p.win, calculate_baron_score(p)))
@@ -119,10 +121,19 @@ mod tests {
         let p4 = make_test_player("loser_other", false, 2, 8, 3, -1400, 0.30, 0.12, 0.18);
 
         let badges = assign_match_badges(&[p1, p2, p3, p4]);
-        let winner_carry = badges.iter().find(|(id, _, _)| id == "winner_carry").unwrap();
-        let winner_support = badges.iter().find(|(id, _, _)| id == "winner_support").unwrap();
+        let winner_carry = badges
+            .iter()
+            .find(|(id, _, _)| id == "winner_carry")
+            .unwrap();
+        let winner_support = badges
+            .iter()
+            .find(|(id, _, _)| id == "winner_support")
+            .unwrap();
         let loser_ace = badges.iter().find(|(id, _, _)| id == "loser_ace").unwrap();
-        let loser_other = badges.iter().find(|(id, _, _)| id == "loser_other").unwrap();
+        let loser_other = badges
+            .iter()
+            .find(|(id, _, _)| id == "loser_other")
+            .unwrap();
 
         assert_eq!(winner_carry.2, PerformanceBadge::Mvp);
         assert!(winner_carry.1 > 75.0);
@@ -140,7 +151,10 @@ mod tests {
         terrible.cs_per_min = 0.0;
         terrible.vision_per_min = 0.0;
         let score_low = calculate_baron_score(&terrible);
-        assert!(score_low >= 0.0, "Score should not be below 0.0, got {score_low}");
+        assert!(
+            score_low >= 0.0,
+            "Score should not be below 0.0, got {score_low}"
+        );
         assert!(score_low <= 15.0);
 
         // Extreme high performance: 40/0/20, massive leads
@@ -148,7 +162,10 @@ mod tests {
         godlike.cs_per_min = 12.0;
         godlike.vision_per_min = 3.5;
         let score_high = calculate_baron_score(&godlike);
-        assert!(score_high <= 100.0, "Score should not exceed 100.0, got {score_high}");
+        assert!(
+            score_high <= 100.0,
+            "Score should not exceed 100.0, got {score_high}"
+        );
         assert_eq!(score_high, 100.0);
     }
 }

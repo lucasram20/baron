@@ -15,25 +15,36 @@ impl SkinRarity {
     /// Maps CDragon rarity strings (e.g. "kUltimate", "LEGENDARY", "kEpic") to `SkinRarity`.
     pub fn from_cdragon_str(s: &str) -> Self {
         match s.trim().to_ascii_lowercase().as_str() {
-            "kexalted" | "exalted" => Self::Exalted, "kultimate" | "ultimate" => Self::Ultimate,
-            "kmythic" | "mythic" => Self::Mythic, "klegendary" | "legendary" => Self::Legendary,
-            "kepic" | "epic" => Self::Epic, _ => Self::Standard,
+            "kexalted" | "exalted" => Self::Exalted,
+            "kultimate" | "ultimate" => Self::Ultimate,
+            "kmythic" | "mythic" => Self::Mythic,
+            "klegendary" | "legendary" => Self::Legendary,
+            "kepic" | "epic" => Self::Epic,
+            _ => Self::Standard,
         }
     }
 
     /// Estimated RP purchase cost / nominal collection valuation.
     pub fn estimated_rp(&self) -> u32 {
         match self {
-            Self::Exalted => 32000, Self::Ultimate => 3250, Self::Mythic => 2500,
-            Self::Legendary => 1820, Self::Epic => 1350, Self::Standard => 975,
+            Self::Exalted => 32000,
+            Self::Ultimate => 3250,
+            Self::Mythic => 2500,
+            Self::Legendary => 1820,
+            Self::Epic => 1350,
+            Self::Standard => 975,
         }
     }
 
     /// Clean display label for UI badges.
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Exalted => "Exalted", Self::Ultimate => "Ultimate", Self::Mythic => "Mythic",
-            Self::Legendary => "Legendary", Self::Epic => "Epic", Self::Standard => "Standard",
+            Self::Exalted => "Exalted",
+            Self::Ultimate => "Ultimate",
+            Self::Mythic => "Mythic",
+            Self::Legendary => "Legendary",
+            Self::Epic => "Epic",
+            Self::Standard => "Standard",
         }
     }
 }
@@ -82,10 +93,38 @@ pub fn evaluate_skin_collection(skins: &[OwnedSkinEntry]) -> SkinVaultSummary {
 pub fn sample_owned_skins() -> Vec<OwnedSkinEntry> {
     // ponytail: sample dataset; live inventory fetched from /lol-champions/v1/inventories/...
     vec![
-        OwnedSkinEntry { skin_id: 103000, champion_name: "Ahri".into(), name: "Ahri".into(), is_base: true, owned: true, rarity: SkinRarity::Standard },
-        OwnedSkinEntry { skin_id: 103027, champion_name: "Ahri".into(), name: "Spirit Blossom Ahri".into(), is_base: false, owned: true, rarity: SkinRarity::Legendary },
-        OwnedSkinEntry { skin_id: 99007, champion_name: "Lux".into(), name: "Elementalist Lux".into(), is_base: false, owned: true, rarity: SkinRarity::Ultimate },
-        OwnedSkinEntry { skin_id: 103085, champion_name: "Ahri".into(), name: "Immortalized Legend Ahri".into(), is_base: false, owned: false, rarity: SkinRarity::Exalted },
+        OwnedSkinEntry {
+            skin_id: 103000,
+            champion_name: "Ahri".into(),
+            name: "Ahri".into(),
+            is_base: true,
+            owned: true,
+            rarity: SkinRarity::Standard,
+        },
+        OwnedSkinEntry {
+            skin_id: 103027,
+            champion_name: "Ahri".into(),
+            name: "Spirit Blossom Ahri".into(),
+            is_base: false,
+            owned: true,
+            rarity: SkinRarity::Legendary,
+        },
+        OwnedSkinEntry {
+            skin_id: 99007,
+            champion_name: "Lux".into(),
+            name: "Elementalist Lux".into(),
+            is_base: false,
+            owned: true,
+            rarity: SkinRarity::Ultimate,
+        },
+        OwnedSkinEntry {
+            skin_id: 103085,
+            champion_name: "Ahri".into(),
+            name: "Immortalized Legend Ahri".into(),
+            is_base: false,
+            owned: false,
+            rarity: SkinRarity::Exalted,
+        },
     ]
 }
 
@@ -95,10 +134,19 @@ mod tests {
 
     #[test]
     fn test_skin_rarity_parsing_and_rp() {
-        assert_eq!(SkinRarity::from_cdragon_str("kUltimate"), SkinRarity::Ultimate);
-        assert_eq!(SkinRarity::from_cdragon_str("LEGENDARY"), SkinRarity::Legendary);
+        assert_eq!(
+            SkinRarity::from_cdragon_str("kUltimate"),
+            SkinRarity::Ultimate
+        );
+        assert_eq!(
+            SkinRarity::from_cdragon_str("LEGENDARY"),
+            SkinRarity::Legendary
+        );
         assert_eq!(SkinRarity::from_cdragon_str("epic"), SkinRarity::Epic);
-        assert_eq!(SkinRarity::from_cdragon_str("unknown"), SkinRarity::Standard);
+        assert_eq!(
+            SkinRarity::from_cdragon_str("unknown"),
+            SkinRarity::Standard
+        );
 
         assert_eq!(SkinRarity::Ultimate.estimated_rp(), 3250);
         assert_eq!(SkinRarity::Legendary.estimated_rp(), 1820);

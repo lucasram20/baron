@@ -69,16 +69,34 @@ pub fn build_lcu_item_set(
     core_ids: &[i32],
 ) -> LcuItemSetPayload {
     // ponytail: maps 11 (SR) & 12 (ARAM); situational items can append extra blocks
-    let starters = starter_ids.iter().map(|id| LcuItemSlot { id: id.to_string(), count: 1 }).collect();
-    let cores = core_ids.iter().map(|id| LcuItemSlot { id: id.to_string(), count: 1 }).collect();
+    let starters = starter_ids
+        .iter()
+        .map(|id| LcuItemSlot {
+            id: id.to_string(),
+            count: 1,
+        })
+        .collect();
+    let cores = core_ids
+        .iter()
+        .map(|id| LcuItemSlot {
+            id: id.to_string(),
+            count: 1,
+        })
+        .collect();
 
     LcuItemSetPayload {
         title: format!("Baron: {champion_name}"),
         associated_champions: vec![champion_id],
         associated_maps: vec![11, 12],
         blocks: vec![
-            LcuItemBlock { block_type: "Starting Items".to_string(), items: starters },
-            LcuItemBlock { block_type: "Core Build".to_string(), items: cores },
+            LcuItemBlock {
+                block_type: "Starting Items".to_string(),
+                items: starters,
+            },
+            LcuItemBlock {
+                block_type: "Core Build".to_string(),
+                items: cores,
+            },
         ],
     }
 }

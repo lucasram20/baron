@@ -108,18 +108,27 @@ mod tests {
         assert_eq!(lock.auth_token, "f17b3d9c72e4");
         assert_eq!(lock.protocol, "https");
         assert_eq!(lock.base_url(), "https://127.0.0.1:52184");
-        assert_eq!(
-            lock.basic_auth_header(),
-            "Basic cmlvdDpmMTdiM2Q5YzcyZTQ="
-        );
+        assert_eq!(lock.basic_auth_header(), "Basic cmlvdDpmMTdiM2Q5YzcyZTQ=");
     }
 
     #[test]
     fn test_lockfile_parse_malformed() {
-        assert!(matches!(LcuLockfile::parse(""), Err(LcuError::InvalidLockfile(_))));
-        assert!(matches!(LcuLockfile::parse("one:two:three"), Err(LcuError::InvalidLockfile(_))));
-        assert!(matches!(LcuLockfile::parse("A:not_a_pid:52184:token:https"), Err(LcuError::InvalidLockfile(_))));
-        assert!(matches!(LcuLockfile::parse("A:123:not_a_port:token:https"), Err(LcuError::InvalidLockfile(_))));
+        assert!(matches!(
+            LcuLockfile::parse(""),
+            Err(LcuError::InvalidLockfile(_))
+        ));
+        assert!(matches!(
+            LcuLockfile::parse("one:two:three"),
+            Err(LcuError::InvalidLockfile(_))
+        ));
+        assert!(matches!(
+            LcuLockfile::parse("A:not_a_pid:52184:token:https"),
+            Err(LcuError::InvalidLockfile(_))
+        ));
+        assert!(matches!(
+            LcuLockfile::parse("A:123:not_a_port:token:https"),
+            Err(LcuError::InvalidLockfile(_))
+        ));
     }
 
     #[test]
