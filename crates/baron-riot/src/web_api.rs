@@ -82,7 +82,11 @@ pub fn parse_match_v5_summary(raw_json: &str) -> Result<MatchSummary, RiotApiPar
         *t_kills.entry(p.team_id).or_insert(0) += p.kills;
     }
     let participants = raw.info.participants.into_iter().map(|p| {
-        let (tg, td, tk) = (*t_gold.get(&p.team_id).unwrap_or(&1.0).max(&1.0), *t_dmg.get(&p.team_id).unwrap_or(&1.0).max(&1.0), *t_kills.get(&p.team_id).unwrap_or(&1).max(&1) as f64);
+        let (tg, td, tk) = (
+            t_gold.get(&p.team_id).copied().unwrap_or(1.0).max(1.0),
+            t_dmg.get(&p.team_id).copied().unwrap_or(1.0).max(1.0),
+            t_kills.get(&p.team_id).copied().unwrap_or(1).max(1) as f64,
+        );
         let c = p.challenges.as_ref();
         let dpm = c.and_then(|x| x.damage_per_minute).unwrap_or(p.total_damage_dealt_to_champions as f64 / minutes);
         let gpm = c.and_then(|x| x.gold_per_minute).unwrap_or(p.gold_earned as f64 / minutes);
@@ -110,22 +114,17 @@ mod tests {
 
     #[test]
     fn test_platform_region_routing() {
-        assert_eq!(PlatformRegion::Na1.as_host(), "na1.api.riotgames.com");
-        assert_eq!(PlatformRegion::Na1.regional_cluster(), "americas");
-        assert_eq!(PlatformRegion::Kr.as_host(), "kr.api.riotgames.com");
-        assert_eq!(PlatformRegion::Kr.regional_cluster(), "asia");
-        assert_eq!(PlatformRegion::Euw1.regional_cluster(), "europe");
-        assert_eq!(PlatformRegion::Sg2.regional_cluster(), "sea");
+        assert_eq!(PlatformRegion::Na1.as_host(), "na1.api.riotgames.com"); assert_eq!(PlatformRegion::Na1.regional_cluster(), "americas");
+        assert_eq!(PlatformRegion::Kr.as_host(), "kr.api.riotgames.com"); assert_eq!(PlatformRegion::Kr.regional_cluster(), "asia");
+        assert_eq!(PlatformRegion::Euw1.regional_cluster(), "europe"); assert_eq!(PlatformRegion::Sg2.regional_cluster(), "sea");
     }
 
     #[test]
     fn test_parse_match_v5_summary() {
         let json = r#"{"metadata":{"matchId":"KR_709823412"},"info":{"gameDuration":1548,"gameVersion":"14.10.589.2341","queueId":420,"participants":[{"puuid":"p-1","riotIdGameName":"Zeus","riotIdTagline":"KR1","teamId":100,"championId":266,"championName":"Aatrox","teamPosition":"TOP","win":true,"kills":5,"deaths":2,"assists":8,"totalDamageDealtToChampions":17540,"goldEarned":10840,"totalMinionsKilled":180,"neutralMinionsKilled":14,"visionScore":28,"item0":3074,"item1":3158,"item2":6333,"item3":3053,"item4":0,"item5":0,"item6":3340}]}}"#;
         let summary = parse_match_v5_summary(json).expect("valid match-v5 parse");
-        assert_eq!(summary.match_id, "KR_709823412");
-        assert_eq!(summary.queue_label, "Ranked Solo");
-        assert_eq!(summary.patch, "14.10");
-        assert_eq!(summary.participants.len(), 1);
+        assert_eq!(summary.match_id, "KR_709823412"); assert_eq!(summary.queue_label, "Ranked Solo");
+        assert_eq!(summary.patch, "14.10"); assert_eq!(summary.participants.len(), 1);
         let p = &summary.participants[0];
         assert_eq!(p.game_name, "Zeus"); assert_eq!(p.tag_line, "KR1");
         assert_eq!(p.role, Role::Top); assert!(p.win); assert_eq!(p.items[0], 3074);
