@@ -5,7 +5,7 @@ use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::scroll::ScrollableElement;
 use gpui_kit::component::tag::Tag;
-use gpui_kit::component::Sizable as _;
+use gpui_kit::component::{Sizable as _, TitleBar};
 use gpui_kit::*;
 
 pub use crate::helpers::*;
@@ -182,6 +182,17 @@ impl Render for BaronWorkspace {
             .flex_col()
             .bg(theme::color(theme::BG_CANVAS))
             .text_color(theme::color(theme::TEXT_PRIMARY))
+            .child(
+                TitleBar::new().child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .text_xs()
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(theme::color(theme::TEXT_SECONDARY))
+                        .child("Baron"),
+                ),
+            )
             .child(self.render_top_bar(cx))
             .child(
                 div()
