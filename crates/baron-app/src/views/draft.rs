@@ -205,9 +205,12 @@ fn render_draft_columns(ws: &BaronWorkspace) -> impl IntoElement {
                                 )),
                         )
                         .child(
-                            div()
-                                .text_xs()
-                                .child(draft.matchup_note.as_deref().unwrap_or("Standard lane.")),
+                            div().text_xs().child(
+                                draft
+                                    .matchup_note
+                                    .clone()
+                                    .unwrap_or_else(|| "Standard lane.".to_string()),
+                            ),
                         ),
                 )
                 .child(
