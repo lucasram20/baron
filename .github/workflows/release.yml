@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install stable Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -86,7 +86,7 @@ jobs:
           shasum -a 256 "${{ matrix.artifact_name }}" > "${{ matrix.artifact_name }}.sha256"
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact_name }}
           path: |
@@ -94,7 +94,7 @@ jobs:
             ${{ matrix.artifact_name }}.sha256
 
       - name: Publish Official Stable Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           name: "Baron ${{ steps.meta.outputs.tag }}"
