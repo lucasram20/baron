@@ -133,8 +133,10 @@ pub fn parse_fallback_tier_list_json(
     if provider == FallbackProvider::OpGg {
         return crate::providers::opgg::parse_tier_list(raw_json);
     }
-    serde_json::from_str(raw_json)
-        .map_err(|e| RiotApiParseError::InvalidPayload(format!("tier list parse error: {e}")))
+    Err(RiotApiParseError::InvalidPayload(format!(
+        "{} tier list response is not supported",
+        provider.label()
+    )))
 }
 
 #[cfg(test)]
@@ -189,9 +191,6 @@ mod tests {
         assert_eq!(draft.champion_name, "Ahri");
 
         let tier_json = serde_json::to_string(&sample.tier_list).unwrap();
-        let list = parse_fallback_tier_list_json(FallbackProvider::UGg, &tier_json)
-            .expect("valid tier list parse");
-        assert_eq!(list.len(), 8);
-        assert_eq!(list[0].champion_name, "Ahri");
+        assert!(parse_fallback_tier_list_json(FallbackProvider::UGg, &tier_json).is_err());
     }
 }

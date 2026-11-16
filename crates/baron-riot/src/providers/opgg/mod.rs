@@ -7,7 +7,7 @@ fn invalid() -> RiotApiParseError {
     RiotApiParseError::InvalidPayload("unsupported OP.GG MCP tier response".to_string())
 }
 
-/// Parse the observed, field-selected top-lane MCP text format. Other formats fail closed.
+/// Parse a field-selected single-lane MCP text result. Other formats fail closed.
 pub(crate) fn parse_tier_list(raw: &str) -> Result<Vec<ChampionTierEntry>, RiotApiParseError> {
     let response: Value = serde_json::from_str(raw).map_err(|_| invalid())?;
     let result = response.get("result").ok_or_else(invalid)?;
@@ -26,19 +26,31 @@ pub(crate) fn parse_tier_list(raw: &str) -> Result<Vec<ChampionTierEntry>, RiotA
         .get("text")
         .and_then(Value::as_str)
         .ok_or_else(invalid)?;
-    let prefix = "class LolListLaneMetaChampions: data\nclass Data: positions\nclass Positions: top\nclass Top: champion,play,win_rate,pick_rate,ban_rate,tier,rank\n\nLolListLaneMetaChampions(Data(Positions([";
+    let (lane, class, role) = [
+        ("top", "Top", Role::Top),
+        ("mid", "Mid", Role::Middle),
+        ("jungle", "Jungle", Role::Jungle),
+        ("adc", "Adc", Role::Bottom),
+        ("support", "Support", Role::Utility),
+    ]
+    .into_iter()
+    .find(|(lane, _, _)| text.contains(&format!("class Positions: {lane}\n")))
+    .ok_or_else(invalid)?;
+    let prefix = format!("class LolListLaneMetaChampions: data\nclass Data: positions\nclass Positions: {lane}\nclass {class}: champion,play,win_rate,pick_rate,ban_rate,tier,rank\n\nLolListLaneMetaChampions(Data(Positions([");
     let rows = text
-        .strip_prefix(prefix)
+        .strip_prefix(&prefix)
         .and_then(|text| text.strip_suffix("])))"))
         .ok_or_else(invalid)?;
     if rows.is_empty() {
         return Ok(Vec::new());
     }
-    rows.split("),Top(")
+    let separator = format!("),{class}(");
+    let first_prefix = format!("{class}(");
+    rows.split(&separator)
         .enumerate()
         .map(|(index, row)| {
             let row = if index == 0 {
-                row.strip_prefix("Top(").ok_or_else(invalid)?
+                row.strip_prefix(&first_prefix).ok_or_else(invalid)?
             } else {
                 row
             };
@@ -65,7 +77,7 @@ pub(crate) fn parse_tier_list(raw: &str) -> Result<Vec<ChampionTierEntry>, RiotA
             Ok(ChampionTierEntry {
                 rank,
                 champion_name: champion,
-                role: Role::Top,
+                role,
                 tier: tier.to_string(),
                 win_rate: percent(win),
                 pick_rate: percent(pick),
