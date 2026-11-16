@@ -4,14 +4,6 @@ All notable changes to **Baron** are documented in this single consolidated chan
 
 ---
 
-## [Unreleased]
-
-### Changed
-- Updated the dashboard layout and command-bar styling, and labeled dashboard data as sample data.
-- Added a dashboard rendering check and frontend-specific Next.js agent guidance.
-
----
-
 ## [v0.1.0-dev.7] — 2026-11-16
 
 ### Added
@@ -23,6 +15,9 @@ All notable changes to **Baron** are documented in this single consolidated chan
 - Disabled U.GG, DPM.LOL, LoLalytics, MetaSRC, and Meraki in provider selectors until verified integrations are available. Automatic failover and provider build data are not yet implemented.
 - Rejected sample and unsupported tier-list and build payloads instead of presenting them as provider data. Other application views still contain sample data.
 - Updated the README and agent guidance for the current Tauri architecture, live provider support, and remaining limitations.
+- Updated the dashboard layout and command-bar styling, labeled dashboard data as sample data, and added a dashboard rendering check.
+- Updated the Baron logo and matching frontend, installer, and desktop application icons.
+- Added frontend-specific Next.js agent guidance.
 
 ---
 
