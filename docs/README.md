@@ -4,6 +4,8 @@ Welcome to the documentation for **Baron** — a 100% free, pure native Rust + G
 
 ## Specification Documents (`docs/spec/`)
 
+0. [**Tauri v2 + Next.js 16 + Bun + VoidZero (`Oxc`/`Oxlint`) Technical Specification (`spec.md`)**](file:///C:/Users/manue/desktop/projects/baron/docs/spec/spec.md)
+   - Complete architecture blueprint for the **Tauri v2 + Next.js `16.4.6` (Static Export) + Bun + VoidZero (`oxlint 1.93.0`)** frontend paired with the **100% Native Rust Backend** (`baron-core`, `baron-db`, `baron-lcu`, `baron-riot`) and native compatibility with `shadcn/ui`, `21st.dev`, `React Bits`, and `Aceternity UI`.
 1. [**Main Product Requirements Document (PRD)**](file:///C:/Users/manue/desktop/projects/baron/docs/spec/prd.md)
    - Executive summary, competitor paywall audit (DPM.lol, Blitz.gg, OP.GG, U.GG), free feasibility breakdown, strict zero-web-framework mandate, core product modules, Riot Fair Play compliance, and phased roadmap.
 2. [**Free Data Sources & API Specification**](file:///C:/Users/manue/desktop/projects/baron/docs/spec/api-data-sources.md)
