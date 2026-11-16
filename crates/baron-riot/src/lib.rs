@@ -2,6 +2,7 @@
 
 pub mod assets;
 pub mod fallback;
+mod providers;
 pub mod web_api;
 
 pub use assets::*;

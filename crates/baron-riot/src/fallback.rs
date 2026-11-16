@@ -131,9 +131,7 @@ pub fn parse_fallback_tier_list_json(
     raw_json: &str,
 ) -> Result<Vec<ChampionTierEntry>, RiotApiParseError> {
     if provider == FallbackProvider::OpGg {
-        return Err(RiotApiParseError::InvalidPayload(
-            "OP.GG tier list adapter is not implemented".to_string(),
-        ));
+        return crate::providers::opgg::parse_tier_list(raw_json);
     }
     serde_json::from_str(raw_json)
         .map_err(|e| RiotApiParseError::InvalidPayload(format!("tier list parse error: {e}")))
