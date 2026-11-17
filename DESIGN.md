@@ -32,10 +32,10 @@ All numeric statistics (`KDA`, `CS/min`, `LP`, win rates, pick rates, games) use
 
 ## 2. Desktop Inset Shell & Collapsible Navigation
 
-1. **Full-Width Command Header (`44px`):**
+1. **Integrated Frameless Title Bar & Command Header (`44px`, `decorations: false`):**
    - Left: Baron mascot logo (`assets/logo/baron_logo.png`), `BARON` brand mark, **Sidebar Collapse Toggle (`Ctrl+B`)**, and working `<` / `>` / `↻` view navigation controls.
-   - Center: `Ctrl+K` Command Palette (`CommandDialog` + `@shadcn/kbd`) for instant route jumps, sidebar toggling, and dark/light switching.
-   - Right: Interactive **Patch & Sample Window** popover, **API Provider Mode Dropdown (`OP.GG` enabled; unverified sources explicitly disabled & greyed out)**, 3-state theme toggle (`Light` / `Dark` / `System`), honest **LCU Status** pill, and Data Studio gear shortcut.
+   - Center: Draggable chrome spacers (`data-tauri-drag-region`) flanking the `Ctrl+K` Command Palette (`CommandDialog` + `@shadcn/kbd`) for instant route jumps, sidebar toggling, and dark/light switching.
+   - Right: Interactive **Patch & Sample Window** popover, **API Provider Mode Dropdown (`OP.GG` enabled; unverified sources explicitly disabled & greyed out)**, 3-state theme toggle (`Light` / `Dark` / `System`, synced via Tauri `setTheme`), honest **LCU Status** pill, Data Studio gear shortcut, and custom desktop window controls (`Minimize`, `Maximize/Restore`, `Close`) inside the Tauri host.
 2. **Collapsible Left Sidebar (`204px ↔ 58px` rail):**
    - Persistent `localStorage` state synced via `useSyncExternalStore` + `Ctrl+B` keybinding.
    - Left active/hover edge bar (`@react-bits/LineSidebar` pattern) with collapsed-rail `@shadcn/tooltip` labels and pinned profile footer.
