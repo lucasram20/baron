@@ -220,7 +220,7 @@ impl<'a> ToonParser<'a> {
 
         if let Some(fields) = self.schemas.get(ident) {
             let mut map = Map::new();
-            for (field, val) in fields.iter().zip(args.into_iter()) {
+            for (field, val) in fields.iter().zip(args) {
                 map.insert((*field).to_string(), val);
             }
             Ok(Value::Object(map))
