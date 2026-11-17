@@ -1,62 +1,46 @@
 # Baron — Design System (`DESIGN.md`)
 
-> Grounded in the **DPM APP v1.8.1** desktop visual language, implemented natively in Rust using **`gpui-kit`** (`https://gpui-kit.com/component/`) and **`anomalyco/rune` (`rune-kit`)** (`https://github.com/anomalyco/rune`) semantic token & component patterns.
+> Obsidian desktop pro-tool aesthetic grounded in **DPM APP v1.8.1** density and an inset collapsible workbench shell, built with **Next.js 16.4**, **Tailwind CSS 4**, `@shadcn/ui` primitives, `@react-bits`, and Motion layout transitions inside a native **Tauri v2** window (`Edge WebView2` / `WKWebView`).
 
 ---
 
-## 1. Semantic Token Architecture (`rune-kit` + `gpui-kit`)
+## 1. Semantic Token Architecture (`frontend/src/app/globals.css`)
 
-| Token Role | Hex | Usage |
-| :--- | :--- | :--- |
-| `page` / `BG_CANVAS` | `#090B10` | Deepest window backdrop behind main views |
-| `bg_deep` / `BG_SIDEBAR` | `#0B0E14` | Left 210px navigation sidebar & top command bar |
-| `bg_base` / `BG_SURFACE` | `#11151F` | Primary card, table, and panel container surface |
-| `layer_01` / `BG_ELEVATED` | `#161B28` | Segmented control tracks, filter bars, inactive rune medallions |
-| `layer_02` / `BG_HOVER` | `#1E2536` | Raised active segment pills, row hover states, item slots |
-| `border_muted` | `#161C2A` | Subtle row dividers inside tables and scoreboards |
-| `border_base` | `#1E2536` | Standard `1px` card and input border |
-| `border_strong` | `#2E3852` | Active segment outline and highlighted `[YOU]` row border |
-| `text_base` | `#F8FAFC` | Primary headings, player names, KDA numerals |
-| `text_muted` | `#94A3B8` | Secondary labels, CS counts, timestamps |
-| `text_faint` | `#64748B` | Sidebar section headers (`BARON CORE`, `IN GAME`), table headers |
-| `ACCENT_PRIMARY` | `#6366F1` | Periwinkle/Indigo active pills, `Watch` buttons, Collection progress bar |
-| `VICTORY_BLUE` | `#3B82F6` | Blue team win probability (`54%`), Victory text, Blue damage bars |
-| `DEFEAT_RED` | `#F43F5E` | Red team win probability (`46%`), Defeat text, Red damage bars, death count |
-| `TIER_S_PLUS` / `MVP_GOLD` | `#F59E0B` | `S+` tier typography, `MVP` badge, Precision keystone ring, Champ Select highlight |
-| `TIER_S` / `ACE_PURPLE` | `#A855F7` | `S` tier typography, `ACE` badge, Mythic gem |
-| `TIER_A` / `CHALLENGER_CYAN` | `#38BDF8` | `A` tier typography, Score ring (`75`), Challenger LP text |
-| `TIER_B` / `POSITIVE_GREEN` | `#10B981` | `B` tier typography, positive winrate deltas (`+0.8%`), `+21 LP` pill |
+| Token Variable | Dark Mode | Light Mode | Role |
+| :--- | :--- | :--- | :--- |
+| `--baron-chrome` | `#080A10` | `#E9EEF5` | Outer shell frame behind header & collapsible sidebar |
+| `--baron-inset` | `#0D111A` | `#F7F9FC` | Primary rounded workspace inset (`rounded-tl-[14px]`) |
+| `--baron-surface` | `#111622` | `#FFFFFF` | Hero header strip, table rows, popovers, skin cards |
+| `--baron-elevated` | `#171E2E` | `#EDF1F8` | Control tracks, active keycaps, filter pills, expanded lens |
+| `--baron-hover` | `#1D263A` | `#E2E8F3` | Hover wash on navigation items & ledger rows |
+| `--baron-border` | `#1F283D` | `#D2DAE8` | Standard hairline separators (`1px`) |
+| `--baron-border-strong` | `#2D3A57` | `#B4C2D8` | Focusable borders, active pill borders, avatar outlines |
+| `--baron-ink` | `#F5F7FC` | `#0B1220` | Primary headings, player names, tabular numerals |
+| `--baron-ink-secondary` | `#98A6BE` | `#435066` | Secondary metrics, CS/min, sidebar labels |
+| `--baron-ink-muted` | `#65748E` | `#64748B` | Section headers, timestamps, table column headers |
+| `--baron-accent` | `#6366F1` | `#4F46E5` | Brand indigo accent, sliding tab pill, interactive trajectory stroke |
+| `--baron-victory` | `#3B82F6` | `#2563EB` | Victory stripes, Blue side draft & damage fills |
+| `--baron-defeat` | `#F43F5E` | `#E11D48` | Defeat stripes, Red side draft & damage fills, death counts |
+| `--baron-emerald` | `#10B981` | `#059669` | Verified live provider indicator, positive `@14m` diffs, owned pills |
+| `--baron-gold` | `#F59E0B` | `#D97706` | `S+` / `OP` tier typography, `MVP` badge, Precision keystones |
+| `--baron-ace` | `#A855F7` | `#9333EA` | `S` / `1` tier typography, `ACE` badge, Mythic gem |
+| `--baron-cyan` | `#38BDF8` | `#0284C7` | Challenger LP accents, `ScoreRing`, Epic gem |
 
----
-
-## 2. Reusable `rune-kit` + `gpui-kit` Components (`crates/baron-app/src/rune_ui.rs`)
-
-1. **`rune_segmented_control` (`anomalyco/rune` `SegmentedControl` pattern):**
-   - `28px` height, `6px` border radius, `layer_01` background track, `1px` `border_base` outline.
-   - Selected item sits on a raised `layer_02` / `ACCENT_PRIMARY` indicator with bold `text_base` ink.
-   - Used for `All | Owned | Missing` (Collections), `Ranked | Aram | Arena | Duo` (Tierlist), and `Scoreboard | Loadout | Details | Advanced` (Post-game).
-2. **`champ_portrait_tile` & `draft_vertical_card`:**
-   - Uses `gpui_kit::component::avatar::Avatar` + deterministic champion color-graded backdrop, level badge overlay, role badge, and bold Tier overlay (`S+`, `S`, `A`, `B`, `C`).
-3. **`rune_tree_medallion_grid`:**
-   - Full 4-row Primary Rune Tree + 3-row Secondary Rune Tree + 3-row Stat Shard grid.
-   - Active runes render at `100%` opacity with a `2px` glowing tree-colored ring (`#F59E0B` Precision, `#F43F5E` Domination, `#818CF8` Sorcery, `#10B981` Resolve, `#38BDF8` Inspiration); unselected runes in the same row render as `28%` opacity dark circular medallions so the player reads the exact spatial rune pattern instantly.
-4. **`score_ring_badge`:**
-   - `30px` circular ring medallion (`border_2` colored by score tier: `#F59E0B` for 85+, `#38BDF8` for 70+, `#94A3B8` for 55+, `#F97316` for <55) displaying the integer `0–100` Baron Score (`75`, `86`, `66`).
-5. **`item_slot_grid`:**
-   - Compact `2x3` or `1x6` grid of `24x24` rounded square item tiles with item ID color-coding and border highlights.
-6. **`skin_poster_card`:**
-   - `168px x 228px` vertical poster card with layered skin theme gradient, top-right rarity diamond gem (`Epic` cyan, `Legendary` crimson, `Mythic` purple, `Ultimate` gold), champion badge, and bottom dark gradient scrim with Skin Name and `1,350 RP` / `750 RP` / `Earned` subtitle.
+All numeric statistics (`KDA`, `CS/min`, `LP`, win rates, pick rates, games) use `tabular-nums` (`tnum`). System UI typography (`Segoe UI Variable Text` / `-apple-system`) avoids generic web-font dependencies and honors `prefers-reduced-motion`.
 
 ---
 
-## 3. Desktop Shell & 8 Views (Matching DPM APP v1.8.1)
+## 2. Desktop Inset Shell & Collapsible Navigation
 
-1. **Left Sidebar (`210px` width):**
-   - Brand header: Indigo `B` emblem + **`BARON`** + `APP V0.1.0`.
-   - `BARON CORE`: `Dashboard` (with indented active summoner pill `Nyx#DPM`), `Tierlist & Builds`, `Leaderboards`.
-   - `BARON APP`: `Spectate`, `Collections`.
-   - `BARON INSIGHTS`: `Data Studio`, `Matchups`.
-   - `IN GAME`: `✦ Champ Select` (gold active accent), `⚔ Post-game` (gold active accent).
-   - Bottom pinned profile card: `[EUW]` / `[KR]` avatar with level `612` + `DPM #LOL` + `CHALLENGER`.
-2. **Top Command Bar (`44px` height):**
-   - `<` `>` `↻` navigation buttons | Centered `460px` search input (`Search a player, a champion, a team, a pro...`) with `Kbd` (`Ctrl` `K`) | Right status icons (`L` LCU connected pill, provider badge, Settings gear).
+1. **Full-Width Command Header (`44px`):**
+   - Left: Baron mascot logo (`assets/logo/baron_logo.png`), `BARON` brand mark, **Sidebar Collapse Toggle (`Ctrl+B`)**, and working `<` / `>` / `↻` view navigation controls.
+   - Center: `Ctrl+K` Command Palette (`CommandDialog` + `@shadcn/kbd`) for instant route jumps, sidebar toggling, and dark/light switching.
+   - Right: Interactive **Patch & Sample Window** popover, **API Provider Mode Dropdown (`OP.GG` enabled; unverified sources explicitly disabled & greyed out)**, 3-state theme toggle (`Light` / `Dark` / `System`), honest **LCU Status** pill, and Data Studio gear shortcut.
+2. **Collapsible Left Sidebar (`204px ↔ 58px` rail):**
+   - Persistent `localStorage` state synced via `useSyncExternalStore` + `Ctrl+B` keybinding.
+   - Left active/hover edge bar (`@react-bits/LineSidebar` pattern) with collapsed-rail `@shadcn/tooltip` labels and pinned profile footer.
+3. **8 Workbench Views (`rounded-tl-[14px]` inset canvas):**
+   - `Dashboard`: Feathered Ahri splash Hero (`SpotlightCard`), interactive Bezier LP Trajectory curve, `ScoreRing`, flush 5-column KPI strip, Match History ledger with `2x3` item grids and clickable `@14:00` lane differential drawers, plus `16.22 Meta Pulse` and regional sample ladder. All illustrative data is visibly labeled as sample data.
+   - `Tierlist & Builds`: Live `OP.GG` MCP lane feed via `baron-riot`, `AnimatedTabs` lane switcher, `@shadcn/skeleton` loading rows, sortable `@shadcn/table`, OP.GG attribution, and explicit error/empty states without faking live feeds outside the desktop host.
+   - `Leaderboards`: Regional Challenger sample table (`EUW` / `KR` / `NA`) with `@shadcn/table` and filter input.
+   - `Spectate`, `Collections`, `Data Studio`, `Champ Select`, and `Post-game`: Unified flush workspace density, verified `16.22.1` Data Dragon splash posters (`SKIN_POSTERS`), fixed-aspect radar (`viewBox="-28 -10 236 180"`), 10-player DPM scoreboard with average damage tick marks, and Riot Fair Play compliance.

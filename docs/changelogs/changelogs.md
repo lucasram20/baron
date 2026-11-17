@@ -4,6 +4,15 @@ All notable changes to **Baron** are documented in this single consolidated chan
 
 ---
 
+## [v0.1.0-dev.9] — 2026-11-17
+
+### Changed
+- Redesigned Baron's desktop shell and all 8 workbench views around a collapsible sidebar (`204px` to `58px` icon rail with `Ctrl+B` shortcut and tooltips), a full-width top command bar, and a rounded inset canvas supporting both Obsidian Dark and Daylight Slate themes.
+- Rebuilt `Dashboard`, `Tierlist & Builds`, `Leaderboards`, `Spectate`, `Collections`, `Data Studio`, `Champ Select`, and `Post-game` with flush KPI strips, smooth Bezier LP trajectory scrubbing, `2x3` item grids, expandable `@14:00` lane differential drawers, shared `ScoreRing` and `AnimatedTabs` primitives, and restrained `SpotlightCard` accents.
+- Re-added the `API: OP.GG` provider mode selector in the top command bar alongside Data Studio with `OP.GG` enabled for live tier lists and unverified providers visibly disabled and greyed out.
+- Fixed skin poster URLs in `Collections` to verified Data Dragon `16.22.1` skin IDs, corrected `NumberTicker` theme contrast, widened `ChampSelectView` radar `viewBox` to eliminate label clipping, removed decorative `BorderBeam`/`HoverBorderGradient`/`MagicCard` components, and ensured web-preview LCU fallback status reports offline instead of faking live client state.
+- Updated `DESIGN.md` and `PRODUCT.md` to reflect the Tauri v2 + Next.js static frontend + OP.GG MCP architecture and design tokens.
+
 ## [v0.1.0-dev.8] — 2026-11-16
 
 ### Changed

@@ -4,37 +4,29 @@
 
 ## Platform
 
-web
+desktop (Tauri v2 native host with static Next.js frontend and 100% Rust core crates)
 
 ## Stack
-Pure native Rust desktop application built with `gpui-kit` (`0.9.1`, `gpui` + `gpui-component` + `gpui-base`) and `anomalyco/rune` (`rune-kit`) semantic design token and component patterns. Strictly zero JavaScript, TypeScript, HTML, CSS, Electron, Tauri, or WebView2.
+
+- **Desktop Host & IPC (`src-tauri/`, crate `baron-app`):** Tauri v2 using OS native WebView (`Edge WebView2` on Windows, `WKWebView` on macOS) with zero bundled Chromium, Electron, or Overwolf.
+- **Frontend UI (`frontend/`):** Next.js `16.4.6+` (`output: 'export'`, strict TypeScript), Tailwind CSS `4.3.5+`, `@shadcn/ui` primitives, Motion layout primitives, Bun package management, and VoidZero `oxlint`.
+- **Native Rust Backend (`crates/`):**
+  - `baron-core`: Domain models, Baron Score (`0–100`), MVP/ACE scoring, timeline differential math.
+  - `baron-db`: Local SQLite persistence (`baron.db` via `rusqlite`).
+  - `baron-lcu`: League Client (`LCU` lockfile / REST / WS), `Baron: <ChampionName>` rune page payload builder, Live Client Data (`127.0.0.1:2999`).
+  - `baron-riot`: Data Dragon (`16.22.1`) / CommunityDragon URLs and verified OP.GG MCP tier-list client. Unverified third-party providers remain explicitly disabled until real integrations are implemented.
 
 ## Users
-Competitive League of Legends players (Solo/Duo, Flex, ARAM, Arena) who want instant pre-game draft intelligence, live high-elo match spectating, deep post-game timeline analytics, meta tier lists, and skin collection tracking without ad-heavy browser tabs or subscription paywalls.
+
+Competitive League of Legends players (Solo/Duo, Flex, ARAM, Arena) seeking fast pre-game draft clarity, post-game scoreboard & `@14:00` differential breakdowns, live OP.GG lane tier lists, and local-first inventory views without ads or subscriptions.
 
 ## Product Purpose
-Baron (`Baron`) is a 100% free, zero-ad, zero-subscription, local-first desktop companion and deep analytics platform for League of Legends replacing bloated or paywalled apps (`DPM.LOL`, `OP.GG`, `U.GG`, `Blitz.gg`).
 
-## Positioning
-Every feature that competitors lock behind monthly "Plus/Premium" subscriptions—live 5v5 draft win probability, team composition radar charts, pro build feeds, post-game Baron Score (0–100) with MVP/ACE badges, @14m lane differentials, and full RP skin collection valuation—is computed locally in native Rust and unlocked 100% free.
+Baron (`Baron`) is a 100% free, zero-ad, zero-subscription, local-first desktop companion and analytics tool for League of Legends replacing bloated or paywalled apps (`OP.GG`, `Blitz.gg`, `U.GG`, `DPM.lol`).
 
-## Operating Context
-Runs alongside the League of Legends Client (`LCU` lockfile + `127.0.0.1:2999` Live Client Data API) in a dark gaming environment (`1280x820+` desktop window), using `rusqlite` (`baron.db`) for local persistence and a 6-provider fallback pipeline (`LoLalytics`, `Meraki CDN`, `U.GG`, `OP.GG`, `DPM.lol`, `MetaSRC`).
+## Operating Context & Honesty Boundaries
 
-## Capabilities and Constraints
-- Application & window title must be verbatim `Baron` (`Baron: <ChampionName>` for LCU rune pages, `baron.db` for SQLite).
-- Strictly compliant with Riot Games' Fair Play policies (no enemy cooldown timers, no Fog of War tracking, no lobby deanonymization).
-- All verification, linting, testing, and NSIS installer packaging run on GitHub-hosted Actions runners (never run local `cargo` builds).
-
-## Brand Commitments
-- **Visual Authority:** Matches the **DPM APP v1.8.1** desktop interface across all views (`Dashboard`, `Tierlist & Builds`, `Leaderboards`, `Spectate`, `Collections`, `Data Studio / Matchups`, `Champ Select`, and `Post-game`), built with `gpui-kit` components and `anomalyco/rune` (`rune-kit`) semantic layering (`Palette`, `SegmentedControl`, `Badge`, `Card`, `Table`).
-- **Obsidian Dark Palette:** Deep matte `#090B10` canvas, `#0F1219` sidebar, `#131722` card surfaces, `#1A2030` raised layers, `#1E2536` `1px` borders, `#6366F1` periwinkle accent, `#3B82F6` Victory Blue, `#F43F5E` Defeat Rose, `#F59E0B` S+/MVP Gold, and `#A855F7` S/ACE Purple.
-
-## Evidence on Hand
-- Reference screenshots of DPM APP v1.8.1 (`Champ Select`, `Spectate`, `Post-game`, `Tierlist`, `Collection`).
-- `crates/baron-core`, `crates/baron-db`, `crates/baron-lcu`, `crates/baron-riot`, and `crates/baron-app`.
-
-## Product Principles
-1. **Desktop Pro-Tool Density:** High-signal tabular numerals, visual rune trees, proportional damage bars, and circular score rings without wasted hero banners or marketing fluff.
-2. **Zero Paywalls, Zero Ads:** Every analytics tab, draft recommendation, and skin valuation is open by default.
-3. **Instant Visual Scanning:** Color-coded tier typography (`S+`, `S`, `A`, `B`, `C`), champion/item medallions, and role badges let players read a draft or scoreboard in under two seconds.
+- Runs alongside the League of Legends Client inside a compact `1440×900`+ desktop frame featuring dark obsidian and high-legibility light slate themes plus a collapsible sidebar rail (`204px ↔ 58px`).
+- **Strict Honesty:** Only `OP.GG` (`Tier list`) is active and selectable in the provider switcher; unverified providers (`U.GG`, `DPM.LOL`, `LoLalytics`, `MetaSRC`, `Meraki CDN`) stay disabled (`Unavailable`). Illustrative views (`Dashboard`, `Leaderboards`, `Spectate`, `Collections`, `Champ Select`, `Post-game`) are visibly labeled as sample data when not backed by a live League client or API feed, and `LCU Offline` is shown when running outside the desktop host.
+- **Riot Games Fair Play:** Zero automated enemy ultimate or summoner cooldown tracking, zero Fog-of-War camp timers, zero Ranked lobby anonymity bypasses, and zero in-game input macros.
+- **Tooling & CI:** Frontend tooling is Bun + VoidZero `oxlint` exclusively; all Rust compilation, linting (`clippy`, `rustfmt`), testing, and installer packaging execute on GitHub-hosted Actions runners (no local `cargo` builds or `target/` directories).
