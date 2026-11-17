@@ -31,6 +31,14 @@ const CHAMPION_KEY_ALIASES: Record<string, string> = {
   "Aurelion Sol": "AurelionSol",
   "Wukong": "MonkeyKing",
   "LeBlanc": "Leblanc",
+  "Nunu & Willump": "Nunu",
+  "Renata Glasc": "Renata",
+  "Bel'Veth": "Belveth",
+  "Cho'Gath": "Chogath",
+  "Dr. Mundo": "DrMundo",
+  "Rek'Sai": "RekSai",
+  "Vel'Koz": "Velkoz",
+  "Kog'Maw": "KogMaw",
 };
 
 export function championKey(name: string): string {

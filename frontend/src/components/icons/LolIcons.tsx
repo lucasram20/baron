@@ -24,7 +24,7 @@ export function LaneIcon({ role, className }: { role: string; className?: string
       </svg>
     );
   }
-  if (norm === "mid") {
+  if (norm === "mid" || norm === "middle") {
     return (
       <svg viewBox="0 0 16 16" className={cn("h-3.5 w-3.5", className)}>
         <path fill="currentColor" opacity="0.3" d="M2 2h7L7 4H4v3L2 9V2Zm12 12H7l2-2h3V9l2-2v7Z" />
@@ -32,7 +32,7 @@ export function LaneIcon({ role, className }: { role: string; className?: string
       </svg>
     );
   }
-  if (norm === "bot" || norm === "adc") {
+  if (norm === "bot" || norm === "bottom" || norm === "adc") {
     return (
       <svg viewBox="0 0 16 16" className={cn("h-3.5 w-3.5", className)}>
         <path fill="currentColor" opacity="0.32" d="M2 2h10l-2 2.2H4.2V10L2 12V2Z" />

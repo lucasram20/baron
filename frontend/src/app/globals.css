@@ -1,20 +1,24 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   color-scheme: dark;
-  --baron-canvas: #07090e;
-  --baron-sidebar: #0a0d14;
-  --baron-surface: #0f131c;
-  --baron-elevated: #151b27;
-  --baron-hover: #1b2231;
+  --baron-chrome: #080a10;
+  --baron-canvas: #080a10;
+  --baron-sidebar: #080a10;
+  --baron-inset: #0d111a;
+  --baron-surface: #111622;
+  --baron-elevated: #171e2e;
+  --baron-hover: #1d263a;
 
-  --baron-border-muted: #141925;
-  --baron-border: #1d2536;
-  --baron-border-strong: #2b354b;
+  --baron-border-muted: #171e2f;
+  --baron-border: #1f283d;
+  --baron-border-strong: #2d3a57;
 
-  --baron-ink: #f4f7fc;
-  --baron-ink-secondary: #9aa7bd;
-  --baron-ink-muted: #66758f;
+  --baron-ink: #f5f7fc;
+  --baron-ink-secondary: #98a6be;
+  --baron-ink-muted: #65748e;
 
   --baron-accent: #6366f1;
   --baron-accent-soft: #818cf8;
@@ -28,15 +32,17 @@
 
 html.light {
   color-scheme: light;
-  --baron-canvas: #f2f5fa;
-  --baron-sidebar: #e9eef6;
+  --baron-chrome: #e9eef5;
+  --baron-canvas: #e9eef5;
+  --baron-sidebar: #e9eef5;
+  --baron-inset: #f7f9fc;
   --baron-surface: #ffffff;
-  --baron-elevated: #e7edf5;
-  --baron-hover: #dce4f0;
+  --baron-elevated: #edf1f8;
+  --baron-hover: #e2e8f3;
 
-  --baron-border-muted: #e3e9f2;
-  --baron-border: #cfd8e6;
-  --baron-border-strong: #b4c2d6;
+  --baron-border-muted: #e4eaf3;
+  --baron-border: #d2dae8;
+  --baron-border-strong: #b4c2d8;
 
   --baron-ink: #0b1220;
   --baron-ink-secondary: #435066;
@@ -53,8 +59,10 @@ html.light {
 }
 
 @theme {
+  --color-baron-chrome: var(--baron-chrome);
   --color-baron-canvas: var(--baron-canvas);
   --color-baron-sidebar: var(--baron-sidebar);
+  --color-baron-inset: var(--baron-inset);
   --color-baron-surface: var(--baron-surface);
   --color-baron-elevated: var(--baron-elevated);
   --color-baron-hover: var(--baron-hover);
@@ -70,6 +78,7 @@ html.light {
   --color-baron-accent: var(--baron-accent);
   --color-baron-accent-soft: var(--baron-accent-soft);
   --color-baron-victory: var(--baron-victory);
+  --baron-victory: var(--baron-victory);
   --color-baron-defeat: var(--baron-defeat);
   --color-baron-emerald: var(--baron-emerald);
   --color-baron-gold: var(--baron-gold);
@@ -77,11 +86,11 @@ html.light {
   --color-baron-cyan: var(--baron-cyan);
 
   /* shadcn/ui semantic variable mappings */
-  --color-background: var(--baron-canvas);
+  --color-background: var(--baron-inset);
   --color-foreground: var(--baron-ink);
   --color-card: var(--baron-surface);
   --color-card-foreground: var(--baron-ink);
-  --color-popover: var(--baron-sidebar);
+  --color-popover: var(--baron-surface);
   --color-popover-foreground: var(--baron-ink);
   --color-primary: var(--baron-accent);
   --color-primary-foreground: #ffffff;
@@ -105,15 +114,16 @@ html.light {
   html,
   body {
     height: 100%;
-    background-color: var(--baron-canvas);
+    background-color: var(--baron-chrome);
     color: var(--baron-ink);
+    font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, ui-sans-serif, system-ui, sans-serif;
     font-feature-settings: "tnum" 1, "cv02" 1;
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
   }
 
   ::selection {
-    background-color: rgba(99, 102, 241, 0.3);
+    background-color: rgba(99, 102, 241, 0.28);
     color: var(--baron-ink);
   }
 
@@ -123,7 +133,7 @@ html.light {
   }
 
   ::-webkit-scrollbar-track {
-    background: var(--baron-canvas);
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
@@ -133,5 +143,16 @@ html.light {
 
   ::-webkit-scrollbar-thumb:hover {
     background: var(--baron-ink-muted);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

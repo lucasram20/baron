@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Baron — DPM-Precision Inset Redesign Prototype (dev.9)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+      /* DPM Precision Obsidian + Inset Architecture */
+      --bg-chrome: #080a10;
+      --bg-inset: #0d111a;
+      --bg-panel: #111622;
+      --bg-elevated: #171e2e;
+      --bg-hover: #1d263a;
+      --bg-track: #0b0f17;
+
+      --border-hairline: #171e2f;
+      --border-base: #1f283d;
+      --border-strong: #2d3a57;
+
+      --ink-primary: #f5f7fc;
+      --ink-secondary: #98a6be;
+      --ink-muted: #65748e;
+
+      --accent: #6366f1;
+      --accent-bright: #818cf8;
+      --accent-soft: rgba(99, 102, 241, 0.14);
+
+      --victory: #3b82f6;
+      --victory-soft: rgba(59, 130, 246, 0.11);
+      --defeat: #f43f5e;
+      --defeat-soft: rgba(244, 63, 94, 0.11);
+      --emerald: #10b981;
+      --emerald-soft: rgba(16, 185, 129, 0.12);
+      --gold: #f59e0b;
+      --gold-soft: rgba(245, 158, 11, 0.14);
+      --ace: #a855f7;
+      --ace-soft: rgba(168, 85, 247, 0.14);
+      --cyan: #38bdf8;
+    }
+
+    html.light {
+      color-scheme: light;
+      --bg-chrome: #e9eef5;
+      --bg-inset: #f7f9fc;
+      --bg-panel: #ffffff;
+      --bg-elevated: #edf1f8;
+      --bg-hover: #e2e8f3;
+      --bg-track: #e6ecf5;
+
+      --border-hairline: #e4eaf3;
+      --border-base: #d2dae8;
+      --border-strong: #b4c2d8;
+
+      --ink-primary: #0b1220;
+      --ink-secondary: #435066;
+      --ink-muted: #64748b;
+
+      --accent: #4f46e5;
+      --accent-bright: #4338ca;
+      --accent-soft: rgba(79, 70, 229, 0.10);
+
+      --victory: #2563eb;
+      --victory-soft: rgba(37, 99, 235, 0.08);
+      --defeat: #e11d48;
+      --defeat-soft: rgba(225, 29, 72, 0.08);
+      --emerald: #059669;
+      --emerald-soft: rgba(5, 150, 105, 0.10);
+      --gold: #d97706;
+      --gold-soft: rgba(217, 119, 6, 0.12);
+      --ace: #9333ea;
+      --ace-soft: rgba(147, 51, 234, 0.12);
+      --cyan: #0284c7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: var(--bg-chrome);
+      color: var(--ink-primary);
+      font-family: var(--font-sans);
+      font-feature-settings: "tnum" 1, "cv02" 1;
+      font-variant-numeric: tabular-nums;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+    button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+    button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+    /* Prototype Studio Bar */
+    .studio-bar {
+      height: 36px;
+      background: #04060b;
+      border-bottom: 1px solid #182032;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      font-size: 11px;
+      gap: 10px;
+    }
+    .studio-bar.hidden { display: none; }
+    .studio-group { display: flex; align-items: center; gap: 6px; }
+    .studio-label { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #64748b; text-transform: uppercase; }
+    .studio-track { display: inline-flex; background: #0c111b; border: 1px solid #1d263a; border-radius: 6px; padding: 2px; gap: 2px; }
+    .studio-pill { padding: 2px 9px; border-radius: 4px; font-weight: 600; color: #94a3b8; transition: 140ms; }
+    .studio-pill:hover { color: #f8fafc; }
+    .studio-pill.active { background: #6366f1; color: #fff; }
+    .studio-btn { padding: 3px 8px; border-radius: 5px; border: 1px solid #263147; background: #0d1320; color: #cbd5e1; font-weight: 600; font-size: 11px; }
+    .studio-btn:hover { border-color: #4f5d7a; color: #fff; }
+    .studio-btn.active { border-color: #6366f1; background: rgba(99,102,241,0.18); color: #fff; }
+
+    .restore-studio {
+      position: fixed; bottom: 12px; right: 14px; z-index: 95;
+      padding: 5px 10px; border-radius: 6px; background: var(--bg-panel);
+      border: 1px solid var(--border-strong); color: var(--ink-secondary);
+      font-size: 11px; font-weight: 600; display: none;
+    }
+    .restore-studio.visible { display: block; }
+
+    /* ======================== FULL-BLEED CHROME SHELL (DPM v1.8.1 × @shadcn SidebarInset) ======================== */
+    .app-root {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 36px);
+      width: 100vw;
+      background: var(--bg-chrome);
+      overflow: hidden;
+    }
+    .app-root.full { height: 100vh; }
+
+    /* Full-Width Top Command Bar */
+    .topbar {
+      height: 44px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      background: var(--bg-chrome);
+      gap: 12px;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 190px; }
+    .brand-link { display: flex; align-items: center; gap: 8px; }
+    .brand-logo { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
+    .brand-title { font-size: 13.5px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
+    .brand-ver { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: var(--ink-muted); margin-top: 2px; }
+
+    .nav-arrows { display: flex; align-items: center; gap: 2px; margin-left: 6px; }
+    .icon-btn {
+      width: 27px; height: 27px; border-radius: 6px;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--ink-secondary); transition: background 140ms, color 140ms;
+    }
+    .icon-btn:hover { background: var(--bg-hover); color: var(--ink-primary); }
+
+    .cmd-trigger {
+      width: 400px; max-width: 38vw; height: 30px;
+      border-radius: 7px; border: 1px solid var(--border-base);
+      background: var(--bg-panel); padding: 0 10px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; color: var(--ink-muted); transition: border-color 140ms;
+    }
+    .cmd-trigger:hover { border-color: var(--border-strong); color: var(--ink-secondary); }
+    .kbd {
+      padding: 1px 5px; border-radius: 4px;
+      border: 1px solid var(--border-strong); background: var(--bg-elevated);
+      font-size: 10px; font-weight: 600; color: var(--ink-secondary);
+    }
+
+    .topbar-right { display: flex; align-items: center; gap: 7px; }
+    .chip-control {
+      height: 27px; padding: 0 9px; border-radius: 6px;
+      border: 1px solid var(--border-base); background: var(--bg-panel);
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11.5px; font-weight: 600; color: var(--ink-primary);
+      transition: border-color 140ms, background 140ms;
+    }
+    .chip-control:hover { border-color: var(--border-strong); background: var(--bg-elevated); }
+    .chip-tag { font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 4px; background: var(--emerald-soft); color: var(--emerald); }
+    .chip-control.warn .chip-tag { background: var(--gold-soft); color: var(--gold); }
+
+    /* Topbar Popovers & Provider Dropdown */
+    .dropdown-anchor { position: relative; }
+    .popover-panel {
+      position: absolute; right: 0; top: 34px; z-index: 75;
+      border-radius: 10px; border: 1px solid var(--border-strong);
+      background: var(--bg-panel); padding: 10px;
+      box-shadow: 0 18px 42px rgba(0,0,0,0.45);
+      display: none;
+    }
+    .popover-panel.open { display: block; }
+    .popover-kicker {
+      padding: 2px 6px 6px; font-size: 10px; font-weight: 700;
+      letter-spacing: 0.08em; color: var(--ink-muted); text-transform: uppercase;
+    }
+    .provider-option {
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; padding: 7px 9px; border-radius: 6px; font-size: 12px;
+      text-align: left; transition: background 120ms, border-color 120ms;
+    }
+    .provider-option.active {
+      background: var(--accent-soft);
+      box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.45);
+      font-weight: 700; color: var(--ink-primary);
+    }
+    .provider-option:disabled {
+      opacity: 0.45; cursor: not-allowed; color: var(--ink-muted);
+    }
+    .provider-option:not(:disabled):not(.active):hover { background: var(--bg-hover); }
+    .provider-status-pill {
+      font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+      background: var(--bg-elevated); color: var(--ink-muted);
+    }
+    .provider-option.active .provider-status-pill {
+      background: var(--emerald-soft); color: var(--emerald);
+    }
+    .patch-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+    .patch-cell {
+      height: 28px; border-radius: 5px; font-size: 11px; font-weight: 600;
+      background: var(--bg-elevated); color: var(--ink-secondary);
+      transition: background 120ms, color 120ms;
+    }
+    .patch-cell:hover { background: var(--bg-hover); color: var(--ink-primary); }
+    .patch-cell.active { background: var(--accent); color: #fff; font-weight: 700; }
+
+    .theme-pill-group {
+      height: 27px; padding: 2px; border-radius: 6px;
+      border: 1px solid var(--border-base); background: var(--bg-panel);
+      display: inline-flex; align-items: center; gap: 2px;
+    }
+    .theme-icon-btn {
+      width: 23px; height: 21px; border-radius: 4px;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--ink-muted); transition: 140ms;
+    }
+    .theme-icon-btn:hover { color: var(--ink-primary); }
+    .theme-icon-btn.active { background: var(--accent); color: #fff; }
+
+    .lcu-status {
+      height: 27px; padding: 0 9px; border-radius: 6px;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      background: var(--emerald-soft); color: var(--emerald);
+      font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .live-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--emerald); }
+
+    /* Body Row: Collapsible Sidebar + Top-Left Rounded Inset Canvas (Matches DPM Reference) */
+    .body-row {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 204px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 8px 10px 10px 10px;
+      background: var(--bg-chrome);
+      transition: width 200ms cubic-bezier(0.22, 1, 0.36, 1), padding 200ms;
+      user-select: none;
+    }
+    .sidebar.collapsed {
+      width: 58px;
+      padding: 8px 8px 10px 8px;
+      align-items: center;
+    }
+    .sidebar.collapsed .sb-hide { display: none !important; }
+    .sidebar.collapsed .nav-btn { justify-content: center; width: 38px; height: 34px; padding: 0; }
+    .sidebar.collapsed .profile-card { width: 40px; height: 40px; padding: 4px; justify-content: center; }
+
+    .nav-stack { display: flex; flex-direction: column; gap: 14px; width: 100%; }
+    .nav-section { display: flex; flex-direction: column; gap: 2px; width: 100%; }
+    .nav-label {
+      padding: 0 8px 3px;
+      font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em;
+      color: var(--ink-muted); text-transform: uppercase;
+    }
+
+    /* @react-bits LineSidebar proximity tick + active edge highlight */
+    .nav-btn {
+      position: relative;
+      height: 31px;
+      width: 100%;
+      padding: 0 9px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--ink-secondary);
+      transition: background 140ms, color 140ms, transform 140ms;
+    }
+    .nav-btn:hover { background: var(--bg-hover); color: var(--ink-primary); transform: translateX(2px); }
+    .nav-btn.active {
+      background: var(--bg-panel);
+      color: var(--ink-primary);
+      font-weight: 600;
+      box-shadow: inset 0 0 0 1px var(--border-base);
+    }
+    .nav-btn::before {
+      content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2.5px;
+      border-radius: 0 2px 2px 0; background: var(--accent); opacity: 0; transition: opacity 140ms;
+    }
+    .nav-btn:hover::before { opacity: 0.4; }
+    .nav-btn.active::before { opacity: 1; }
+    .nav-btn.active.ingame::before { background: var(--gold); }
+    .nav-btn svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--ink-muted); }
+    .nav-btn.active svg { color: var(--accent-bright); }
+    .nav-btn.active.ingame svg { color: var(--gold); }
+
+    .profile-card {
+      width: 100%; padding: 8px; border-radius: 8px;
+      background: var(--bg-panel); border: 1px solid var(--border-base);
+      display: flex; align-items: center; gap: 9px; text-align: left;
+      transition: border-color 140ms;
+    }
+    .profile-card:hover { border-color: var(--border-strong); }
+    .profile-avatar { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border-strong); flex-shrink: 0; }
+
+    /* Elevated Rounded Top-Left Inset Workspace */
+    .inset-canvas {
+      flex: 1;
+      min-width: 0;
+      background: var(--bg-inset);
+      border-top: 1px solid var(--border-base);
+      border-left: 1px solid var(--border-base);
+      border-top-left-radius: 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ======================== @react-bits SpotlightCard Sheen ======================== */
+    .spotlight-surface { position: relative; overflow: hidden; --mx: -200px; --my: -200px; }
+    .spotlight-surface::after {
+      content: ""; pointer-events: none; position: absolute; inset: 0;
+      background: radial-gradient(340px circle at var(--mx) var(--my), rgba(99, 102, 241, 0.08), transparent 70%);
+      opacity: 0; transition: opacity 240ms;
+    }
+    .spotlight-surface:hover::after { opacity: 1; }
+
+    /* ======================== EDITORIAL HERO CONTAINER (Matches Post-game Reference Anatomy!) ======================== */
+    .hero-card {
+      position: relative;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-base);
+      overflow: hidden;
+    }
+    .hero-splash {
+      position: absolute; inset: 0; pointer-events: none;
+      opacity: 0.20;
+      background-image: url("https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Ahri_0.jpg");
+      background-size: 62% auto;
+      background-position: right 20%;
+      background-repeat: no-repeat;
+      mask-image: linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.35) 38%, transparent 72%);
+      -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.35) 38%, transparent 72%);
+    }
+    html.light .hero-splash { opacity: 0.11; }
+
+    .hero-upper {
+      position: relative; z-index: 2;
+      display: grid;
+      grid-template-columns: 1.05fr 1.25fr auto;
+      align-items: center;
+      gap: 20px;
+      padding: 18px 24px;
+    }
+    .hero-identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .hero-avatar-box {
+      position: relative; width: 56px; height: 56px; border-radius: 10px; overflow: hidden;
+      border: 1.5px solid rgba(56, 189, 248, 0.6); flex-shrink: 0;
+    }
+    .hero-avatar-box img { width: 100%; height: 100%; object-fit: cover; }
+    .lvl-tag {
+      position: absolute; bottom: 2px; right: 2px; padding: 0 4px; border-radius: 3px;
+      background: rgba(6,8,13,0.88); color: #f8fafc; font-size: 9px; font-weight: 700;
+    }
+    .hero-right-status { display: flex; align-items: center; gap: 16px; }
+
+    /* Flush 5-Column KPI Strip Inside Same Hero Container (Matches uploaded_media_0!) */
+    .hero-kpi-strip {
+      position: relative; z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      border-top: 1px solid var(--border-hairline);
+      background: rgba(8, 10, 16, 0.25);
+    }
+    html.light .hero-kpi-strip { background: rgba(241, 245, 249, 0.55); }
+    .hero-kpi-cell {
+      padding: 12px 24px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .hero-kpi-cell + .hero-kpi-cell { border-left: 1px solid var(--border-hairline); }
+    .hero-kpi-top { font-size: 16px; font-weight: 800; color: var(--ink-primary); letter-spacing: -0.015em; }
+    .hero-kpi-sub { font-size: 11px; color: var(--ink-muted); }
+
+    /* @aceternity Animated Tabs */
+    .aceternity-tabs {
+      display: inline-flex; align-items: center; padding: 2px; border-radius: 7px;
+      background: var(--bg-track); border: 1px solid var(--border-base); gap: 2px;
+    }
+    .aceternity-tab {
+      padding: 4px 10px; border-radius: 5px; font-size: 11.5px; font-weight: 600;
+      color: var(--ink-secondary); transition: background 140ms, color 140ms;
+    }
+    .aceternity-tab:hover { color: var(--ink-primary); }
+    .aceternity-tab.active { background: var(--accent); color: #ffffff; }
+
+    /* Seamless Two-Column Lower Body */
+    .dash-split {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 368px;
+      min-height: 0;
+    }
+    .dash-left { display: flex; flex-direction: column; min-width: 0; }
+    .dash-right {
+      border-left: 1px solid var(--border-base);
+      background: rgba(0, 0, 0, 0.08);
+      display: flex; flex-direction: column;
+    }
+    html.light .dash-right { background: rgba(15, 23, 42, 0.015); }
+
+    .bar-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 11px 22px; border-bottom: 1px solid var(--border-hairline);
+    }
+    .bar-title { font-size: 13px; font-weight: 700; color: var(--ink-primary); }
+    .link-act { font-size: 11.5px; font-weight: 600; color: var(--accent-bright); }
+    .link-act:hover { text-decoration: underline; }
+
+    /* Match Rows featuring compact DPM 2x3 item grids */
+    .match-row {
+      position: relative;
+      display: grid;
+      grid-template-columns: 106px 158px 136px 96px 1fr;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 22px;
+      border-bottom: 1px solid var(--border-hairline);
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 120ms;
+    }
+    .match-row:hover { background: var(--bg-hover); }
+    .match-row::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--victory); }
+    .match-row.loss::before { background: var(--defeat); }
+    .match-row.win { background: linear-gradient(90deg, var(--victory-soft), transparent 22%); }
+    .match-row.loss { background: linear-gradient(90deg, var(--defeat-soft), transparent 22%); }
+
+    .item-grid-2x3 {
+      display: grid;
+      grid-template-columns: repeat(3, 21px);
+      gap: 2px;
+      width: fit-content;
+    }
+    .item-21 { width: 21px; height: 21px; border-radius: 4px; border: 1px solid var(--border-base); background: var(--bg-elevated); object-fit: cover; }
+
+    .score-ring {
+      width: 30px; height: 30px; border-radius: 999px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 800; border: 2px solid var(--cyan); background: var(--bg-panel);
+    }
+    .score-ring.high { border-color: var(--gold); color: var(--gold); }
+    .score-ring.low { border-color: var(--ink-muted); color: var(--ink-secondary); }
+
+    .inline-lens {
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-base);
+      padding: 12px 24px;
+      display: grid;
+      grid-template-columns: 1.1fr 1fr auto;
+      align-items: center;
+      gap: 16px;
+      font-size: 11.5px;
+    }
+    .bar-track { height: 5px; width: 100%; background: var(--bg-track); border-radius: 999px; overflow: hidden; margin-top: 4px; position: relative; }
+    .bar-fill { height: 100%; border-radius: 999px; background: var(--victory); }
+    .bar-fill.defeat { background: var(--defeat); }
+    .bar-avg-tick { position: absolute; top: -1px; bottom: -1px; left: 54%; width: 1.5px; background: var(--ink-primary); opacity: 0.65; }
+
+    /* Meta & Ladder Rows matching DPM Bold Tier Typography */
+    .meta-row {
+      display: grid;
+      grid-template-columns: 28px 1fr 28px 34px 66px 46px;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      border-bottom: 1px solid var(--border-hairline);
+      font-size: 12px;
+      transition: background 120ms;
+    }
+    .meta-row:hover { background: var(--bg-hover); }
+    .tier-glyph { font-size: 14px; font-weight: 900; text-align: center; letter-spacing: -0.02em; }
+    .tier-splus { color: var(--gold); }
+    .tier-s { color: var(--ace); }
+    .tier-a { color: var(--cyan); }
+
+    .pill-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;
+      border: 1px solid var(--border-base); background: var(--bg-elevated); color: var(--ink-secondary);
+    }
+    .pill-tag.pos { background: var(--emerald-soft); border-color: rgba(16,185,129,0.3); color: var(--emerald); }
+    .pill-tag.mvp { background: var(--gold-soft); border-color: rgba(245,158,11,0.4); color: var(--gold); }
+    .pill-tag.ace { background: var(--ace-soft); border-color: rgba(168,85,247,0.4); color: var(--ace); }
+
+    .cta-btn {
+      height: 30px; padding: 0 12px; border-radius: 6px;
+      background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 700;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .cta-btn:hover { opacity: 0.92; }
+
+    /* Tierlist & Post-game Dense Table Anatomy (Matching DPM uploaded_media_0 / uploaded_media_1!) */
+    .view-section { padding: 18px 24px; display: flex; flex-direction: column; gap: 14px; }
+    .dpm-table { width: 100%; border-collapse: collapse; font-size: 12.5px; text-align: left; }
+    .dpm-table th {
+      padding: 10px 14px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--ink-muted); border-bottom: 1px solid var(--border-base);
+      background: rgba(255,255,255,0.015);
+    }
+    .dpm-table td { padding: 9px 14px; border-bottom: 1px solid var(--border-hairline); vertical-align: middle; }
+    .dpm-table tr:hover td { background: var(--bg-hover); }
+
+    /* Subtabs underline style matching uploaded_media_0 */
+    .underline-tabs { display: flex; gap: 22px; padding: 0 24px; border-bottom: 1px solid var(--border-base); background: var(--bg-panel); }
+    .u-tab {
+      padding: 10px 2px; font-size: 12.5px; font-weight: 600; color: var(--ink-muted);
+      border-bottom: 2px solid transparent; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .u-tab:hover { color: var(--ink-primary); }
+    .u-tab.active { color: var(--ink-primary); border-bottom-color: var(--victory); }
+
+    /* Registry Drawer & Modal */
+    .drawer {
+      position: fixed; right: 18px; top: 52px; width: 460px; max-height: calc(100vh - 76px);
+      overflow-y: auto; background: var(--bg-panel); border: 1px solid var(--border-strong);
+      border-radius: 10px; padding: 16px; box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+      z-index: 80; display: none; font-size: 12px;
+    }
+    .drawer.open { display: block; }
+    .modal-bg { position: fixed; inset: 0; background: rgba(4,6,10,0.72); z-index: 95; display: none; align-items: flex-start; justify-content: center; padding-top: 110px; }
+    .modal-bg.open { display: flex; }
+    .cmd-box { width: 520px; background: var(--bg-panel); border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
+    .rune-dot { width: 34px; height: 34px; border-radius: 999px; border: 1.5px solid var(--border-base); background: var(--bg-elevated); display: inline-flex; align-items: center; justify-content: center; opacity: 0.28; filter: grayscale(0.9); }
+    .rune-dot.keystone { width: 44px; height: 44px; }
+    .rune-dot.active { opacity: 1; filter: none; border-color: var(--gold); background: var(--gold-soft); }
+    .rune-dot.active.sec { border-color: var(--defeat); background: var(--defeat-soft); }
+    .rune-dot img { width: 76%; height: 76%; object-fit: contain; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Prototype Bar -->
+  <div id="studioBar" class="studio-bar">
+    <div class="studio-group">
+      <span class="studio-label">Direction C · Collapsible Rail</span>
+      <div class="studio-track">
+        <button class="studio-pill active" id="sbExpandedBtn" onclick="setSidebar(false)">Expanded (204px)</button>
+        <button class="studio-pill" id="sbCollapsedBtn" onclick="setSidebar(true)">Collapsed Icon Rail (58px)</button>
+      </div>
+    </div>
+
+    <div class="studio-group">
+      <span class="studio-label">View</span>
+      <div class="studio-track">
+        <button class="studio-pill active" data-view="dashboard" onclick="setView('dashboard')">Dashboard</button>
+        <button class="studio-pill" data-view="tierlist" onclick="setView('tierlist')">Tierlist</button>
+        <button class="studio-pill" data-view="champselect" onclick="setView('champselect')">Champ Select</button>
+        <button class="studio-pill" data-view="postgame" onclick="setView('postgame')">Post-game</button>
+        <button class="studio-pill" data-view="collections" onclick="setView('collections')">Collections</button>
+        <button class="studio-pill" data-view="datastudio" onclick="setView('datastudio')">Data Studio</button>
+      </div>
+    </div>
+
+    <div class="studio-group">
+      <button id="providerSimBtn" class="studio-btn" onclick="toggleProviderSim()">OP.GG: Live</button>
+      <button id="regBtn" class="studio-btn" onclick="toggleReg()">MCP Component Spec</button>
+      <button class="studio-btn" onclick="toggleStudio(false)">Hide Studio</button>
+    </div>
+  </div>
+  <button id="restoreBtn" class="restore-studio" onclick="toggleStudio(true)">Show Prototype Controls</button>
+
+  <div id="appRoot" class="app-root">
+    <!-- Top Bar spanning full desktop width (Matches DPM v1.8.1 reference) -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="brand-link" onclick="setView('dashboard')">
+          <img src="../public/baron_logo.png" alt="Baron" class="brand-logo" />
+          <div>
+            <div class="brand-title">BARON</div>
+            <div class="brand-ver">APP V0.1.0</div>
+          </div>
+        </button>
+
+        <div class="nav-arrows">
+          <button class="icon-btn" title="Collapse/Expand sidebar (Ctrl+B)" aria-label="Toggle Sidebar" onclick="toggleSidebar()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+          </button>
+          <button class="icon-btn" title="Previous view" onclick="stepView(-1)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button class="icon-btn" title="Next view" onclick="stepView(1)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+          <button class="icon-btn" title="Refresh" onclick="render()">
+            <svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <button class="cmd-trigger" onclick="openCmd(true)">
+        <span style="display:flex;align-items:center;gap:8px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <span>Search a player, a champion, a team, a pro...</span>
+        </span>
+        <span style="display:inline-flex;gap:3px;"><kbd class="kbd">Ctrl</kbd><kbd class="kbd">K</kbd></span>
+      </button>
+
+      <div class="topbar-right">
+        <!-- Patch & Period Popover -->
+        <div class="dropdown-anchor">
+          <button id="patchTrigger" class="chip-control" aria-expanded="false" onclick="toggleMenu('patch', event)" title="Patch & period filter for sample views">
+            <span id="patchLabel">Patch 16.22</span>
+            <span id="periodLabel" style="color:var(--ink-muted);font-weight:500;">· 7d</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div id="patchPopover" class="popover-panel" style="width:264px;">
+            <div class="popover-kicker">Period (Sample views)</div>
+            <div class="patch-grid" style="margin-bottom:10px;">
+              <button class="patch-cell" data-period="7 days" onclick="selectPeriod('7 days')">7 days</button>
+              <button class="patch-cell" data-period="14 days" onclick="selectPeriod('14 days')">14 days</button>
+              <button class="patch-cell" data-period="30 days" onclick="selectPeriod('30 days')">30 days</button>
+            </div>
+            <div class="popover-kicker">Patch</div>
+            <div class="patch-grid" id="patchGridBtns"></div>
+          </div>
+        </div>
+
+        <!-- API Provider Mode Dropdown (OP.GG selectable, unverified providers greyed out & disabled) -->
+        <div class="dropdown-anchor">
+          <button id="providerChip" class="chip-control" aria-expanded="false" onclick="toggleMenu('provider', event)" title="Select Tierlist Data Provider">
+            <span>API: OP.GG</span>
+            <span id="providerTag" class="chip-tag">LIVE</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div id="providerPopover" class="popover-panel" style="width:252px;" role="menu" aria-label="API Provider Mode">
+            <div class="popover-kicker">API Provider Mode</div>
+            <div id="providerListMenu" style="display:flex;flex-direction:column;gap:3px;"></div>
+            <div style="margin-top:8px;padding-top:7px;border-top:1px solid var(--border-hairline);font-size:10.5px;color:var(--ink-muted);line-height:1.35;">
+              Only <strong style="color:var(--ink-secondary);">OP.GG</strong> tier list is verified. Other providers stay disabled until implemented.
+            </div>
+          </div>
+        </div>
+
+        <div class="theme-pill-group" role="group" aria-label="Theme mode">
+          <button id="btnLight" class="theme-icon-btn" aria-label="Light mode" onclick="setTheme('light')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          </button>
+          <button id="btnDark" class="theme-icon-btn active" aria-label="Dark mode" onclick="setTheme('dark')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          </button>
+        </div>
+
+        <div class="lcu-status" title="Local League Client Lockfile Ready">
+          <span class="live-dot"></span>
+          <span>LCU Ready</span>
+        </div>
+
+        <button class="icon-btn" title="Data Studio & Provider Diagnostics" aria-label="Data Studio" onclick="setView('datastudio')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="body-row">
+      <!-- Collapsible Left Sidebar -->
+      <aside id="sidebar" class="sidebar">
+        <div class="nav-stack">
+          <div class="nav-section">
+            <div class="nav-label sb-hide">BARON CORE</div>
+            <button class="nav-btn active" data-nav="dashboard" title="Dashboard" onclick="setView('dashboard')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5Z"/></svg>
+              <span class="sb-hide">Dashboard</span>
+            </button>
+            <button class="nav-btn" data-nav="tierlist" title="Tierlist & Builds" onclick="setView('tierlist')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M12 20V4M20 20v-7"/></svg>
+              <span class="sb-hide">Tierlist &amp; Builds</span>
+            </button>
+            <button class="nav-btn" data-nav="leaderboards" title="Leaderboards" onclick="setView('tierlist')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 8 4.5 4L12 5l4.5 7L21 8l-2 11H5L3 8Z"/></svg>
+              <span class="sb-hide">Leaderboards</span>
+            </button>
+          </div>
+
+          <div class="nav-section">
+            <div class="nav-label sb-hide">BARON APP</div>
+            <button class="nav-btn" data-nav="spectate" title="Spectate" onclick="setView('collections')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span class="sb-hide">Spectate</span>
+            </button>
+            <button class="nav-btn" data-nav="collections" title="Collections" onclick="setView('collections')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 9 4.5-9 4.5-9-4.5L12 3Z"/><path d="m3 12 9 4.5 9-4.5M3 16.5 12 21l9-4.5"/></svg>
+              <span class="sb-hide">Collections</span>
+            </button>
+          </div>
+
+          <div class="nav-section">
+            <div class="nav-label sb-hide">IN GAME</div>
+            <button class="nav-btn ingame" data-nav="champselect" title="Champ Select" onclick="setView('champselect')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 1.8 4.5L18.5 9l-4.7 1.5L12 15l-1.8-4.5L5.5 9l4.7-1.5L12 3Z"/></svg>
+              <span class="sb-hide">Champ Select</span>
+            </button>
+            <button class="nav-btn ingame" data-nav="postgame" title="Post-game" onclick="setView('postgame')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6"/></svg>
+              <span class="sb-hide">Post-game</span>
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;width:100%;align-items:center;">
+          <button class="nav-btn" data-nav="datastudio" title="Data Studio" onclick="setView('datastudio')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg>
+            <span class="sb-hide">Data Studio</span>
+          </button>
+
+          <button class="profile-card" title="Hide on bush #KR1 · Challenger" onclick="setView('dashboard')">
+            <img src="https://ddragon.leagueoflegends.com/cdn/16.22.1/img/champion/Ahri.png" alt="Ahri" class="profile-avatar" />
+            <div class="sb-hide" style="min-width:0;flex:1;">
+              <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Hide on bush</div>
+              <div style="font-size:10px;font-weight:600;color:var(--cyan);">KR1 · CHALLENGER</div>
+            </div>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Rounded Top-Left Inset Workspace Container -->
+      <main id="workspace" class="inset-canvas"></main>
+    </div>
+  </div>
+
+  <!-- MCP Registry Component Decision Drawer -->
+  <aside id="regDrawer" class="drawer">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid var(--border-base);margin-bottom:10px;">
+      <div>
+        <strong style="font-size:13px;">Registry &amp; DPM Design Architecture</strong>
+        <div style="font-size:11px;color:var(--ink-muted);">@shadcn · @aceternity · @react-bits · @magicui</div>
+      </div>
+      <button class="studio-btn" onclick="toggleReg()">Close</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;color:var(--ink-secondary);line-height:1.45;">
+      <div><strong style="color:var(--emerald);">@shadcn/sidebar + SidebarInset (DPM Frame):</strong> Full-width top bar + collapsible `204px ↔ 58px` icon rail framing a `rounded-tl-[14px]` bordered inset sheet — matching DPM v1.8.1's signature depth without card confetti.</div>
+      <div><strong style="color:var(--accent-bright);">@aceternity/tabs &amp; @aceternity/sidebar:</strong> Animated segmented tabs (`All | Solo | Flex`, `EUW | KR | NA`, `Top..Support`) and collapsible rail transitions.</div>
+      <div><strong style="color:var(--cyan);">@react-bits/LineSidebar &amp; SpotlightCard:</strong> Subtle rail tick hover proximity on navigation items and cursor spotlight sheen strictly on Hero &amp; Collections artwork.</div>
+      <div><strong style="color:var(--gold);">@magicui/animated-circular-progress-bar &amp; @shadcn/chart:</strong> Circular Baron Score rings paired with smooth spline LP curve &amp; inline `@14:00` match lens drawer.</div>
+    </div>
+  </aside>
+
+  <!-- Ctrl+K Command Palette -->
+  <div id="cmdModal" class="modal-bg" onclick="if(event.target===this)openCmd(false)">
+    <div class="cmd-box" role="dialog" aria-label="Command palette">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border-base);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="cmdInput" type="text" placeholder="Search player, champion, toggle sidebar (Ctrl+B), or theme..." style="background:none;border:none;color:var(--ink-primary);font-size:12.5px;width:100%;outline:none;" />
+        <kbd class="kbd">Esc</kbd>
+      </div>
+      <div style="padding:8px;display:flex;flex-direction:column;gap:2px;">
+        <button class="nav-btn" onclick="setView('dashboard');openCmd(false)"><span>Dashboard · Summoner Hero &amp; Match Tape</span></button>
+        <button class="nav-btn" onclick="setView('tierlist');openCmd(false)"><span>Tierlist · OP.GG Live Lane Rankings</span></button>
+        <button class="nav-btn" onclick="setView('champselect');openCmd(false)"><span>Champ Select · 5v5 Draft &amp; Auto-Runes</span></button>
+        <button class="nav-btn" onclick="setView('postgame');openCmd(false)"><span>Post-game · Full 5v5 Scoreboard</span></button>
+        <button class="nav-btn" onclick="setView('collections');openCmd(false)"><span>Collections · Verified Skin Vault</span></button>
+        <button class="nav-btn" onclick="toggleSidebar();openCmd(false)"><span>Toggle Collapsible Sidebar (Ctrl+B)</span></button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DD = "16.22.1";
+    const champSq = (c) => `https://ddragon.leagueoflegends.com/cdn/${DD}/img/champion/${c}.png`;
+    const champLoad = (c, n = 0) => `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${c}_${n}.jpg`;
+    const itemUrl = (id) => `https://ddragon.leagueoflegends.com/cdn/${DD}/img/item/${id}.png`;
+    const runeUrl = (p) => `https://ddragon.leagueoflegends.com/cdn/img/${p}`;
+
+    const STATE = {
+      collapsed: false,
+      view: "dashboard",
+      theme: "dark",
+      patch: "16.22",
+      period: "7 days",
+      activeProvider: "opgg",
+      menuOpen: null, // "patch" | "provider" | null
+      providerLive: true,
+      expandedMatch: "m1",
+      activeRole: "Top",
+      lbRegion: "EUW",
+      scrubIdx: 4,
+    };
+
+    const PROVIDERS = [
+      { id: "opgg", label: "OP.GG", available: true, url: "https://mcp-api.op.gg/mcp", note: "Tier list" },
+      { id: "ugg", label: "U.GG", available: false, url: "https://stats2.u.gg/lol/1.5/tier_list/16.22/ranked_solo_5x5.json", note: "Unavailable" },
+      { id: "dpmlol", label: "DPM.LOL", available: false, url: "https://dpm.lol/api/v1/tier-list?patch=16.22", note: "Unavailable" },
+      { id: "lolalytics", label: "LoLalytics", available: false, url: "https://a1.lolalytics.com/mega/?ep=tier&v=1&patch=16.22", note: "Unavailable" },
+      { id: "metasrc", label: "MetaSRC", available: false, url: "https://www.metasrc.com/lol/16.22/tier-list", note: "Unavailable" },
+      { id: "merakicdn", label: "Meraki CDN", available: false, url: "https://cdn.merakianalytics.com/riot/lol/resources/latest/en-US/champions.json", note: "Unavailable" },
+    ];
+
+    const LANE_SVG = {
+      Top: `<svg width="13" height="13" viewBox="0 0 16 16"><path fill="currentColor" d="M2 2h10l-2 2.2H4.2V10L2 12V2Z"/><path fill="currentColor" opacity="0.3" d="M14 14H4l2-2.2h5.8V6L14 4v10Z"/></svg>`,
+      Jg: `<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5c1.5 2.4 2.3 4.4 2.3 6.2 0 1.4-.6 2.8-1.6 3.9-.4.5-.7 1.1-.7 1.9 0-.8-.3-1.4-.7-1.9-1-1.1-1.6-2.5-1.6-3.9 0-1.8.8-3.8 2.3-6.2ZM3.1 4.2c1.2 1.2 1.9 2.8 1.9 4.5 0 1.3-.3 2.5-.9 3.6-1.3-1-2.1-2.6-2.1-4.3 0-1.5.4-2.8 1.1-3.8Zm9.8 0c.7 1 1.1 2.3 1.1 3.8 0 1.7-.8 3.3-2.1 4.3-.6-1.1-.9-2.3-.9-3.6 0-1.7.7-3.3 1.9-4.5Z"/></svg>`,
+      Mid: `<svg width="13" height="13" viewBox="0 0 16 16"><path fill="currentColor" opacity="0.3" d="M2 2h7L7 4H4v3L2 9V2Zm12 12H7l2-2h3V9l2-2v7Z"/><path fill="currentColor" d="M13.2 1.8 14.2 2.8 2.8 14.2 1.8 13.2 13.2 1.8Z"/></svg>`,
+      Bot: `<svg width="13" height="13" viewBox="0 0 16 16"><path fill="currentColor" opacity="0.3" d="M2 2h10l-2 2.2H4.2V10L2 12V2Z"/><path fill="currentColor" d="M14 14H4l2-2.2h5.8V6L14 4v10Z"/></svg>`,
+      Sup: `<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2.2 11 4.5 9.6 8.3h2.9L8 14 3.5 8.3h2.9L5 4.5 8 2.2ZM1.8 5.2l2.6.9-.6 2.1-2-.7V5.2Zm12.4 0v2.3l-2 .7-.6-2.1 2.6-.9Z"/></svg>`,
+    };
+
+    const LP_POINTS = [
+      { label: "Sample -4", val: 994, note: "Baseline · 994 LP" },
+      { label: "Jinx · +21 LP", val: 1015, note: "29:05 · 10/3/11 · Score 84" },
+      { label: "Orianna · -16 LP", val: 999, note: "31:18 · 6/5/9 · Score 68" },
+      { label: "Syndra · +22 LP", val: 1021, note: "27:42 · 11/2/7 · Score 89" },
+      { label: "Ahri · +21 LP", val: 1042, note: "33:07 · 9/4/8 · Score 75" },
+    ];
+
+    const MATCHES = [
+      { id: "m1", res: "Victory", win: true, ago: "6m ago", dur: "33:07", key: "Ahri", champ: "Ahri", role: "Mid", k: 9, d: 4, a: 8, kda: "4.25:1", cs: "8.1", items: [3118,4645,3157,3020,3089,3364], score: 75, lp: "+21 LP", gold14: "+840g", cs14: "+14 CS", xp14: "+620 XP", dmg: "35.1k (27%)", pct: 88 },
+      { id: "m2", res: "Victory", win: true, ago: "1h ago", dur: "27:42", key: "Syndra", champ: "Syndra", role: "Mid", k: 11, d: 2, a: 7, kda: "9.00:1", cs: "8.9", items: [3118,4645,3089,3020,3135,3364], score: 89, lp: "+22 LP", gold14: "+1,290g", cs14: "+21 CS", xp14: "+840 XP", dmg: "38.4k (31%)", pct: 95 },
+      { id: "m3", res: "Defeat", win: false, ago: "3h ago", dur: "31:18", key: "Orianna", champ: "Orianna", role: "Mid", k: 6, d: 5, a: 9, kda: "3.00:1", cs: "8.4", items: [3003,4628,3157,3020,3135,3363], score: 68, lp: "-16 LP", gold14: "-310g", cs14: "+3 CS", xp14: "-180 XP", dmg: "27.6k (24%)", pct: 64 },
+      { id: "m4", res: "Victory", win: true, ago: "Yesterday", dur: "29:05", key: "Jinx", champ: "Jinx", role: "Bot", k: 10, d: 3, a: 11, kda: "7.00:1", cs: "9.1", items: [6672,3085,3031,3006,3036,3363], score: 84, lp: "+21 LP", gold14: "+640g", cs14: "+11 CS", xp14: "+410 XP", dmg: "39.8k (33%)", pct: 92 },
+    ];
+
+    const META_SAMPLE = [
+      { key: "Ahri", name: "Ahri", role: "Mid", tier: "S+", cls: "tier-splus", wr: "52.6%", delta: "+0.8%", pr: "11.2%" },
+      { key: "LeeSin", name: "Lee Sin", role: "Jg", tier: "S+", cls: "tier-splus", wr: "50.9%", delta: "-0.4%", pr: "17.6%" },
+      { key: "Jinx", name: "Jinx", role: "Bot", tier: "S+", cls: "tier-splus", wr: "52.1%", delta: "+1.2%", pr: "14.8%" },
+      { key: "Thresh", name: "Thresh", role: "Sup", tier: "S+", cls: "tier-splus", wr: "51.2%", delta: "+0.3%", pr: "12.9%" },
+      { key: "Syndra", name: "Syndra", role: "Mid", tier: "S", cls: "tier-s", wr: "51.8%", delta: "+0.6%", pr: "6.9%" },
+    ];
+
+    const LADDER = {
+      EUW: [
+        { rank: 1, name: "Annie IRL", champ: "Annie", lp: "4,368 LP", wr: "55%" },
+        { rank: 2, name: "Kaori", champ: "Kaisa", lp: "4,351 LP", wr: "55%" },
+        { rank: 3, name: "Mrozku", champ: "Orianna", lp: "4,332 LP", wr: "57%" },
+        { rank: 4, name: "Mentos", champ: "Ezreal", lp: "4,130 LP", wr: "54%" },
+        { rank: 5, name: "Nan0", champ: "Viego", lp: "4,050 LP", wr: "54%" },
+      ],
+      KR: [
+        { rank: 1, name: "Hide on bush", champ: "Ahri", lp: "1,742 LP", wr: "58%" },
+        { rank: 2, name: "Zeus", champ: "Gnar", lp: "1,698 LP", wr: "56%" },
+        { rank: 3, name: "Chovy", champ: "Syndra", lp: "1,651 LP", wr: "61%" },
+        { rank: 4, name: "Viper", champ: "Caitlyn", lp: "1,610 LP", wr: "57%" },
+        { rank: 5, name: "Keria", champ: "Thresh", lp: "1,585 LP", wr: "56%" },
+      ],
+      NA: [
+        { rank: 1, name: "Yeon", champ: "Kaisa", lp: "1,490 LP", wr: "57%" },
+        { rank: 2, name: "APA", champ: "Taliyah", lp: "1,412 LP", wr: "55%" },
+        { rank: 3, name: "CoreJJ", champ: "Rakan", lp: "1,380 LP", wr: "54%" },
+        { rank: 4, name: "Impact", champ: "Aatrox", lp: "1,344 LP", wr: "55%" },
+        { rank: 5, name: "Blaber", champ: "LeeSin", lp: "1,310 LP", wr: "54%" },
+      ],
+    };
+
+    const SKINS = [
+      { champ: "Annie", num: 40, name: "Winterblessed Annie", rarity: "Epic", price: "1,350 RP", color: "#38bdf8", owned: true },
+      { champ: "Jinx", num: 51, name: "Cafe Cuties Jinx", rarity: "Epic", price: "1,350 RP", color: "#38bdf8", owned: true },
+      { champ: "Evelynn", num: 32, name: "Spirit Blossom Evelynn", rarity: "Epic", price: "1,350 RP", color: "#38bdf8", owned: true },
+      { champ: "Janna", num: 66, name: "Dawnbringer Janna", rarity: "Mythic", price: "Earned", color: "#a855f7", owned: true },
+      { champ: "MissFortune", num: 50, name: "Porcelain Miss Fortune", rarity: "Epic", price: "1,350 RP", color: "#38bdf8", owned: true },
+      { champ: "Ezreal", num: 65, name: "Masque Black Rose Ezreal", rarity: "Legendary", price: "1,820 RP", color: "#f43f5e", owned: true },
+      { champ: "Akali", num: 92, name: "Spirit Blossom Akali", rarity: "Epic", price: "1,350 RP", color: "#38bdf8", owned: true },
+      { champ: "Sona", num: 45, name: "Immortal Journey Sona", rarity: "Epic", price: "1,350 RP", color: "#38bdf8", owned: false },
+      { champ: "Ahri", num: 27, name: "Spirit Blossom Ahri", rarity: "Legendary", price: "1,820 RP", color: "#f43f5e", owned: true },
+      { champ: "Kaisa", num: 16, name: "iG Kai'Sa", rarity: "Epic", price: "1,350 RP", color: "#38bdf8", owned: true },
+    ];
+
+    function buildLpCurve() {
+      const w = 360, h = 72, minV = 980, maxV = 1060;
+      const pts = LP_POINTS.map((p, i) => ({
+        x: 34 + (i * (w - 48)) / (LP_POINTS.length - 1),
+        y: h - 10 - ((p.val - minV) / (maxV - minV)) * (h - 20),
+        ...p, i,
+      }));
+      let d = `M ${pts[0].x} ${pts[0].y}`;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const mx = (pts[i].x + pts[i + 1].x) / 2;
+        d += ` C ${mx} ${pts[i].y}, ${mx} ${pts[i + 1].y}, ${pts[i + 1].x} ${pts[i + 1].y}`;
+      }
+      const area = `${d} L ${pts[pts.length - 1].x} ${h - 6} L ${pts[0].x} ${h - 6} Z`;
+      const cur = pts[STATE.scrubIdx];
+      return `
+        <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:72px;overflow:visible;">
+          <defs>
+            <linearGradient id="dpmLpFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.28" />
+              <stop offset="100%" stop-color="var(--accent)" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+          ${[980, 1020, 1060].map((tk) => {
+            const ty = h - 10 - ((tk - minV) / (maxV - minV)) * (h - 20);
+            return `<line x1="30" x2="${w - 6}" y1="${ty}" y2="${ty}" stroke="var(--border-hairline)" stroke-dasharray="2 3"/>
+                    <text x="26" y="${ty + 3}" text-anchor="end" fill="var(--ink-muted)" font-size="8.5" font-family="var(--font-mono)">${tk}</text>`;
+          }).join("")}
+          <path d="${area}" fill="url(#dpmLpFill)" />
+          <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.2" />
+          <line x1="${cur.x}" x2="${cur.x}" y1="4" y2="${h - 6}" stroke="var(--border-strong)" stroke-dasharray="2 2" />
+          ${pts.map((c) => `
+            <circle cx="${c.x}" cy="${c.y}" r="${c.i === STATE.scrubIdx ? 4.5 : 3}"
+              fill="${c.i === STATE.scrubIdx ? "var(--accent-bright)" : "var(--bg-panel)"}"
+              stroke="var(--accent)" stroke-width="2" style="cursor:pointer;"
+              onmouseenter="setScrub(${c.i})" onclick="setScrub(${c.i})" />
+          `).join("")}
+        </svg>
+      `;
+    }
+
+    function renderDashboard() {
+      const pt = LP_POINTS[STATE.scrubIdx];
+      const ladder = LADDER[STATE.lbRegion];
+      return `
+        <!-- Unified Hero Header matching DPM Post-game anatomy (Zero Empty Boxes!) -->
+        <section class="hero-card spotlight-surface" onmousemove="moveSpot(event, this)">
+          <div class="hero-splash" aria-hidden="true"></div>
+          <div class="hero-upper">
+            <div class="hero-identity">
+              <div class="hero-avatar-box">
+                <img src="${champSq("Ahri")}" alt="Ahri" />
+                <span class="lvl-tag">684</span>
+              </div>
+              <div style="min-width:0;">
+                <div style="display:flex;align-items:baseline;gap:6px;">
+                  <span style="font-size:18px;font-weight:800;letter-spacing:-0.025em;">Hide on bush</span>
+                  <span style="font-size:13px;font-weight:600;color:var(--ink-muted);">#KR1</span>
+                  <span class="pill-tag" style="margin-left:4px;">Sample Profile</span>
+                </div>
+                <div style="margin-top:4px;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--cyan);">
+                  <svg width="14" height="14" viewBox="0 0 28 28" fill="none"><path d="M14 2.2 21.5 6.8 24 14 18.8 22.8 14 26 9.2 22.8 4 14 6.5 6.8 14 2.2Z" fill="rgba(56,189,248,0.18)" stroke="#38BDF8" stroke-width="1.8"/><path d="M14 7 18.5 11.5 14 20 9.5 11.5 14 7Z" fill="#38BDF8"/></svg>
+                  <span>CHALLENGER · 1,042 LP</span>
+                  <span class="pill-tag pos">+48 LP (7d)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Interactive LP Trajectory integrated right in the Hero -->
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;margin-bottom:2px;">
+                <span style="font-weight:700;color:var(--ink-secondary);">LP Trajectory (4 Sample Games)</span>
+                <span class="mono" style="color:var(--accent-bright);font-weight:700;">${pt.val} LP · ${pt.label}</span>
+              </div>
+              ${buildLpCurve()}
+            </div>
+
+            <!-- Right Avg Score Gauge + Standing -->
+            <div class="hero-right-status">
+              <div style="position:relative;width:54px;height:54px;display:flex;align-items:center;justify-content:center;" title="Average Baron Score">
+                <svg width="54" height="54" style="transform:rotate(-90deg);">
+                  <circle cx="27" cy="27" r="22" fill="var(--bg-panel)" stroke="var(--border-base)" stroke-width="3.2" />
+                  <circle cx="27" cy="27" r="22" fill="none" stroke="var(--cyan)" stroke-width="3.2"
+                    stroke-dasharray="138.2" stroke-dashoffset="29.0" stroke-linecap="round" />
+                </svg>
+                <span class="mono" style="position:absolute;font-size:15px;font-weight:800;">79</span>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:18px;font-weight:800;color:var(--victory);">75% WR</div>
+                <span class="pill-tag pos" style="margin-top:2px;">3W 1L · On Form</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Flush 5-Column KPI Strip (exact Post-game pattern!) -->
+          <div class="hero-kpi-strip">
+            <div class="hero-kpi-cell"><div class="hero-kpi-top mono">7.35 : 1</div><div class="hero-kpi-sub">Average KDA · 9.0 / 3.5 / 8.8</div></div>
+            <div class="hero-kpi-cell"><div class="hero-kpi-top mono">58%</div><div class="hero-kpi-sub">Kill participation</div></div>
+            <div class="hero-kpi-cell"><div class="hero-kpi-top mono">8.6 / m</div><div class="hero-kpi-sub">CS rate across pool</div></div>
+            <div class="hero-kpi-cell"><div class="hero-kpi-top mono" style="color:var(--gold);">89 MVP</div><div class="hero-kpi-sub">Peak Baron Score · Syndra</div></div>
+            <div class="hero-kpi-cell"><div class="hero-kpi-top mono" style="color:var(--emerald);">OP.GG Live</div><div class="hero-kpi-sub">Tier-list feed connected</div></div>
+          </div>
+        </section>
+
+        <!-- Seamless Split Below Hero -->
+        <div class="dash-split">
+          <!-- Left: Match History Ledger with DPM 2x3 Items & Expandable @14m Lens -->
+          <section class="dash-left">
+            <div class="bar-head">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span class="bar-title">Recent Solo/Duo Matches</span>
+                <div class="aceternity-tabs">
+                  <button class="aceternity-tab active">All (4)</button>
+                  <button class="aceternity-tab">Solo/Duo</button>
+                  <button class="aceternity-tab">Flex</button>
+                </div>
+                <span style="font-size:11px;color:var(--ink-muted);">Sample matches</span>
+              </div>
+              <button class="link-act" onclick="setView('postgame')">Open Post-game Lens →</button>
+            </div>
+
+            <div>
+              ${MATCHES.map((m) => {
+                const open = STATE.expandedMatch === m.id;
+                const sCls = m.score >= 85 ? "high" : m.score < 70 ? "low" : "";
+                return `
+                  <div>
+                    <div class="match-row ${m.win ? "win" : "loss"}" onclick="toggleMatch('${m.id}')">
+                      <div>
+                        <div style="font-weight:700;color:${m.win ? "var(--victory)" : "var(--defeat)"};">${m.res}</div>
+                        <div style="font-size:11px;color:var(--ink-muted);margin-top:2px;">${m.dur} · ${m.ago}</div>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:10px;">
+                        <img src="${champSq(m.key)}" alt="${m.champ}" style="width:36px;height:36px;border-radius:7px;border:1px solid var(--border-base);object-fit:cover;" />
+                        <div>
+                          <div style="font-weight:700;">${m.champ}</div>
+                          <div style="display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--ink-muted);margin-top:2px;">
+                            ${LANE_SVG[m.role] || ""}<span>${m.role} · Solo/Duo</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <div class="mono" style="font-weight:700;">${m.k} / <span style="color:var(--defeat);">${m.d}</span> / ${m.a}</div>
+                        <div style="font-size:11px;color:var(--ink-secondary);margin-top:2px;">${m.kda} · ${m.cs} CS/m</div>
+                      </div>
+                      <div class="item-grid-2x3">
+                        ${m.items.map((id) => `<img src="${itemUrl(id)}" alt="${id}" class="item-21" />`).join("")}
+                      </div>
+                      <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;">
+                        <div style="text-align:right;">
+                          <div class="mono" style="font-size:11.5px;font-weight:700;color:${m.win ? "var(--cyan)" : "var(--defeat)"};">${m.lp}</div>
+                          <span style="font-size:10.5px;color:var(--accent-bright);font-weight:600;">${open ? "Hide lens ▴" : "Lens ▾"}</span>
+                        </div>
+                        <span class="score-ring ${sCls}" title="Baron Score">${m.score}</span>
+                      </div>
+                    </div>
+                    ${open ? `
+                      <div class="inline-lens">
+                        <div>
+                          <div style="font-size:10px;font-weight:700;color:var(--ink-muted);letter-spacing:0.06em;">@14:00 LANE DIFFERENTIAL</div>
+                          <div style="display:flex;gap:22px;margin-top:6px;">
+                            <div><div style="color:var(--ink-muted);font-size:10.5px;">Gold @14</div><strong class="mono" style="color:${m.gold14.startsWith("-") ? "var(--defeat)" : "var(--emerald)"};">${m.gold14}</strong></div>
+                            <div><div style="color:var(--ink-muted);font-size:10.5px;">CS @14</div><strong class="mono" style="color:var(--emerald);">${m.cs14}</strong></div>
+                            <div><div style="color:var(--ink-muted);font-size:10.5px;">XP @14</div><strong class="mono" style="color:${m.xp14.startsWith("-") ? "var(--defeat)" : "var(--emerald)"};">${m.xp14}</strong></div>
+                          </div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;color:var(--ink-muted);letter-spacing:0.06em;">DAMAGE DEALT · AVERAGE MARKER</div>
+                          <div style="display:flex;justify-content:space-between;margin-top:6px;">
+                            <span>Share vs Lobby Average</span><strong class="mono">${m.dmg}</strong>
+                          </div>
+                          <div class="bar-track"><div class="bar-fill ${m.win ? "" : "defeat"}" style="width:${m.pct}%;"></div><div class="bar-avg-tick"></div></div>
+                        </div>
+                        <button class="cta-btn" onclick="event.stopPropagation();setView('postgame')">Open Scoreboard →</button>
+                      </div>
+                    ` : ""}
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </section>
+
+          <!-- Right Rail: Bold DPM Tier Typography + Challenger Top 5 -->
+          <aside class="dash-right">
+            <div class="bar-head">
+              <span class="bar-title">16.22 Meta Pulse (Sample)</span>
+              <button class="link-act" onclick="setView('tierlist')">Live OP.GG →</button>
+            </div>
+            <div>
+              ${META_SAMPLE.map((r) => `
+                <div class="meta-row">
+                  <img src="${champSq(r.key)}" alt="${r.name}" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border-base);object-fit:cover;" />
+                  <div style="min-width:0;"><div style="font-weight:600;">${r.name}</div></div>
+                  <span style="color:var(--ink-muted);display:flex;justify-content:center;">${LANE_SVG[r.role] || ""}</span>
+                  <span class="tier-glyph ${r.cls}">${r.tier}</span>
+                  <div style="text-align:right;">
+                    <div class="mono" style="font-weight:700;">${r.wr}</div>
+                    <div style="font-size:10px;color:${r.delta.startsWith("-") ? "var(--defeat)" : "var(--emerald)"};">${r.delta}</div>
+                  </div>
+                  <div class="mono" style="text-align:right;color:var(--ink-secondary);">${r.pr}</div>
+                </div>
+              `).join("")}
+            </div>
+
+            <div class="bar-head" style="border-top:1px solid var(--border-base);margin-top:auto;">
+              <div class="aceternity-tabs">
+                ${["EUW", "KR", "NA"].map((rg) => `<button class="aceternity-tab ${STATE.lbRegion === rg ? "active" : ""}" onclick="setRegion('${rg}')">${rg}</button>`).join("")}
+              </div>
+              <button class="link-act" onclick="setView('tierlist')">Top 100 →</button>
+            </div>
+            <div>
+              ${ladder.map((p) => `
+                <div class="meta-row" style="grid-template-columns:18px 26px 1fr auto auto;">
+                  <span class="mono" style="color:var(--ink-muted);font-weight:700;">${p.rank}</span>
+                  <img src="${champSq(p.champ)}" alt="${p.name}" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border-base);object-fit:cover;" />
+                  <span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</span>
+                  <span class="mono" style="font-weight:700;color:var(--cyan);">${p.lp}</span>
+                  <span class="mono" style="color:var(--ink-secondary);">${p.wr}</span>
+                </div>
+              `).join("")}
+            </div>
+          </aside>
+        </div>
+      `;
+    }
+
+    function renderTierlist() {
+      const roles = ["Top", "Jungle", "Mid", "Bot", "Support"];
+      const rows = [
+        { rank: 1, key: "Aatrox", name: "Aatrox", role: "Top", tier: "OP", cls: "tier-splus", wr: 51.84, pr: 11.42, br: 14.20, games: 198420 },
+        { rank: 2, key: "Jax", name: "Jax", role: "Top", tier: "1", cls: "tier-s", wr: 52.10, pr: 8.65, br: 11.95, games: 150210 },
+        { rank: 3, key: "Garen", name: "Garen", role: "Top", tier: "1", cls: "tier-s", wr: 52.45, pr: 6.18, br: 5.10, games: 112090 },
+        { rank: 4, key: "Gnar", name: "Gnar", role: "Top", tier: "2", cls: "tier-a", wr: 50.62, pr: 7.44, br: 3.80, games: 129540 },
+        { rank: 5, key: "KSante", name: "K'Sante", role: "Top", tier: "2", cls: "tier-a", wr: 49.40, pr: 6.89, br: 9.15, games: 120110 },
+      ];
+      return `
+        <div class="view-section">
+          <!-- Tierlist Header matching DPM v1.8.1 (uploaded_media_1) with honest OP.GG disclosure -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink-primary)" stroke-width="2.4"><path d="M5 20V11M12 20V4M19 20v-7"/></svg>
+                <h1 style="font-size:22px;font-weight:800;letter-spacing:-0.025em;">Tierlist</h1>
+              </div>
+              <span style="font-size:12px;color:var(--ink-secondary);max-width:440px;line-height:1.35;">
+                Live OP.GG lane data. Patch, rank, region, and period filters are not available for this feed.
+              </span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="pill-tag ${STATE.providerLive ? "pos" : "mvp"}">${STATE.providerLive ? "Source: OP.GG MCP" : "Provider Offline"}</span>
+              <button class="chip-control" onclick="toggleProviderSim()">${STATE.providerLive ? "Preview Error State" : "Show Live Feed"}</button>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div class="aceternity-tabs">
+              ${roles.map((r) => `<button class="aceternity-tab ${STATE.activeRole === r ? "active" : ""}" onclick="setRole('${r}')">${r}</button>`).join("")}
+            </div>
+            <div class="chip-control" style="width:240px;justify-content:flex-start;color:var(--ink-muted);">Search a champion</div>
+          </div>
+
+          <div style="border-top:1px solid var(--border-base);border-bottom:1px solid var(--border-base);background:var(--bg-panel);">
+            ${STATE.providerLive ? `
+              <table class="dpm-table">
+                <thead>
+                  <tr>
+                    <th style="width:72px;text-align:center;">RANK</th>
+                    <th>CHAMPION</th>
+                    <th style="width:90px;text-align:center;">LANE</th>
+                    <th style="width:90px;text-align:center;">TIER</th>
+                    <th>WINRATE</th>
+                    <th>PICKRATE</th>
+                    <th>BANRATE</th>
+                    <th style="text-align:right;">GAMES</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rows.map((r) => `
+                    <tr>
+                      <td class="mono" style="text-align:center;color:var(--ink-secondary);font-weight:600;">${r.rank}</td>
+                      <td>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                          <img src="${champSq(r.key)}" alt="${r.name}" style="width:32px;height:32px;border-radius:6px;border:1px solid var(--border-base);" />
+                          <strong style="font-size:13px;">${r.name}</strong>
+                        </div>
+                      </td>
+                      <td style="text-align:center;color:var(--ink-muted);">${LANE_SVG[r.role]}</td>
+                      <td style="text-align:center;"><span class="tier-glyph ${r.cls}">${r.tier}</span></td>
+                      <td><strong class="mono">${r.wr.toFixed(2)}%</strong></td>
+                      <td class="mono" style="color:var(--ink-primary);font-weight:600;">${r.pr.toFixed(2)}%</td>
+                      <td class="mono" style="color:var(--ink-secondary);">${r.br.toFixed(2)}%</td>
+                      <td class="mono" style="text-align:right;color:var(--ink-primary);font-weight:600;">${r.games.toLocaleString()}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            ` : `
+              <div style="padding:28px 24px;display:flex;align-items:center;justify-content:space-between;">
+                <div><strong>Live provider data unavailable</strong><p style="font-size:12px;color:var(--ink-secondary);margin-top:4px;">Requires desktop Tauri OP.GG MCP session; unverified providers remain disabled.</p></div>
+                <button class="cta-btn" onclick="toggleProviderSim()">Restore Live View</button>
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPostgame() {
+      const blue = [
+        { p: "5th", name: "Kaneki", k: "Aatrox", rank: "E2", kda: "5 / 5 / 9", kSub: "2.80 KDA · 45% KP", cs: "7.2", csSub: "239 CS", dmg: "26.8k", pct: 67, score: 66, items: [6692,3071,3053,3047,6333,3364] },
+        { p: "3rd", name: "moonlightjg", k: "Viego", rank: "D4", kda: "5 / 5 / 13", kSub: "3.60 KDA · 58% KP", cs: "5.9", csSub: "194 CS", dmg: "20.4k", pct: 51, score: 76, items: [6672,3078,3053,3047,3026,3364] },
+        { p: "4th", name: "Nyx", k: "Ahri", rank: "D4", kda: "9 / 4 / 8", kSub: "4.25 KDA · 55% KP", cs: "8.1", csSub: "267 CS", dmg: "35.1k", pct: 88, score: 75, you: true, items: [3118,4645,3157,3020,3089,3364] },
+        { p: "MVP", name: "Kaisaki", k: "Jinx", rank: "E2", kda: "10 / 4 / 8", kSub: "4.50 KDA · 58% KP", cs: "8.8", csSub: "292 CS", dmg: "39.8k", pct: 100, score: 86, mvp: true, items: [6672,3085,3031,3006,3036,3363] },
+        { p: "2nd", name: "wardenpls", k: "Nautilus", rank: "E3", kda: "2 / 6 / 22", kSub: "4.00 KDA · 77% KP", cs: "62", csSub: "vision", dmg: "9.8k", pct: 25, score: 82, items: [3877,3190,3050,3111,3109,3364] },
+      ];
+      return `
+        <!-- Faithful DPM Post-game Anatomy (uploaded_media_0) -->
+        <section class="hero-card">
+          <div class="hero-splash" aria-hidden="true"></div>
+          <div style="position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:18px 24px;">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <div class="hero-avatar-box"><img src="${champSq("Ahri")}" alt="Ahri" /><span class="lvl-tag">17</span></div>
+              <div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:17px;font-weight:800;">Nyx<span style="color:var(--ink-muted);">#DPM</span></span>
+                  <span class="pill-tag" style="border-color:rgba(59,130,246,0.4);color:var(--cyan);">D4</span>
+                  <span class="pill-tag">Sample Match</span>
+                </div>
+                <div style="font-size:12px;color:var(--ink-secondary);margin-top:3px;">Ahri · Ranked Solo/Duo · 33:07 · 6 minutes ago</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;">
+              <span class="score-ring" style="width:52px;height:52px;font-size:16px;">75</span>
+              <div style="text-align:right;"><div style="font-size:22px;font-weight:800;color:var(--victory);">Victory</div><span class="pill-tag pos">+21 LP</span></div>
+            </div>
+          </div>
+
+          <div class="hero-kpi-strip">
+            <div class="hero-kpi-cell"><div class="hero-kpi-top mono">9 / 4 / 8</div><div class="hero-kpi-sub">4.25 KDA</div></div>
+            <div class="hero-kpi-cell"><div class="hero-kpi-top mono">55%</div><div class="hero-kpi-sub">Kill participation</div></div>
+            <div class="hero-kpi-cell"><div class="hero-kpi-top mono">8.1</div><div class="hero-kpi-sub">CS / min · 267 total</div></div>
+            <div class="hero-kpi-cell"><div class="hero-kpi-top mono">35.1k</div><div class="hero-kpi-sub">Damage · 27% of team</div></div>
+            <div class="hero-kpi-cell"><div class="hero-kpi-top mono">25</div><div class="hero-kpi-sub">Vision score</div></div>
+          </div>
+        </section>
+
+        <div class="underline-tabs">
+          <button class="u-tab active">Scoreboard</button>
+          <button class="u-tab">Loadout</button>
+          <button class="u-tab">Details</button>
+          <button class="u-tab">Advanced</button>
+        </div>
+
+        <div>
+          <div class="bar-head" style="background:var(--victory-soft);">
+            <div style="display:flex;align-items:center;gap:14px;"><strong style="color:var(--victory);">Victory · Blue side</strong><span style="font-size:11.5px;color:var(--ink-secondary);">8 Towers · 3 Grubs · 1 Herald · 2 Dragons · 1 Baron</span></div>
+            <div class="mono" style="font-size:12px;font-weight:700;">31 / 24 / 60 KDA <span style="color:var(--ink-secondary);margin-left:8px;">68.5k gold</span></div>
+          </div>
+          <table class="dpm-table">
+            <tbody>
+              ${blue.map((r) => `
+                <tr style="${r.you ? "background:var(--victory-soft);" : ""}">
+                  <td style="width:62px;">${r.mvp ? `<span class="pill-tag mvp">MVP</span>` : `<span style="color:var(--ink-muted);font-weight:600;">${r.p}</span>`}</td>
+                  <td style="width:240px;">
+                    <div style="display:flex;align-items:center;gap:9px;">
+                      <img src="${champSq(r.k)}" alt="${r.k}" style="width:34px;height:34px;border-radius:6px;border:1px solid var(--border-base);" />
+                      <div>
+                        <div style="display:flex;align-items:center;gap:5px;"><strong>${r.name}</strong>${r.you ? `<span class="pill-tag" style="padding:0 4px;font-size:9px;color:var(--accent-bright);">YOU</span>` : ""}</div>
+                        <div style="font-size:11px;color:var(--ink-muted);"><span style="color:var(--cyan);font-weight:600;">${r.rank}</span> ${r.k}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style="width:100px;"><div class="item-grid-2x3">${r.items.map((id) => `<img src="${itemUrl(id)}" alt="${id}" class="item-21"/>`).join("")}</div></td>
+                  <td><div class="mono" style="font-weight:700;">${r.kda}</div><div style="font-size:10.5px;color:var(--ink-muted);">${r.kSub}</div></td>
+                  <td><div class="mono" style="font-weight:700;">${r.cs}</div><div style="font-size:10.5px;color:var(--ink-muted);">${r.csSub}</div></td>
+                  <td style="width:155px;"><div class="mono" style="font-size:11px;font-weight:700;margin-bottom:3px;">${r.dmg} dmg</div><div class="bar-track"><div class="bar-fill" style="width:${r.pct}%;"></div><div class="bar-avg-tick"></div></div></td>
+                  <td style="text-align:right;width:64px;"><span class="score-ring ${r.score >= 85 ? "high" : ""}">${r.score}</span></td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderChampSelect() {
+      const blue = [
+        { k: "Gnar", r: "Top", t: "B", d: "+1.82" }, { k: "Vi", r: "Jg", t: "A", d: "+2.34" },
+        { k: "Ahri", r: "Mid", t: "S+", d: "—" }, { k: "Jinx", r: "Bot", t: "S", d: "-0.91" }, { k: "Nautilus", r: "Sup", t: "B", d: "—" }
+      ];
+      const red = [
+        { k: "Aatrox", r: "Top", t: "B", d: "-0.64" }, { k: "LeeSin", r: "Jg", t: "C", d: "+1.19" },
+        { k: "Orianna", r: "Mid", t: "B", d: "—" }, { k: "Kaisa", r: "Bot", t: "A", d: "+2.07" }, { k: "Rakan", r: "Sup", t: "B", d: "—" }
+      ];
+      return `
+        <div class="view-section">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:10px;"><h1 style="font-size:18px;font-weight:800;">Champ Select Workbench</h1><span class="pill-tag">Sample LCU Lobby</span></div>
+            <div style="font-size:12px;"><strong class="mono" style="color:var(--victory);">54% Blue</strong> <span style="color:var(--ink-muted);">Win Probability</span> <strong class="mono" style="color:var(--defeat);">46% Red</strong></div>
+          </div>
+
+          <section style="display:grid;grid-template-columns:1fr 224px 1fr;gap:14px;padding:14px;border:1px solid var(--border-base);border-radius:10px;background:var(--bg-panel);align-items:center;">
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
+              ${blue.map((s) => `
+                <div>
+                  <div style="position:relative;height:112px;border-radius:6px;overflow:hidden;border:1px solid var(--border-base);">
+                    <img src="${champLoad(s.k, 0)}" alt="${s.k}" style="width:100%;height:100%;object-fit:cover;object-position:top;" />
+                    <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(6,8,13,0.9), transparent 60%);"></div>
+                    <div style="position:absolute;left:7px;right:7px;bottom:6px;display:flex;justify-content:space-between;align-items:baseline;">
+                      <span style="font-size:10.5px;font-weight:700;color:#fff;">${s.k}</span>
+                      <span style="font-size:14px;font-weight:900;color:var(--gold);">${s.t}</span>
+                    </div>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-muted);margin-top:3px;"><span>${s.r}</span><span class="mono" style="color:var(--victory);">${s.d}</span></div>
+                </div>
+              `).join("")}
+            </div>
+
+            <svg viewBox="-28 -10 236 180" style="width:214px;height:146px;margin:auto;">
+              ${[22,40,58].map((r) => `<polygon points="90,${80-r} ${90+r*0.866},${80-r*0.5} ${90+r*0.866},${80+r*0.5} 90,${80+r} ${90-r*0.866},${80+r*0.5} ${90-r*0.866},${80-r*0.5}" fill="none" stroke="var(--border-base)" stroke-width="1"/>`).join("")}
+              <polygon points="90,34 134,58 138,108 90,126 52,102 48,54" fill="rgba(59,130,246,0.22)" stroke="#3B82F6" stroke-width="1.6"/>
+              <polygon points="90,46 124,62 120,100 90,118 46,104 58,64" fill="rgba(244,63,94,0.18)" stroke="#F43F5E" stroke-width="1.6"/>
+              <text x="90" y="10" text-anchor="middle" fill="var(--ink-muted)" font-size="8.5" font-weight="700">EARLY</text>
+              <text x="150" y="54" text-anchor="start" fill="var(--ink-muted)" font-size="8.5" font-weight="700">MID</text>
+              <text x="150" y="114" text-anchor="start" fill="var(--ink-muted)" font-size="8.5" font-weight="700">LATE</text>
+              <text x="90" y="156" text-anchor="middle" fill="var(--ink-muted)" font-size="8.5" font-weight="700">CRIT / DMG</text>
+              <text x="30" y="114" text-anchor="end" fill="var(--ink-muted)" font-size="8.5" font-weight="700">CROWD CTRL</text>
+              <text x="30" y="54" text-anchor="end" fill="var(--ink-muted)" font-size="8.5" font-weight="700">SYNERGY</text>
+            </svg>
+
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
+              ${red.map((s) => `
+                <div>
+                  <div style="position:relative;height:112px;border-radius:6px;overflow:hidden;border:1px solid var(--border-base);">
+                    <img src="${champLoad(s.k, 0)}" alt="${s.k}" style="width:100%;height:100%;object-fit:cover;object-position:top;" />
+                    <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(6,8,13,0.9), transparent 60%);"></div>
+                    <div style="position:absolute;left:7px;right:7px;bottom:6px;display:flex;justify-content:space-between;align-items:baseline;">
+                      <span style="font-size:10.5px;font-weight:700;color:#fff;">${s.k}</span>
+                      <span style="font-size:14px;font-weight:900;color:var(--cyan);">${s.t}</span>
+                    </div>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-muted);margin-top:3px;"><span>${s.r}</span><span class="mono" style="color:var(--defeat);">${s.d}</span></div>
+                </div>
+              `).join("")}
+            </div>
+          </section>
+
+          <div style="display:grid;grid-template-columns:270px 1fr 270px;gap:14px;">
+            <section style="border:1px solid var(--border-base);border-radius:10px;background:var(--bg-panel);padding:12px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><img src="${champSq("Ashe")}" alt="Ashe" style="width:28px;height:28px;border-radius:6px;" /><strong>Ashe · Bot</strong></div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <div class="chip-control" style="height:auto;padding:8px 10px;justify-content:space-between;border-color:var(--accent);background:var(--accent-soft);"><div><div style="font-weight:700;">Crit Kraken Build</div><div style="font-size:10.5px;color:var(--ink-muted);">37,897 games</div></div><span class="mono" style="color:var(--accent-bright);">49%</span></div>
+                <div class="chip-control" style="height:auto;padding:8px 10px;justify-content:space-between;"><div><div style="font-weight:700;">On-Hit &amp; AS</div><div style="font-size:10.5px;color:var(--ink-muted);">6,204 games</div></div><span class="mono" style="color:var(--emerald);">51%</span></div>
+              </div>
+            </section>
+
+            <section style="border:1px solid var(--border-base);border-radius:10px;background:var(--bg-panel);padding:14px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid var(--border-hairline);margin-bottom:14px;">
+                <div style="display:flex;align-items:center;gap:10px;"><strong>Precision · Domination Runes</strong><button class="cta-btn">Inject (Baron: Ashe)</button></div>
+                <span class="pill-tag pos">Auto-Runes On</span>
+              </div>
+              <div style="display:flex;justify-content:center;gap:56px;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+                  <div style="display:flex;gap:10px;"><span class="rune-dot keystone active"><img src="${runeUrl("perk-images/Styles/Precision/LethalTempo/LethalTempoTemp.png")}" alt="LT"/></span><span class="rune-dot keystone"><img src="${runeUrl("perk-images/Styles/Precision/FleetFootwork/FleetFootwork.png")}" alt="FF"/></span><span class="rune-dot keystone"><img src="${runeUrl("perk-images/Styles/Precision/Conqueror/Conqueror.png")}" alt="Conq"/></span></div>
+                  <div style="display:flex;gap:10px;"><span class="rune-dot"><img src="${runeUrl("perk-images/Styles/Precision/AbsorbLife/AbsorbLife.png")}" alt="Absorb"/></span><span class="rune-dot"><img src="${runeUrl("perk-images/Styles/Precision/Triumph.png")}" alt="Triumph"/></span><span class="rune-dot active"><img src="${runeUrl("perk-images/Styles/Precision/PresenceOfMind/PresenceOfMind.png")}" alt="PoM"/></span></div>
+                  <div style="display:flex;gap:10px;"><span class="rune-dot active"><img src="${runeUrl("perk-images/Styles/Precision/LegendAlacrity/LegendAlacrity.png")}" alt="Alacrity"/></span><span class="rune-dot"><img src="${runeUrl("perk-images/Styles/Precision/LegendHaste/LegendHaste.png")}" alt="Haste"/></span><span class="rune-dot"><img src="${runeUrl("perk-images/Styles/Precision/LegendBloodline/LegendBloodline.png")}" alt="Blood"/></span></div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+                  <div style="display:flex;gap:10px;"><span class="rune-dot"><img src="${runeUrl("perk-images/Styles/Domination/CheapShot/CheapShot.png")}" alt="Cheap"/></span><span class="rune-dot active sec"><img src="${runeUrl("perk-images/Styles/Domination/TasteOfBlood/GreenTerror_TasteOfBlood.png")}" alt="Taste"/></span><span class="rune-dot"><img src="${runeUrl("perk-images/Styles/Domination/SuddenImpact/SuddenImpact.png")}" alt="Sudden"/></span></div>
+                  <div style="display:flex;gap:10px;"><span class="rune-dot active sec"><img src="${runeUrl("perk-images/Styles/Domination/TreasureHunter/TreasureHunter.png")}" alt="Treasure"/></span><span class="rune-dot"><img src="${runeUrl("perk-images/Styles/Domination/RelentlessHunter/RelentlessHunter.png")}" alt="Relentless"/></span><span class="rune-dot"><img src="${runeUrl("perk-images/Styles/Domination/UltimateHunter/UltimateHunter.png")}" alt="Ultimate"/></span></div>
+                </div>
+              </div>
+            </section>
+
+            <section style="border:1px solid var(--border-base);border-radius:10px;background:var(--bg-panel);padding:12px;">
+              <strong style="display:block;margin-bottom:10px;">Core Item Progression</strong>
+              <div style="display:flex;gap:5px;">${[1055,3006,6672,3046,3031].map((id) => `<img src="${itemUrl(id)}" alt="${id}" style="width:28px;height:28px;border-radius:5px;border:1px solid var(--border-base);" />`).join("")}</div>
+              <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border-hairline);font-size:11.5px;"><span style="color:var(--ink-muted);">Skill Priority</span><div class="mono" style="margin-top:3px;font-weight:800;color:var(--accent-bright);">W  ›  Q  ›  E</div></div>
+            </section>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCollections() {
+      return `
+        <div class="view-section">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <h1 style="font-size:20px;font-weight:800;">Collections</h1>
+              <p style="font-size:12px;color:var(--ink-secondary);">Sample vault with verified Data Dragon 16.22.1 skin IDs &amp; @react-bits SpotlightCard surface sheen.</p>
+            </div>
+            <div style="display:flex;gap:14px;align-items:baseline;">
+              <span class="mono" style="font-size:16px;font-weight:800;">212 / 482 <span style="font-size:11px;color:var(--ink-muted);font-weight:600;">Owned</span></span>
+              <span class="mono" style="font-size:16px;font-weight:800;color:var(--cyan);">223,015 RP</span>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:12px;">
+            ${SKINS.map((s) => `
+              <div class="spotlight-surface" onmousemove="moveSpot(event, this)" style="position:relative;height:220px;border-radius:8px;overflow:hidden;border:1px solid var(--border-base);background:var(--bg-panel);">
+                <img src="${champLoad(s.champ, s.num)}" alt="${s.name}" style="width:100%;height:100%;object-fit:cover;object-position:top;${s.owned ? "" : "opacity:0.45;filter:grayscale(0.8);"}" />
+                <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(6,8,13,0.95) 8%, rgba(6,8,13,0.22) 52%, transparent);"></div>
+                <span style="position:absolute;top:8px;right:8px;padding:2px 6px;border-radius:4px;font-size:9.5px;font-weight:700;background:rgba(7,9,14,0.85);color:${s.color};border:1px solid rgba(255,255,255,0.14);">${s.rarity}</span>
+                ${s.owned ? "" : `<span style="position:absolute;top:8px;left:8px;padding:2px 6px;border-radius:4px;font-size:9.5px;font-weight:700;background:rgba(7,9,14,0.85);color:#cbd5e1;">MISSING</span>`}
+                <div style="position:absolute;left:10px;right:10px;bottom:9px;">
+                  <div style="font-size:12px;font-weight:700;color:#f8fafc;line-height:1.25;">${s.name}</div>
+                  <div class="mono" style="font-size:10.5px;color:#94a3b8;margin-top:2px;">${s.price}</div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDataStudio() {
+      return `
+        <div class="view-section">
+          <div>
+            <h1 style="font-size:20px;font-weight:800;letter-spacing:-0.02em;">Data Studio &amp; Preferences</h1>
+            <p style="font-size:12px;color:var(--ink-secondary);margin-top:3px;">
+              Patch ${STATE.patch} · Rolling Window ${STATE.period} · Native Rust Backend (baron-riot)
+            </p>
+          </div>
+
+          <section style="border:1px solid var(--border-base);border-radius:10px;background:var(--bg-panel);padding:16px;">
+            <div style="margin-bottom:12px;">
+              <strong style="font-size:13.5px;">Appearance Theme</strong>
+              <div style="font-size:11.5px;color:var(--ink-secondary);margin-top:2px;">Active output: ${STATE.theme === "dark" ? "Cool-Black Dark" : "Cool-Slate Light"}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;">
+              <button onclick="setTheme('dark')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid ${STATE.theme === "dark" ? "var(--accent)" : "var(--border-base)"};background:${STATE.theme === "dark" ? "var(--accent-soft)" : "var(--bg-elevated)"};text-align:left;">
+                <div><div style="font-size:12px;font-weight:700;">Cool-Black Dark</div><div style="font-size:11px;color:var(--ink-muted);">Obsidian low-glare desktop surface</div></div>
+              </button>
+              <button onclick="setTheme('light')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid ${STATE.theme === "light" ? "var(--accent)" : "var(--border-base)"};background:${STATE.theme === "light" ? "var(--accent-soft)" : "var(--bg-elevated)"};text-align:left;">
+                <div><div style="font-size:12px;font-weight:700;">Cool-Slate Light</div><div style="font-size:11px;color:var(--ink-muted);">Crisp high-contrast daylight workspace</div></div>
+              </button>
+              <button onclick="setTheme('dark')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--border-base);background:var(--bg-elevated);text-align:left;">
+                <div><div style="font-size:12px;font-weight:700;">System Default</div><div style="font-size:11px;color:var(--ink-muted);">Follow Windows / macOS theme</div></div>
+              </button>
+            </div>
+          </section>
+
+          <section style="border:1px solid var(--border-base);border-radius:10px;background:var(--bg-panel);padding:16px;">
+            <div style="margin-bottom:10px;">
+              <strong style="font-size:13.5px;">Tier-list Providers</strong>
+              <p style="font-size:12px;color:var(--ink-secondary);margin-top:2px;">
+                Only OP.GG tier data is implemented. Other providers and build data are unavailable; automatic failover is not implemented.
+              </p>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              ${PROVIDERS.map((p, idx) => `
+                <button ${p.available ? "" : "disabled"} title="${p.available ? "Select OP.GG tier list" : "Provider integration unavailable"}" onclick="selectProvider('${p.id}')"
+                  style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;border:1px solid ${p.available ? "var(--accent)" : "var(--border-base)"};background:${p.available ? "var(--accent-soft)" : "var(--bg-elevated)"};opacity:${p.available ? "1" : "0.48"};cursor:${p.available ? "pointer" : "not-allowed"};text-align:left;">
+                  <div style="min-width:0;padding-right:16px;">
+                    <div style="font-size:12.5px;font-weight:700;color:var(--ink-primary);">#${idx + 1} · ${p.label}</div>
+                    <div class="mono" style="font-size:11px;color:var(--ink-muted);margin-top:2px;">${p.url}</div>
+                  </div>
+                  <span class="pill-tag ${p.available ? "pos" : ""}">${p.available ? "Selected" : "Unavailable"}</span>
+                </button>
+              `).join("")}
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function moveSpot(e, el) {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--mx", `${e.clientX - r.left}px`);
+      el.style.setProperty("--my", `${e.clientY - r.top}px`);
+    }
+
+    function renderPopovers() {
+      const periodEls = document.querySelectorAll("[data-period]");
+      periodEls.forEach((el) => el.classList.toggle("active", el.dataset.period === STATE.period));
+      const pGrid = document.getElementById("patchGridBtns");
+      if (pGrid) {
+        pGrid.innerHTML = ["16.22", "16.21", "16.20", "16.19", "16.18", "16.17"]
+          .map((v) => `<button class="patch-cell ${STATE.patch === v ? "active" : ""}" onclick="selectPatch('${v}')">${v}</button>`)
+          .join("");
+      }
+      const pList = document.getElementById("providerListMenu");
+      if (pList) {
+        pList.innerHTML = PROVIDERS.map((p) => {
+          const active = p.id === STATE.activeProvider;
+          return `
+            <button class="provider-option ${active ? "active" : ""}" ${p.available ? "" : "disabled"}
+              title="${p.available ? "Active verified tier-list source" : "Provider integration unavailable"}"
+              onclick="selectProvider('${p.id}')">
+              <span>${p.label}</span>
+              <span class="provider-status-pill">${p.note}</span>
+            </button>
+          `;
+        }).join("");
+      }
+      document.getElementById("patchPopover").classList.toggle("open", STATE.menuOpen === "patch");
+      document.getElementById("providerPopover").classList.toggle("open", STATE.menuOpen === "provider");
+      document.getElementById("patchLabel").textContent = `Patch ${STATE.patch}`;
+      document.getElementById("periodLabel").textContent = `· ${STATE.period === "7 days" ? "7d" : STATE.period === "14 days" ? "14d" : "30d"}`;
+    }
+
+    function render() {
+      const sb = document.getElementById("sidebar");
+      sb.classList.toggle("collapsed", STATE.collapsed);
+      document.getElementById("sbExpandedBtn").classList.toggle("active", !STATE.collapsed);
+      document.getElementById("sbCollapsedBtn").classList.toggle("active", STATE.collapsed);
+      document.querySelectorAll("[data-view]").forEach((el) => el.classList.toggle("active", el.dataset.view === STATE.view));
+      document.querySelectorAll("[data-nav]").forEach((el) => el.classList.toggle("active", el.dataset.nav === STATE.view));
+
+      const chip = document.getElementById("providerChip");
+      const tag = document.getElementById("providerTag");
+      chip.classList.toggle("warn", !STATE.providerLive);
+      tag.textContent = STATE.providerLive ? "LIVE" : "OFFLINE";
+      document.getElementById("providerSimBtn").textContent = STATE.providerLive ? "OP.GG: Live" : "OP.GG: Offline";
+
+      renderPopovers();
+
+      const ws = document.getElementById("workspace");
+      if (STATE.view === "dashboard") ws.innerHTML = renderDashboard();
+      else if (STATE.view === "tierlist") ws.innerHTML = renderTierlist();
+      else if (STATE.view === "champselect") ws.innerHTML = renderChampSelect();
+      else if (STATE.view === "postgame") ws.innerHTML = renderPostgame();
+      else if (STATE.view === "collections") ws.innerHTML = renderCollections();
+      else if (STATE.view === "datastudio") ws.innerHTML = renderDataStudio();
+    }
+
+    function toggleMenu(name, ev) {
+      if (ev) ev.stopPropagation();
+      STATE.menuOpen = STATE.menuOpen === name ? null : name;
+      renderPopovers();
+    }
+    function selectPatch(v) { STATE.patch = v; STATE.menuOpen = null; render(); }
+    function selectPeriod(p) { STATE.period = p; render(); }
+    function selectProvider(id) {
+      const found = PROVIDERS.find((p) => p.id === id);
+      if (found && found.available) {
+        STATE.activeProvider = id;
+        STATE.menuOpen = null;
+        render();
+      }
+    }
+    document.addEventListener("click", (ev) => {
+      if (!ev.target.closest(".dropdown-anchor")) {
+        STATE.menuOpen = null;
+        renderPopovers();
+      }
+    });
+
+    function toggleSidebar() { STATE.collapsed = !STATE.collapsed; render(); }
+    function setSidebar(val) { STATE.collapsed = val; render(); }
+    function setView(v) { STATE.view = v; render(); }
+    function setRole(r) { STATE.activeRole = r; render(); }
+    function setRegion(r) { STATE.lbRegion = r; render(); }
+    function setScrub(i) { STATE.scrubIdx = i; render(); }
+    function toggleMatch(id) { STATE.expandedMatch = STATE.expandedMatch === id ? null : id; render(); }
+    function toggleProviderSim() { STATE.providerLive = !STATE.providerLive; render(); }
+    function toggleReg() {
+      document.getElementById("regDrawer").classList.toggle("open");
+      document.getElementById("regBtn").classList.toggle("active");
+    }
+    function setTheme(t) {
+      STATE.theme = t;
+      document.documentElement.classList.toggle("dark", t === "dark");
+      document.documentElement.classList.toggle("light", t === "light");
+      document.getElementById("btnDark").classList.toggle("active", t === "dark");
+      document.getElementById("btnLight").classList.toggle("active", t === "light");
+    }
+    function toggleStudio(show) {
+      document.getElementById("studioBar").classList.toggle("hidden", !show);
+      document.getElementById("appRoot").classList.toggle("full", !show);
+      document.getElementById("restoreBtn").classList.toggle("visible", !show);
+    }
+    function stepView(delta) {
+      const ord = ["dashboard", "tierlist", "champselect", "postgame", "collections", "datastudio"];
+      setView(ord[(ord.indexOf(STATE.view) + delta + ord.length) % ord.length]);
+    }
+    function openCmd(open) {
+      const m = document.getElementById("cmdModal");
+      m.classList.toggle("open", open);
+      if (open) setTimeout(() => document.getElementById("cmdInput").focus(), 20);
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        openCmd(!document.getElementById("cmdModal").classList.contains("open"));
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleSidebar();
+      } else if (e.key === "Escape") {
+        openCmd(false);
+        STATE.menuOpen = null;
+        renderPopovers();
+        document.getElementById("regDrawer").classList.remove("open");
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>

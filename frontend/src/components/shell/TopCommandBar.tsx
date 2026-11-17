@@ -1,25 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  BarChart3,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Crown,
-  Database,
-  Eye,
-  Home,
-  Layers,
   Monitor,
   Moon,
-  RefreshCw,
+  PanelLeftClose,
+  PanelLeftOpen,
+  RotateCw,
   Search,
   Settings,
-  Sparkles,
   Sun,
-  Swords,
 } from "lucide-react";
+import type { BaronRoute } from "@/components/shell/Sidebar";
+import { AVAILABLE_PATCHES, AVAILABLE_PERIODS } from "@/lib/ddragon";
+import { isProviderAvailable, type ProviderMeta } from "@/lib/tauri";
+import { useTheme, type ThemePreference } from "@/lib/theme";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import {
   CommandDialog,
   CommandEmpty,
@@ -27,14 +27,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from "@/components/ui/command";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { AVAILABLE_PATCHES, AVAILABLE_PERIODS } from "@/lib/ddragon";
-import { isProviderAvailable, type ProviderMeta } from "@/lib/tauri";
-import { type ThemePreference, useTheme } from "@/lib/theme";
-import { cn } from "@/lib/utils";
-import type { BaronRoute } from "@/types/baron";
 
 interface TopCommandBarProps {
   searchQuery: string;
@@ -52,6 +45,9 @@ interface TopCommandBarProps {
   onToggleProviderOpen: () => void;
   lcuMessage: string;
   lcuConnected: boolean;
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
+  onRefresh?: () => void;
   onBack: () => void;
   onForward: () => void;
   onNavigate: (route: BaronRoute) => void;
@@ -59,41 +55,20 @@ interface TopCommandBarProps {
 
 const THEME_OPTIONS: { id: ThemePreference; label: string; icon: typeof Sun }[] = [
   { id: "light", label: "Light mode", icon: Sun },
-  { id: "dark", label: "Cool-black dark", icon: Moon },
-  { id: "system", label: "Use system default", icon: Monitor },
+  { id: "dark", label: "Dark mode", icon: Moon },
+  { id: "system", label: "System theme", icon: Monitor },
 ];
 
 const QUICK_ROUTES: { route: BaronRoute; label: string; hint: string }[] = [
-  { route: "champselect", label: "Champ Select", hint: "Live 5v5 draft & auto-runes" },
-  { route: "postgame", label: "Post-game", hint: "Scoreboard, Baron Score & @14m curve" },
-  { route: "tierlist", label: "Tierlist & Builds", hint: "Meta rankings & patch winrates" },
-  { route: "spectate", label: "Spectate", hint: "Live high-elo Challenger games" },
-  { route: "collections", label: "Collections", hint: "Skin vault & RP portfolio" },
-  { route: "dashboard", label: "Dashboard", hint: "Summoner overview & LP delta" },
-  { route: "leaderboards", label: "Leaderboards", hint: "Regional Challenger ladder" },
-  { route: "datastudio", label: "Data Studio", hint: "Provider routing & LCU diagnostics" },
+  { route: "dashboard", label: "Dashboard", hint: "Summoner overview & sample match ledger" },
+  { route: "tierlist", label: "Tierlist & Builds", hint: "Live OP.GG lane rankings" },
+  { route: "leaderboards", label: "Leaderboards", hint: "Regional ladder snapshots (Sample)" },
+  { route: "champselect", label: "Champ Select", hint: "Live draft & auto-runes (Sample)" },
+  { route: "postgame", label: "Post-game", hint: "Match scoreboard &Baron Score (Sample)" },
+  { route: "spectate", label: "Spectate", hint: "Live Challenger feeds (Sample)" },
+  { route: "collections", label: "Collections", hint: "Skin vault & mastery showcase" },
+  { route: "datastudio", label: "Data Studio", hint: "Providers, appearance & cache" },
 ];
-
-function RouteGlyph({ route }: { route: BaronRoute }) {
-  switch (route) {
-    case "champselect":
-      return <Sparkles className="h-4 w-4 text-baron-gold" />;
-    case "postgame":
-      return <Swords className="h-4 w-4 text-baron-gold" />;
-    case "tierlist":
-      return <BarChart3 className="h-4 w-4 text-baron-accent-soft" />;
-    case "spectate":
-      return <Eye className="h-4 w-4 text-baron-cyan" />;
-    case "collections":
-      return <Layers className="h-4 w-4 text-baron-ace" />;
-    case "leaderboards":
-      return <Crown className="h-4 w-4 text-baron-gold" />;
-    case "datastudio":
-      return <Database className="h-4 w-4 text-baron-ink-secondary" />;
-    default:
-      return <Home className="h-4 w-4 text-baron-ink-secondary" />;
-  }
-}
 
 export function TopCommandBar({
   searchQuery,
@@ -111,354 +86,436 @@ export function TopCommandBar({
   onToggleProviderOpen,
   lcuMessage,
   lcuConnected,
+  sidebarCollapsed,
+  onToggleSidebar,
+  onRefresh,
   onBack,
   onForward,
   onNavigate,
 }: TopCommandBarProps) {
-  const [commandOpen, setCommandOpen] = useState(false);
   const { preference, setPreference } = useTheme();
+  const [commandOpen, setCommandOpen] = useState(false);
+  const patchRef = useRef<HTMLDivElement>(null);
+  const providerRef = useRef<HTMLDivElement>(null);
+
   const activeProvider = providers.find((p) => p.id === activeProviderId) ?? providers[0];
 
   useEffect(() => {
-    const handleKey = (ev: KeyboardEvent) => {
-      if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "k") {
-        ev.preventDefault();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
         setCommandOpen((prev) => !prev);
-      } else if (ev.key === "Escape") {
+      } else if (e.key === "Escape") {
         if (patchPopoverOpen) onTogglePatchPopover();
         if (providerOpen) onToggleProviderOpen();
       }
     };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [patchPopoverOpen, providerOpen, onTogglePatchPopover, onToggleProviderOpen]);
+
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (patchPopoverOpen && patchRef.current && !patchRef.current.contains(target)) {
+        onTogglePatchPopover();
+      }
+      if (providerOpen && providerRef.current && !providerRef.current.contains(target)) {
+        onToggleProviderOpen();
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
   }, [patchPopoverOpen, providerOpen, onTogglePatchPopover, onToggleProviderOpen]);
 
   return (
-    <>
-      <header className="relative z-40 flex h-11 shrink-0 items-center justify-between border-b border-baron-border bg-baron-sidebar px-4">
-        {/* Left History Controls */}
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={onBack}
-                aria-label="Back"
-                className="flex h-7 w-7 items-center justify-center rounded-md text-baron-ink-secondary transition hover:bg-baron-hover hover:text-baron-ink"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Previous view</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={onForward}
-                aria-label="Forward"
-                className="flex h-7 w-7 items-center justify-center rounded-md text-baron-ink-secondary transition hover:bg-baron-hover hover:text-baron-ink"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Next view</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="Refresh Data"
-                onClick={() => onSelectPatch(patch)}
-                className="flex h-7 w-7 items-center justify-center rounded-md text-baron-ink-secondary transition hover:bg-baron-hover hover:text-baron-ink"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Refresh patch &amp; LCU state</TooltipContent>
-          </Tooltip>
-        </div>
-
-        {/* Centered Ctrl+K Command Palette Trigger */}
+    <header className="relative z-40 flex h-[44px] w-full shrink-0 items-center justify-between gap-2 bg-baron-chrome px-2.5 select-none">
+      {/* Left Brand + Sidebar Toggle + History Controls */}
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
-          onClick={() => setCommandOpen(true)}
-          className="flex h-8 w-[420px] items-center justify-between gap-2 rounded-md border border-baron-border bg-baron-surface px-2.5 text-left transition hover:border-baron-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-baron-accent"
+          onClick={() => onNavigate("dashboard")}
+          className="flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-baron-hover/60"
+          aria-label="Go to Baron Dashboard"
         >
-          <span className="flex min-w-0 items-center gap-2">
-            <Search className="h-3.5 w-3.5 shrink-0 text-baron-ink-muted" />
-            <span className="truncate text-xs text-baron-ink-muted">
-              {searchQuery ? searchQuery : "Search a player, a champion, a team, a pro..."}
-            </span>
-          </span>
-          <span className="flex shrink-0 items-center gap-1">
-            <kbd className="rounded border border-baron-border-strong bg-baron-elevated px-1.5 py-0.5 text-[10px] font-semibold text-baron-ink-secondary">
-              Ctrl
-            </kbd>
-            <kbd className="rounded border border-baron-border-strong bg-baron-elevated px-1.5 py-0.5 text-[10px] font-semibold text-baron-ink-secondary">
-              K
-            </kbd>
-          </span>
+          <img
+            src="/baron_logo.png"
+            alt="Baron mascot"
+            className="h-6 w-6 rounded-md object-contain"
+          />
+          {!sidebarCollapsed && (
+            <div className="flex items-baseline gap-1.5 pr-1">
+              <span className="text-[13px] font-extrabold tracking-[-0.02em] text-baron-ink">
+                BARON
+              </span>
+              <span className="text-[9.5px] font-semibold tracking-[0.06em] text-baron-ink-muted uppercase">
+                v0.1.0
+              </span>
+            </div>
+          )}
         </button>
 
-        {/* Right Action Controls */}
-        <div className="flex items-center gap-1 divide-x divide-baron-border">
-          {/* Patch & Period Trigger + Popover */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={onTogglePatchPopover}
-              className="flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold text-baron-ink transition hover:bg-baron-hover"
-            >
-              <span>Patch {patch}</span>
-              <span className="text-[10px] text-baron-ink-muted">· {period}</span>
-              <ChevronDown className="h-3.5 w-3.5 text-baron-ink-muted" />
-            </button>
+        <button
+          type="button"
+          onClick={onToggleSidebar}
+          aria-label={sidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+          aria-expanded={!sidebarCollapsed}
+          title={sidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-baron-border bg-baron-surface text-baron-ink-secondary transition-colors hover:border-baron-border-strong hover:text-baron-ink"
+        >
+          {sidebarCollapsed ? (
+            <PanelLeftOpen className="h-3.5 w-3.5" />
+          ) : (
+            <PanelLeftClose className="h-3.5 w-3.5" />
+          )}
+        </button>
 
-            {patchPopoverOpen && (
-              <div className="absolute right-0 top-9 z-50 w-[280px] rounded-xl border border-baron-border-strong bg-baron-sidebar p-3 shadow-2xl">
-                <div className="mb-2 text-[10px] font-bold tracking-wider text-baron-ink-muted">
-                  PERIOD
-                </div>
-                <div className="mb-3 grid grid-cols-3 gap-1.5">
-                  {AVAILABLE_PERIODS.map((p) => {
-                    const active = period === p;
-                    return (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => onSelectPeriod(p)}
-                        className={cn(
-                          "h-8 rounded-md text-xs font-medium transition",
-                          active
-                            ? "bg-baron-accent font-bold text-white"
-                            : "bg-baron-elevated text-baron-ink-secondary hover:bg-baron-hover hover:text-baron-ink",
-                        )}
-                      >
-                        {p}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mb-2 text-[10px] font-bold tracking-wider text-baron-ink-muted">
-                  PATCH
-                </div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {AVAILABLE_PATCHES.map((ver) => {
-                    const active = patch === ver;
-                    return (
-                      <button
-                        key={ver}
-                        type="button"
-                        onClick={() => {
-                          onSelectPatch(ver);
-                          onTogglePatchPopover();
-                        }}
-                        className={cn(
-                          "h-8 rounded-md text-xs font-medium transition",
-                          active
-                            ? "bg-baron-accent font-bold text-white"
-                            : "bg-baron-elevated text-baron-ink-secondary hover:bg-baron-hover hover:text-baron-ink",
-                        )}
-                      >
-                        {ver}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* API Provider Mode Dropdown */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={onToggleProviderOpen}
-              className="flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold text-baron-ink-secondary transition hover:bg-baron-hover hover:text-baron-ink"
-            >
-              <span>API: {activeProvider?.label ?? "OP.GG"}</span>
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-
-            {providerOpen && (
-              <div className="absolute right-0 top-9 z-50 w-[240px] rounded-xl border border-baron-border-strong bg-baron-sidebar p-2 shadow-2xl">
-                <div className="px-2 py-1 text-[10px] font-bold tracking-wider text-baron-ink-muted">
-                  API PROVIDER MODE
-                </div>
-                <div className="mt-1 flex flex-col gap-1">
-                  {providers.map((prov) => {
-                    const active = prov.id === activeProviderId;
-                    const available = isProviderAvailable(prov.id);
-                    return (
-                      <button
-                        key={prov.id}
-                        type="button"
-                        disabled={!available}
-                        title={available ? undefined : "Provider integration unavailable"}
-                        onClick={() => {
-                          onSelectProvider(prov.id);
-                          onToggleProviderOpen();
-                        }}
-                        className={cn(
-                          "flex items-center justify-between rounded-md px-2.5 py-2 text-xs transition",
-                          !available
-                            ? "cursor-not-allowed text-baron-ink-muted opacity-50"
-                            : active
-                              ? "bg-baron-accent/18 font-bold text-baron-ink ring-1 ring-baron-accent/50"
-                              : "text-baron-ink-secondary hover:bg-baron-hover hover:text-baron-ink",
-                        )}
-                      >
-                        <span>{prov.label}</span>
-                        <span className="text-[10px] text-baron-ink-muted">{available ? "Tier list" : "Unavailable"}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* 3-State Theme Switcher: Light / Cool-Black Dark / System */}
-          <div
-            role="group"
-            aria-label="Theme preference"
-            className="flex h-7 items-center px-1"
+        <div className="ml-0.5 flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Navigate back"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-baron-ink-muted transition-colors hover:bg-baron-surface hover:text-baron-ink"
           >
-            {THEME_OPTIONS.map((opt) => {
-              const Icon = opt.icon;
-              const active = preference === opt.id;
-              return (
-                <Tooltip key={opt.id}>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => setPreference(opt.id)}
-                      aria-label={opt.label}
-                      className={cn(
-                        "flex h-5.5 w-6 items-center justify-center rounded transition",
-                        active
-                          ? "bg-baron-accent text-white"
-                          : "text-baron-ink-muted hover:text-baron-ink",
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>{opt.label}</TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </div>
-
-          {/* LCU Connection Pill */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div
-                className={cn(
-                  "flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-bold",
-                  lcuConnected
-                    ? "border-baron-emerald/40 bg-baron-emerald/12 text-baron-emerald"
-                    : "border-baron-accent/35 bg-baron-accent/12 text-baron-accent-soft",
-                )}
-              >
-                <span
-                  className={cn(
-                    "h-2 w-2 rounded-full",
-                    lcuConnected ? "bg-baron-emerald" : "bg-baron-accent-soft",
-                  )}
-                />
-                <span>{lcuConnected ? "LCU Live" : "LCU Ready"}</span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>{lcuMessage}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="Data Studio & Settings"
-                onClick={() => onNavigate("datastudio")}
-                className="flex h-7 w-7 items-center justify-center rounded-md text-baron-ink-secondary transition hover:bg-baron-hover hover:text-baron-ink"
-              >
-                <Settings className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Data Studio &amp; Provider Diagnostics</TooltipContent>
-          </Tooltip>
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onForward}
+            aria-label="Navigate forward"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-baron-ink-muted transition-colors hover:bg-baron-surface hover:text-baron-ink"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onRefresh}
+            aria-label="Refresh active view"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-baron-ink-muted transition-colors hover:bg-baron-surface hover:text-baron-ink"
+          >
+            <RotateCw className="h-3.5 w-3.5" />
+          </button>
         </div>
-      </header>
+      </div>
 
+      {/* Center Command Search Trigger */}
+      <button
+        type="button"
+        onClick={() => setCommandOpen(true)}
+        className="flex h-[30px] max-w-[420px] min-w-[200px] flex-1 items-center justify-between gap-2 rounded-lg border border-baron-border bg-baron-surface px-2.5 text-left text-[12px] text-baron-ink-muted transition-colors hover:border-baron-border-strong hover:text-baron-ink-secondary"
+        aria-label="Open global command palette (Ctrl+K)"
+      >
+        <span className="flex min-w-0 items-center gap-2 truncate">
+          <Search className="h-3.5 w-3.5 shrink-0 text-baron-ink-muted" />
+          <span className="truncate">
+            {searchQuery.trim()
+              ? `Search: ${searchQuery}`
+              : "Search player, champion, or command..."}
+          </span>
+        </span>
+        <KbdGroup className="shrink-0">
+          <Kbd className="h-[18px] bg-baron-elevated px-1.5 text-[10px] text-baron-ink-secondary">
+            Ctrl
+          </Kbd>
+          <Kbd className="h-[18px] bg-baron-elevated px-1.5 text-[10px] text-baron-ink-secondary">
+            K
+          </Kbd>
+        </KbdGroup>
+      </button>
+
+      {/* Right Utility Cluster */}
+      <div className="flex items-center gap-1.5">
+        {/* Patch & Period Selector */}
+        <div className="relative" ref={patchRef}>
+          <button
+            type="button"
+            onClick={() => {
+              if (providerOpen) onToggleProviderOpen();
+              onTogglePatchPopover();
+            }}
+            aria-expanded={patchPopoverOpen}
+            aria-haspopup="dialog"
+            className="flex h-[28px] items-center gap-1.5 rounded-md border border-baron-border bg-baron-surface px-2.5 text-[11.5px] font-medium text-baron-ink transition-colors hover:border-baron-border-strong"
+          >
+            <span className="text-baron-ink-muted">Patch</span>
+            <span className="font-semibold tnum">{patch}</span>
+            <span className="text-baron-ink-muted">·</span>
+            <span className="text-baron-ink-secondary">{period}</span>
+            <ChevronDown className="h-3 w-3 text-baron-ink-muted" />
+          </button>
+
+          {patchPopoverOpen && (
+            <div
+              role="dialog"
+              aria-label="Patch and time window selector"
+              className="absolute top-9 right-0 z-50 w-[264px] rounded-xl border border-baron-border-strong bg-baron-surface p-3 shadow-2xl"
+            >
+              <div className="mb-1.5 text-[10px] font-bold tracking-[0.08em] text-baron-ink-muted uppercase">
+                Patch Version
+              </div>
+              <div className="grid grid-cols-4 gap-1">
+                {AVAILABLE_PATCHES.slice(0, 8).map((p) => {
+                  const selected = patch === p;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => onSelectPatch(p)}
+                      className={`rounded-md py-1 text-[11px] font-semibold transition-colors tnum ${
+                        selected
+                          ? "bg-baron-accent text-white"
+                          : "bg-baron-elevated text-baron-ink-secondary hover:text-baron-ink"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-3 mb-1.5 text-[10px] font-bold tracking-[0.08em] text-baron-ink-muted uppercase">
+                Sample Window
+              </div>
+              <div className="grid grid-cols-3 gap-1">
+                {AVAILABLE_PERIODS.map((per) => {
+                  const selected = period === per;
+                  return (
+                    <button
+                      key={per}
+                      type="button"
+                      onClick={() => onSelectPeriod(per)}
+                      className={`rounded-md py-1 text-[11px] font-semibold transition-colors ${
+                        selected
+                          ? "bg-baron-accent text-white"
+                          : "bg-baron-elevated text-baron-ink-secondary hover:text-baron-ink"
+                      }`}
+                    >
+                      {per}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2.5 text-[10.5px] leading-snug text-baron-ink-muted">
+                Applies to sample views. Live OP.GG tier lists always reflect the current patch.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Provider API Dropdown */}
+        <div className="relative" ref={providerRef}>
+          <button
+            type="button"
+            onClick={() => {
+              if (patchPopoverOpen) onTogglePatchPopover();
+              onToggleProviderOpen();
+            }}
+            aria-expanded={providerOpen}
+            aria-haspopup="menu"
+            className="flex h-[28px] items-center gap-1.5 rounded-md border border-baron-border bg-baron-surface px-2.5 text-[11.5px] font-medium text-baron-ink transition-colors hover:border-baron-border-strong"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-baron-emerald" aria-hidden="true" />
+            <span className="text-baron-ink-muted">API:</span>
+            <span className="font-semibold text-baron-ink">
+              {activeProvider?.label ?? "OP.GG"}
+            </span>
+            <ChevronDown className="h-3 w-3 text-baron-ink-muted" />
+          </button>
+
+          {providerOpen && (
+            <div
+              role="menu"
+              aria-label="Data provider mode"
+              className="absolute top-9 right-0 z-50 w-[268px] rounded-xl border border-baron-border-strong bg-baron-surface p-2 shadow-2xl"
+            >
+              <div className="px-2 py-1 text-[10px] font-bold tracking-[0.08em] text-baron-ink-muted uppercase">
+                Data Provider Mode
+              </div>
+
+              <div className="mt-1 space-y-0.5">
+                {providers.map((p) => {
+                  const available = isProviderAvailable(p.id);
+                  const active = p.id === activeProviderId;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={active}
+                      disabled={!available}
+                      onClick={() => {
+                        if (!available) return;
+                        onSelectProvider(p.id);
+                        onToggleProviderOpen();
+                      }}
+                      title={
+                        available
+                          ? `${p.label} live tier-list MCP integration`
+                          : `${p.label} stays disabled until a verified integration is implemented`
+                      }
+                      className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[12px] transition-colors ${
+                        available
+                          ? active
+                            ? "bg-baron-accent/15 text-baron-ink"
+                            : "text-baron-ink hover:bg-baron-elevated"
+                          : "cursor-not-allowed opacity-45"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className={`h-2 w-2 rounded-full ${
+                            available ? "bg-baron-emerald" : "bg-baron-ink-muted"
+                          }`}
+                        />
+                        <span className="font-semibold">{p.label}</span>
+                      </span>
+
+                      <span className="flex items-center gap-1.5">
+                        {available ? (
+                          <>
+                            <span className="rounded bg-baron-emerald/15 px-1.5 py-0.5 text-[10px] font-semibold text-baron-emerald">
+                              Tier list
+                            </span>
+                            {active && <Check className="h-3.5 w-3.5 text-baron-accent-soft" />}
+                          </>
+                        ) : (
+                          <span className="rounded bg-baron-elevated px-1.5 py-0.5 text-[10px] font-medium text-baron-ink-muted">
+                            Unavailable
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-2 border-t border-baron-border pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onToggleProviderOpen();
+                    onNavigate("datastudio");
+                  }}
+                  className="flex w-full items-center justify-between rounded-md px-2 py-1 text-[11px] font-semibold text-baron-accent-soft transition-colors hover:bg-baron-elevated"
+                >
+                  <span>Inspect endpoints in Data Studio</span>
+                  <span>→</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 3-State Theme Switcher */}
+        <div
+          role="group"
+          aria-label="Color theme"
+          className="flex h-[28px] items-center rounded-md border border-baron-border bg-baron-surface p-0.5"
+        >
+          {THEME_OPTIONS.map((opt) => {
+            const Icon = opt.icon;
+            const active = preference === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setPreference(opt.id)}
+                aria-label={opt.label}
+                aria-pressed={active}
+                title={opt.label}
+                className={`flex h-[22px] w-[24px] items-center justify-center rounded-[5px] transition-colors ${
+                  active
+                    ? "bg-baron-elevated text-baron-ink shadow-xs"
+                    : "text-baron-ink-muted hover:text-baron-ink-secondary"
+                }`}
+              >
+                <Icon className="h-3 w-3" />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* LCU Status Pill */}
+        <div
+          title={lcuMessage}
+          className={`hidden h-[28px] items-center gap-1.5 rounded-md border px-2.5 text-[11px] font-semibold lg:flex ${
+            lcuConnected
+              ? "border-baron-emerald/35 bg-baron-emerald/12 text-baron-emerald"
+              : "border-baron-border bg-baron-surface text-baron-ink-secondary"
+          }`}
+        >
+          <span
+            aria-hidden="true"
+            className={`h-1.5 w-1.5 rounded-full ${
+              lcuConnected ? "bg-baron-emerald" : "bg-baron-gold"
+            }`}
+          />
+          <span>{lcuConnected ? "LCU Live" : "LCU Offline"}</span>
+        </div>
+
+        {/* Settings shortcut -> Data Studio */}
+        <button
+          type="button"
+          onClick={() => onNavigate("datastudio")}
+          aria-label="Open Data Studio settings"
+          title="Data Studio settings"
+          className="flex h-[28px] w-[28px] items-center justify-center rounded-md border border-baron-border bg-baron-surface text-baron-ink-secondary transition-colors hover:border-baron-border-strong hover:text-baron-ink"
+        >
+          <Settings className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Ctrl+K Command Palette */}
       <CommandDialog open={commandOpen} onOpenChange={setCommandOpen}>
         <CommandInput
+          placeholder="Jump to view, filter champions, or toggle sidebar..."
           value={searchQuery}
           onValueChange={onSearchChange}
-          placeholder="Search a player, a champion, a view, or switch theme..."
         />
-        <CommandList className="bg-baron-sidebar text-baron-ink">
-          <CommandEmpty>No matching player, champion, or action.</CommandEmpty>
+        <CommandList>
+          <CommandEmpty>No matching commands or views.</CommandEmpty>
           <CommandGroup heading="Views">
             {QUICK_ROUTES.map((item) => (
               <CommandItem
                 key={item.route}
+                value={`${item.label} ${item.hint}`}
                 onSelect={() => {
                   onNavigate(item.route);
                   setCommandOpen(false);
                 }}
-                className="flex items-center justify-between gap-3"
               >
-                <span className="flex items-center gap-2">
-                  <RouteGlyph route={item.route} />
-                  <span className="font-semibold">{item.label}</span>
-                </span>
-                <span className="text-[11px] text-baron-ink-muted">{item.hint}</span>
+                <span className="font-semibold text-baron-ink">{item.label}</span>
+                <span className="ml-auto text-[11px] text-baron-ink-muted">{item.hint}</span>
               </CommandItem>
             ))}
           </CommandGroup>
-          <CommandSeparator />
-          <CommandGroup heading="Pro Players & Summoners">
-            {[
-              { label: "Faker · T1 · Ahri", target: "spectate" as BaronRoute },
-              { label: "Gumayusi · T1 · Jinx / Ashe", target: "champselect" as BaronRoute },
-              { label: "Nyx#DPM · Ranked Solo/Duo (Victory +21 LP)", target: "postgame" as BaronRoute },
-              { label: "Chovy · GEN · Lucian", target: "spectate" as BaronRoute },
-            ].map((p) => (
-              <CommandItem
-                key={p.label}
-                onSelect={() => {
-                  onNavigate(p.target);
-                  setCommandOpen(false);
-                }}
-              >
-                {p.label}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-          <CommandSeparator />
-          <CommandGroup heading="Appearance Theme">
-            {THEME_OPTIONS.map((opt) => {
-              const Icon = opt.icon;
-              return (
-                <CommandItem
-                  key={opt.id}
-                  onSelect={() => {
-                    setPreference(opt.id);
-                    setCommandOpen(false);
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{opt.label}</span>
-                </CommandItem>
-              );
-            })}
+          <CommandGroup heading="Workspace Actions">
+            <CommandItem
+              value="Toggle Sidebar Rail Collapse Expand"
+              onSelect={() => {
+                onToggleSidebar();
+                setCommandOpen(false);
+              }}
+            >
+              <span>{sidebarCollapsed ? "Expand Navigation Rail" : "Collapse Navigation Rail"}</span>
+              <span className="ml-auto text-[11px] text-baron-ink-muted">Ctrl+B</span>
+            </CommandItem>
+            <CommandItem
+              value="Switch Theme Dark Light System"
+              onSelect={() => {
+                setPreference(preference === "dark" ? "light" : "dark");
+                setCommandOpen(false);
+              }}
+            >
+              <span>Toggle Light / Dark Theme</span>
+              <span className="ml-auto text-[11px] text-baron-ink-muted">
+                Current: {preference}
+              </span>
+            </CommandItem>
           </CommandGroup>
         </CommandList>
       </CommandDialog>
-    </>
+    </header>
   );
 }

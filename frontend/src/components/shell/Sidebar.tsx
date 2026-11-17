@@ -11,15 +11,24 @@ import {
   Sparkles,
   Swords,
 } from "lucide-react";
-import { RankCrest } from "@/components/icons/LolIcons";
 import { champSquareUrl } from "@/lib/ddragon";
-import { cn } from "@/lib/utils";
-import type { BaronRoute } from "@/types/baron";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+export type BaronRoute =
+  | "dashboard"
+  | "tierlist"
+  | "leaderboards"
+  | "spectate"
+  | "collections"
+  | "datastudio"
+  | "champselect"
+  | "postgame";
 
 interface SidebarProps {
   activeRoute: BaronRoute;
   onSelectRoute: (route: BaronRoute) => void;
   ddVersion: string;
+  collapsed: boolean;
 }
 
 interface NavItem {
@@ -30,172 +39,222 @@ interface NavItem {
 }
 
 const CORE_NAV: NavItem[] = [
-  { route: "dashboard", label: "Dashboard", icon: <Home className="h-4 w-4" /> },
-  { route: "tierlist", label: "Tierlist & Builds", icon: <BarChart3 className="h-4 w-4" /> },
-  { route: "leaderboards", label: "Leaderboards", icon: <Crown className="h-4 w-4" /> },
+  { route: "dashboard", label: "Dashboard", icon: <Home className="h-[15px] w-[15px]" /> },
+  { route: "tierlist", label: "Tierlist & Builds", icon: <BarChart3 className="h-[15px] w-[15px]" /> },
+  { route: "leaderboards", label: "Leaderboards", icon: <Crown className="h-[15px] w-[15px]" /> },
 ];
 
 const APP_NAV: NavItem[] = [
-  { route: "spectate", label: "Spectate", icon: <Eye className="h-4 w-4" /> },
-  { route: "collections", label: "Collections", icon: <Layers className="h-4 w-4" /> },
+  { route: "spectate", label: "Spectate", icon: <Eye className="h-[15px] w-[15px]" /> },
+  { route: "collections", label: "Collections", icon: <Layers className="h-[15px] w-[15px]" /> },
 ];
 
 const INSIGHTS_NAV: NavItem[] = [
-  { route: "datastudio", label: "Data Studio", icon: <Database className="h-4 w-4" /> },
+  { route: "datastudio", label: "Data Studio", icon: <Database className="h-[15px] w-[15px]" /> },
 ];
 
-const IN_GAME_NAV: NavItem[] = [
+const INGAME_NAV: NavItem[] = [
   {
     route: "champselect",
     label: "Champ Select",
-    icon: <Sparkles className="h-4 w-4" />,
+    icon: <Sparkles className="h-[15px] w-[15px]" />,
     isInGame: true,
   },
   {
     route: "postgame",
     label: "Post-game",
-    icon: <Swords className="h-4 w-4" />,
+    icon: <Swords className="h-[15px] w-[15px]" />,
     isInGame: true,
   },
 ];
 
-export function Sidebar({ activeRoute, onSelectRoute, ddVersion }: SidebarProps) {
-  const renderItem = (item: NavItem) => {
-    const active = activeRoute === item.route;
-    return (
-      <button
-        key={item.route}
-        type="button"
-        onClick={() => onSelectRoute(item.route)}
-        className={cn(
-          "group relative flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-[13px] font-medium transition-colors duration-150",
-          active
-            ? item.isInGame
-              ? "bg-baron-gold/12 font-semibold text-baron-ink"
-              : "bg-baron-accent/12 font-semibold text-baron-ink"
-            : "text-baron-ink-secondary hover:bg-baron-hover hover:text-baron-ink",
-        )}
-      >
-        {active && (
-          <span
-            className={cn(
-              "absolute top-1.5 bottom-1.5 left-0 w-[2.5px] rounded-r",
-              item.isInGame ? "bg-baron-gold" : "bg-baron-accent",
-            )}
-          />
-        )}
-        <span
-          className={cn(
-            "shrink-0 transition-colors",
-            active
-              ? item.isInGame
-                ? "text-baron-gold"
-                : "text-baron-accent-soft"
-              : "text-baron-ink-muted group-hover:text-baron-ink-secondary",
-          )}
-        >
-          {item.icon}
-        </span>
-        <span className="truncate">{item.label}</span>
-      </button>
-    );
-  };
-
+function NavSection({
+  title,
+  items,
+  activeRoute,
+  onSelectRoute,
+  collapsed,
+  topSpacing = false,
+}: {
+  title: string;
+  items: NavItem[];
+  activeRoute: BaronRoute;
+  onSelectRoute: (route: BaronRoute) => void;
+  collapsed: boolean;
+  topSpacing?: boolean;
+}) {
   return (
-    <aside className="flex h-full w-[204px] shrink-0 flex-col justify-between border-r border-baron-border bg-baron-sidebar p-3 select-none">
-      <div className="flex flex-col gap-5">
-        {/* Top Brand Header with Transparent Baron Logo */}
-        <div className="flex items-center gap-2.5 px-1 pt-0.5">
-          <img
-            src="/baron_logo.png"
-            alt="Baron"
-            className="h-8 w-8 shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(99,102,241,0.35)]"
-          />
-          <div className="flex flex-col leading-none">
-            <span className="text-[15px] font-extrabold tracking-tight text-baron-ink">
-              BARON
-            </span>
-            <span className="mt-1 text-[10px] font-semibold tracking-wider text-baron-ink-muted">
-              APP V0.1.0
-            </span>
-          </div>
+    <div className={topSpacing ? "mt-3.5" : undefined}>
+      {collapsed ? (
+        <div className="mx-auto my-2 h-px w-4 bg-baron-border" aria-hidden="true" />
+      ) : (
+        <div className="mb-1 px-2.5 text-[10px] font-bold tracking-[0.09em] text-baron-ink-muted uppercase">
+          {title}
         </div>
+      )}
 
-        {/* BARON CORE */}
-        <div className="flex flex-col gap-1">
-          <span className="px-2 pb-1 text-[10px] font-bold tracking-wider text-baron-ink-muted">
-            BARON CORE
-          </span>
-          {renderItem(CORE_NAV[0])}
-          <button
-            type="button"
-            onClick={() => onSelectRoute("postgame")}
-            className="ml-4 flex items-center gap-2 rounded-md px-2 py-1 text-left text-xs text-baron-ink-secondary transition hover:bg-baron-hover hover:text-baron-ink"
-          >
-            <img
-              src={champSquareUrl("Ahri", ddVersion)}
-              alt="Nyx"
-              className="h-4 w-4 rounded-sm object-cover ring-1 ring-baron-border"
-            />
-            <span className="truncate font-semibold text-baron-ink">Nyx</span>
-            <span className="text-[10px] text-baron-ink-muted">#DPM</span>
-          </button>
-          {CORE_NAV.slice(1).map(renderItem)}
-        </div>
+      <div className="space-y-0.5">
+        {items.map((item) => {
+          const isActive = activeRoute === item.route;
 
-        {/* BARON APP */}
-        <div className="flex flex-col gap-1">
-          <span className="px-2 pb-1 text-[10px] font-bold tracking-wider text-baron-ink-muted">
-            BARON APP
-          </span>
-          {APP_NAV.map(renderItem)}
-        </div>
+          const button = (
+            <button
+              key={item.route}
+              type="button"
+              onClick={() => onSelectRoute(item.route)}
+              aria-current={isActive ? "page" : undefined}
+              className={`group relative flex w-full items-center ${
+                collapsed ? "justify-center px-0 py-2" : "gap-2.5 px-2.5 py-[7px]"
+              } rounded-[7px] text-left text-[13px] transition-colors ${
+                isActive
+                  ? "bg-baron-surface font-semibold text-baron-ink shadow-[inset_0_0_0_1px_var(--baron-border)]"
+                  : item.isInGame
+                    ? "font-medium text-baron-accent-soft hover:bg-baron-hover/65 hover:text-baron-ink"
+                    : "font-medium text-baron-ink-secondary hover:bg-baron-hover/65 hover:text-baron-ink"
+              }`}
+            >
+              {/* Left LineSidebar-inspired edge indicator */}
+              <span
+                aria-hidden="true"
+                className={`absolute top-1.5 bottom-1.5 left-0 w-[2.5px] rounded-r-full transition-all duration-150 ${
+                  isActive
+                    ? "bg-baron-accent opacity-100"
+                    : "bg-baron-border-strong opacity-0 group-hover:opacity-70"
+                }`}
+              />
 
-        {/* BARON INSIGHTS */}
-        <div className="flex flex-col gap-1">
-          <span className="px-2 pb-1 text-[10px] font-bold tracking-wider text-baron-ink-muted">
-            BARON INSIGHTS
-          </span>
-          {INSIGHTS_NAV.map(renderItem)}
-        </div>
+              <span
+                className={`shrink-0 transition-colors ${
+                  isActive
+                    ? "text-baron-accent-soft"
+                    : item.isInGame
+                      ? "text-baron-accent-soft"
+                      : "text-baron-ink-muted group-hover:text-baron-ink-secondary"
+                }`}
+              >
+                {item.icon}
+              </span>
 
-        {/* IN GAME */}
-        <div className="flex flex-col gap-1">
-          <span className="px-2 pb-1 text-[10px] font-bold tracking-wider text-baron-ink-muted">
-            IN GAME
-          </span>
-          {IN_GAME_NAV.map(renderItem)}
-        </div>
+              {!collapsed && (
+                <span className="min-w-0 flex-1 truncate transition-transform duration-150 group-hover:translate-x-[2px]">
+                  {item.label}
+                </span>
+              )}
+
+              {item.isInGame && !collapsed && (
+                <span
+                  aria-hidden="true"
+                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                    isActive ? "bg-baron-emerald" : "bg-baron-accent-soft/75"
+                  }`}
+                />
+              )}
+            </button>
+          );
+
+          if (!collapsed) {
+            return button;
+          }
+
+          return (
+            <Tooltip key={item.route} delayDuration={120}>
+              <TooltipTrigger asChild>{button}</TooltipTrigger>
+              <TooltipContent side="right" className="border-baron-border bg-baron-elevated text-baron-ink">
+                {item.label}
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
       </div>
+    </div>
+  );
+}
 
-      {/* Bottom Pinned Summoner Profile Card */}
-      <button
-        type="button"
-        onClick={() => onSelectRoute("dashboard")}
-        className="flex items-center gap-2.5 rounded-lg border border-baron-border bg-baron-surface p-2 text-left transition hover:border-baron-border-strong hover:bg-baron-hover/60"
+export function Sidebar({ activeRoute, onSelectRoute, ddVersion, collapsed }: SidebarProps) {
+  return (
+    <TooltipProvider>
+      <aside
+        aria-label="Primary navigation"
+        className={`flex h-full shrink-0 flex-col bg-baron-chrome transition-[width] duration-200 ease-out select-none ${
+          collapsed ? "w-[58px]" : "w-[204px]"
+        }`}
       >
-        <div className="relative shrink-0">
-          <img
-            src={champSquareUrl("Ahri", ddVersion)}
-            alt="Hide on bush"
-            className="h-10 w-10 rounded-md object-cover ring-1 ring-baron-gold/50"
+        <nav className="flex-1 overflow-y-auto px-2 pt-2.5 pb-2">
+          <NavSection
+            title="Baron Core"
+            items={CORE_NAV}
+            activeRoute={activeRoute}
+            onSelectRoute={onSelectRoute}
+            collapsed={collapsed}
           />
-          <span className="absolute -top-1.5 -left-1.5 rounded bg-baron-accent px-1 text-[9px] font-bold text-white">
-            KR
-          </span>
-          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded bg-baron-canvas px-1 text-[9px] font-bold text-baron-ink ring-1 ring-baron-border">
-            684
-          </span>
+          <NavSection
+            title="Baron App"
+            items={APP_NAV}
+            activeRoute={activeRoute}
+            onSelectRoute={onSelectRoute}
+            collapsed={collapsed}
+            topSpacing
+          />
+          <NavSection
+            title="Insights"
+            items={INSIGHTS_NAV}
+            activeRoute={activeRoute}
+            onSelectRoute={onSelectRoute}
+            collapsed={collapsed}
+            topSpacing
+          />
+          <NavSection
+            title="In Game"
+            items={INGAME_NAV}
+            activeRoute={activeRoute}
+            onSelectRoute={onSelectRoute}
+            collapsed={collapsed}
+            topSpacing
+          />
+        </nav>
+
+        {/* Pinned Sample Profile Card */}
+        <div className="border-t border-baron-border p-2">
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => onSelectRoute("dashboard")}
+                className={`flex w-full items-center ${
+                  collapsed ? "justify-center p-1" : "gap-2.5 px-2 py-1.5"
+                } rounded-lg transition-colors hover:bg-baron-surface`}
+                aria-label="Open sample summoner dashboard for Hide on bush #KR1"
+              >
+                <div className="relative h-8 w-8 shrink-0">
+                  <img
+                    src={champSquareUrl("Ahri", ddVersion)}
+                    alt="Hide on bush avatar"
+                    className="h-8 w-8 rounded-md border border-baron-border-strong object-cover"
+                  />
+                  <span className="absolute -top-1 -left-1 rounded bg-baron-accent px-1 py-[1px] text-[8px] leading-none font-bold text-white">
+                    KR
+                  </span>
+                </div>
+                {!collapsed && (
+                  <div className="min-w-0 flex-1 text-left">
+                    <div className="truncate text-[12px] font-semibold text-baron-ink">
+                      Hide on bush
+                    </div>
+                    <div className="truncate text-[10.5px] font-medium text-baron-cyan tnum">
+                      #KR1 · 1,042 LP
+                    </div>
+                  </div>
+                )}
+              </button>
+            </TooltipTrigger>
+            {collapsed && (
+              <TooltipContent side="right" className="border-baron-border bg-baron-elevated text-baron-ink">
+                Hide on bush #KR1 · 1,042 LP (Sample)
+              </TooltipContent>
+            )}
+          </Tooltip>
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-xs font-bold text-baron-ink">Hide on bush</div>
-          <div className="text-[11px] text-baron-ink-muted">#KR1</div>
-          <div className="mt-0.5 flex items-center gap-1 text-[10px] font-bold tracking-wide text-baron-cyan">
-            <RankCrest tier="CHALLENGER" className="h-3.5 w-3.5" />
-            <span>CHALLENGER</span>
-          </div>
-        </div>
-      </button>
-    </aside>
+      </aside>
+    </TooltipProvider>
   );
 }

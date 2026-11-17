@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className="bg-baron-canvas text-baron-ink antialiased">
+      <body className="bg-baron-chrome text-baron-ink antialiased">
         <ThemeProvider>
           <TooltipProvider delayDuration={180}>{children}</TooltipProvider>
         </ThemeProvider>

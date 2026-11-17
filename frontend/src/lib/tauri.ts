@@ -103,10 +103,10 @@ const FALLBACK_BOOTSTRAP: BaronBootstrapPayload = {
     [33, 5300],
   ],
   lcuStatus: {
-    connected: true,
-    baseUrl: "https://127.0.0.1:52184",
-    port: 52184,
-    message: "LCU Ready",
+    connected: false,
+    baseUrl: null,
+    port: null,
+    message: "LCU offline in preview. Launch Baron desktop app alongside League Client.",
   },
 };
 

@@ -37,20 +37,20 @@ type Settings = {
 
 const THEMES: Record<'dark' | 'light', Palette> = {
   dark: {
-    surface: '#111111',
-    border: 'rgba(255, 255, 255, 0.08)',
-    shadow: '0 24px 48px -24px rgba(0, 0, 0, 0.6)',
-    light: '#ffffff',
-    fill: 1,
-    edge: 1
+    surface: 'var(--baron-surface)',
+    border: 'var(--baron-border)',
+    shadow: '0 24px 48px -24px rgba(0, 0, 0, 0.45)',
+    light: '#818cf8',
+    fill: 0.75,
+    edge: 0.85
   },
   light: {
-    surface: '#ffffff',
-    border: 'rgba(24, 24, 27, 0.1)',
-    shadow: '0 1px 2px rgba(24, 24, 27, 0.04), 0 18px 40px -20px rgba(24, 24, 27, 0.16)',
-    light: '#18181b',
-    fill: 0.28,
-    edge: 0.7
+    surface: 'var(--baron-surface)',
+    border: 'var(--baron-border)',
+    shadow: '0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 32px -20px rgba(15, 23, 42, 0.14)',
+    light: '#4f46e5',
+    fill: 0.22,
+    edge: 0.55
   }
 };
 
