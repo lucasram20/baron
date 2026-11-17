@@ -4,6 +4,13 @@ All notable changes to **Baron** are documented in this single consolidated chan
 
 ---
 
+## [v0.1.0-dev.10] — 2026-11-17
+
+### Changed
+- Integrated a unified frameless Tauri window title bar (`decorations: false`, `shadow: true`) directly into `TopCommandBar` matching Obsidian Dark and Daylight Slate chrome, eliminating the double OS header bar.
+- Added draggable `data-tauri-drag-region` chrome spacers, Tauri `setTheme` synchronization, resize state tracking, and custom desktop window controls (`Minimize`, `Maximize/Restore`, `Close`) with `core:window` capability permissions.
+- Fast-forwarded `dev-nightly` UI redesign and integrated window chrome changes onto `main`.
+
 ## [v0.1.0-dev.9] — 2026-11-17
 
 ### Changed
