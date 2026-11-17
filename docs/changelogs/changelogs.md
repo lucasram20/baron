@@ -4,6 +4,17 @@ All notable changes to **Baron** are documented in this single consolidated chan
 
 ---
 
+## [v0.1.0-dev.12] — 2026-11-17
+
+### Added
+- **Full OP.GG Game Modes & Champion Builds (`crates/baron-riot`, `src-tauri`, `frontend/`):** Dissected OP.GG Desktop v3.3.0 endpoints via REA MCP and integrated live OP.GG Desktop JSON + Official OP.GG MCP support across all League game modes (`Ranked Solo/Duo`, `Ranked Flex`, `ARAM`, `ARAM: Mayhem`, `Arena`, `Ultra Rapid Fire`, `Nexus Blitz`, `Brawl`, `Classic`, `Doom Bots of Doom`) plus rank tier filters (`Emerald+`, `All Ranks`, `Diamond+`, `Master+`, `Grandmaster`, `Challenger`, `Platinum+`, `Gold+`).
+- **OP.GG-Matching 3-Column Visual Rune Matrix & Build Suite (`RuneMatrixPanel.tsx`, `ChampionBuildView.tsx`):** Added dual preset rune page selector tabs (`Pick rate · Games · Win rate`), full Primary/Secondary tree matrices with per-rune `single_runes` statistics, 3x3 CommunityDragon Stat Shards matrix, `P / Q / W / E / R` DDragon ability bar with cooldown/cost tooltips, Summoner Spells, 15-level Skill Order & Combos, Starters/Boots/Core/Late items, Arena Prismatic Items & Augment Groups, ARAM Augments, Counters + Matchup Guide, Synergies, Champion Mastery Ranking, and Popular Skins Ranking.
+- **Multi-Provider API Investigation & Live Integrations (`providers/ugg.rs`, `providers/meraki.rs`, `ProviderDiagnosticsPanel.tsx`):** Implemented verified live Rust fetchers/parsers + frontend comparison & Data Studio probes for `U.GG` (`stats2.u.gg` open Ranked Solo/Duo overview builds JSON) and `Meraki CDN` (`cdn.merakianalytics.com` champion kit, attack/adaptive types, and ability scaling notes), while accurately surfacing API restrictions for blocked/token-gated providers (`U.GG Tierlist 403`, `LoLalytics`, `DPM.LOL`, `MetaSRC`).
+
+### Fixed
+- **Production Right-Click Context Menu Suppression (`DisableContextMenu.tsx`):** Disabled Edge WebView2's native browser context menu (`Back / Refresh / Save as / Print / More tools / Send tab to your devices`) in release & pre-release production builds (`NODE_ENV === "production"`), keeping dev servers unchanged.
+- **Rune & Asset URL Normalization (`ddragon.ts`):** Prevented double Data Dragon prefixing on cached rune tree icons and added fallback-safe style icon normalization.
+
 ## [v0.1.0] — 2026-11-17
 
 ### Added
