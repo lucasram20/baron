@@ -17,7 +17,12 @@ import {
 } from "lucide-react";
 import type { BaronRoute } from "@/components/shell/Sidebar";
 import { AVAILABLE_PATCHES, AVAILABLE_PERIODS } from "@/lib/ddragon";
-import { isProviderAvailable, isTauriRuntime, type ProviderMeta } from "@/lib/tauri";
+import {
+  isProviderAvailable,
+  isTauriRuntime,
+  type OpggRegionOption,
+  type ProviderMeta,
+} from "@/lib/tauri";
 import { useTheme, type ThemePreference } from "@/lib/theme";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import {
@@ -51,6 +56,8 @@ interface TopCommandBarProps {
   onBack: () => void;
   onForward: () => void;
   onNavigate: (route: BaronRoute) => void;
+  onLookupSummoner?: (gameName: string, tagLine: string, region: string) => void;
+  regions?: OpggRegionOption[];
 }
 
 const THEME_OPTIONS: { id: ThemePreference; label: string; icon: typeof Sun }[] = [
@@ -60,13 +67,13 @@ const THEME_OPTIONS: { id: ThemePreference; label: string; icon: typeof Sun }[] 
 ];
 
 const QUICK_ROUTES: { route: BaronRoute; label: string; hint: string }[] = [
-  { route: "dashboard", label: "Dashboard", hint: "Summoner overview & sample match ledger" },
-  { route: "tierlist", label: "Tierlist & Builds", hint: "Live OP.GG lane rankings" },
-  { route: "leaderboards", label: "Leaderboards", hint: "Regional ladder snapshots (Sample)" },
-  { route: "champselect", label: "Champ Select", hint: "Live draft & auto-runes (Sample)" },
-  { route: "postgame", label: "Post-game", hint: "Match scoreboard &Baron Score (Sample)" },
-  { route: "spectate", label: "Spectate", hint: "Live Challenger feeds (Sample)" },
-  { route: "collections", label: "Collections", hint: "Skin vault & mastery showcase" },
+  { route: "dashboard", label: "Dashboard", hint: "Live OP.GG summoner profile & matches" },
+  { route: "tierlist", label: "Tierlist & Builds", hint: "Live OP.GG lane rankings & champion builds" },
+  { route: "leaderboards", label: "Leaderboards", hint: "Live OP.GG Champion Master+ ladders" },
+  { route: "champselect", label: "Champ Select", hint: "Live OP.GG matchup builds & LCU rune push" },
+  { route: "postgame", label: "Post-game", hint: "Live OP.GG match scoreboard & analysis" },
+  { route: "spectate", label: "Spectate", hint: "OP.GG esports results & LCU spectate" },
+  { route: "collections", label: "Collections", hint: "Live OP.GG skin sales & LCU inventory" },
   { route: "datastudio", label: "Data Studio", hint: "Providers, appearance & cache" },
 ];
 
@@ -102,6 +109,8 @@ export function TopCommandBar({
   onBack,
   onForward,
   onNavigate,
+  onLookupSummoner,
+  regions = [],
 }: TopCommandBarProps) {
   const { preference, resolved, setPreference } = useTheme();
   const isDesktop = useIsDesktopHost();
@@ -380,7 +389,7 @@ export function TopCommandBar({
                 })}
               </div>
               <p className="mt-2.5 text-[10.5px] leading-snug text-baron-ink-muted">
-                Applies to sample views. Live OP.GG tier lists always reflect the current patch.
+                Live OP.GG MCP tier lists and builds always reflect the current patch.
               </p>
             </div>
           )}
@@ -619,12 +628,42 @@ export function TopCommandBar({
       {/* Ctrl+K Command Palette */}
       <CommandDialog open={commandOpen} onOpenChange={setCommandOpen}>
         <CommandInput
-          placeholder="Jump to view, filter champions, or toggle sidebar..."
+          placeholder="Search Riot ID (Name#TAG), jump to view, or toggle sidebar..."
           value={searchQuery}
           onValueChange={onSearchChange}
         />
         <CommandList>
           <CommandEmpty>No matching commands or views.</CommandEmpty>
+          {searchQuery.includes("#") && onLookupSummoner && (() => {
+            const [namePart, tagPart] = searchQuery.split("#", 2);
+            const gName = namePart.trim();
+            const tLine = tagPart.trim();
+            if (!gName || !tLine) return null;
+            return (
+              <CommandGroup heading={`Look up "${gName}#${tLine}" on OP.GG`}>
+                {(regions.length > 0 ? regions : [{ code: "KR", label: "Korea (KR)" }]).map(
+                  (reg) => (
+                    <CommandItem
+                      key={reg.code}
+                      value={`${gName}#${tLine} ${reg.code} ${reg.label} lookup summoner`}
+                      onSelect={() => {
+                        onLookupSummoner(gName, tLine, reg.code);
+                        onNavigate("dashboard");
+                        setCommandOpen(false);
+                      }}
+                    >
+                      <span className="font-semibold text-baron-ink">
+                        Search {gName}#{tLine}
+                      </span>
+                      <span className="ml-auto rounded bg-baron-accent/15 px-1.5 py-0.5 text-[11px] font-bold text-baron-accent-soft">
+                        {reg.label}
+                      </span>
+                    </CommandItem>
+                  ),
+                )}
+              </CommandGroup>
+            );
+          })()}
           <CommandGroup heading="Views">
             {QUICK_ROUTES.map((item) => (
               <CommandItem

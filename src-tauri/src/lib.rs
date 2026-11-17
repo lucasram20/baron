@@ -1,24 +1,24 @@
 //! Baron Desktop Host (`src-tauri`): Tauri v2 IPC commands bridging pure-Rust
-//! `baron-core`, `baron-db`, `baron-lcu`, and `baron-riot` to the Next.js frontend.
+//! `baron-core`, `baron-db`, `baron-lcu`, and live `baron-riot` OP.GG MCP endpoints.
 
-use baron_core::models::{
-    ChampionTierEntry, CombatRadarMetrics, DashboardSampleData, LaneDiffAt14, Role,
-};
-use baron_core::{
-    calculate_baron_score, compute_combat_radar, compute_lane_diff_at_minute,
-    compute_team_gold_curve, sample_dashboard_data,
-};
+use baron_core::models::{ChampionTierEntry, Role};
 use baron_db::BaronDatabase;
 use baron_lcu::{
-    build_lcu_rune_page, candidate_lockfile_paths, evaluate_skin_collection, sample_owned_skins,
-    LcuLockfile, LcuRunePagePayload, OwnedSkinEntry, SkinVaultSummary,
+    build_lcu_rune_page, fetch_lcu_owned_skins, fetch_lcu_player_context, import_rune_page_to_lcu,
+    LcuPlayerContext, LcuRuneImportResult, LcuRunePagePayload, OwnedSkinEntry,
 };
 use baron_riot::{
     FallbackProvider, AVAILABLE_PATCHES, AVAILABLE_PERIODS, DEFAULT_FALLBACK_ORDER,
     LATEST_DDRAGON_VERSION, LATEST_PATCH,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::sync::Mutex;
+use tauri::{
+    menu::{Menu, MenuItem, PredefinedMenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    Manager, WindowEvent,
+};
 
 pub struct AppState {
     pub db: Mutex<BaronDatabase>,
@@ -52,14 +52,8 @@ pub struct BaronBootstrapPayload {
     pub patches: Vec<String>,
     pub periods: Vec<String>,
     pub providers: Vec<ProviderMeta>,
-    pub dashboard: DashboardSampleData,
-    pub primary_baron_score: f64,
-    pub lane_diff_14: Option<LaneDiffAt14>,
-    pub gold_curve: Vec<(u32, i32)>,
-    pub combat_radar: CombatRadarMetrics,
-    pub skins: Vec<OwnedSkinEntry>,
-    pub skin_summary: SkinVaultSummary,
     pub lcu_status: LcuStatusDto,
+    pub lcu_player: Option<LcuPlayerContext>,
 }
 
 fn provider_id(p: FallbackProvider) -> &'static str {
@@ -95,44 +89,38 @@ pub fn build_providers_meta(patch: &str) -> Vec<ProviderMeta> {
         .collect()
 }
 
-pub fn probe_local_lcu() -> LcuStatusDto {
-    for path in candidate_lockfile_paths() {
-        if let Ok(raw) = std::fs::read_to_string(&path) {
-            if let Ok(lock) = LcuLockfile::parse(&raw) {
-                return LcuStatusDto {
-                    connected: true,
-                    base_url: Some(lock.base_url()),
-                    port: Some(lock.port),
-                    message: format!("LCU Connected ({})", lock.process_name),
-                };
-            }
+fn status_from_player(player: Option<&LcuPlayerContext>) -> LcuStatusDto {
+    if let Some(ctx) = player {
+        let acct = if ctx.tag_line.is_empty() {
+            ctx.game_name.clone()
+        } else {
+            format!("{}#{}", ctx.game_name, ctx.tag_line)
+        };
+        LcuStatusDto {
+            connected: true,
+            base_url: ctx.base_url.clone(),
+            port: ctx.port,
+            message: format!("LCU Connected ({acct} · {})", ctx.opgg_region),
+        }
+    } else {
+        LcuStatusDto {
+            connected: false,
+            base_url: None,
+            port: None,
+            message: "LCU Offline (Start League Client to auto-sync)".to_string(),
         }
     }
-    LcuStatusDto {
-        connected: false,
-        base_url: None,
-        port: None,
-        message: "LCU Ready (Waiting for League Client)".to_string(),
-    }
+}
+
+pub fn probe_local_lcu() -> LcuStatusDto {
+    let player = fetch_lcu_player_context();
+    status_from_player(player.as_ref())
 }
 
 pub fn assemble_bootstrap_payload(patch: Option<&str>) -> BaronBootstrapPayload {
     let active_patch = patch.unwrap_or(LATEST_PATCH);
-    let dashboard = sample_dashboard_data();
-    let first_match = &dashboard.matches[0];
-    let first_player = &first_match.participants[0];
-
-    let primary_baron_score = calculate_baron_score(first_player);
-    let lane_diff_14 = compute_lane_diff_at_minute(
-        &first_match.timeline_samples,
-        14,
-        first_player.team_id,
-        first_player.role,
-    );
-    let gold_curve = compute_team_gold_curve(&first_match.timeline_samples, first_player.team_id);
-    let combat_radar = compute_combat_radar(first_player);
-    let skins = sample_owned_skins();
-    let skin_summary = evaluate_skin_collection(&skins);
+    let lcu_player = fetch_lcu_player_context();
+    let lcu_status = status_from_player(lcu_player.as_ref());
 
     BaronBootstrapPayload {
         app_title: "Baron".to_string(),
@@ -141,26 +129,26 @@ pub fn assemble_bootstrap_payload(patch: Option<&str>) -> BaronBootstrapPayload 
         patches: AVAILABLE_PATCHES.iter().map(|s| (*s).to_string()).collect(),
         periods: AVAILABLE_PERIODS.iter().map(|s| (*s).to_string()).collect(),
         providers: build_providers_meta(active_patch),
-        dashboard,
-        primary_baron_score,
-        lane_diff_14,
-        gold_curve,
-        combat_radar,
-        skins,
-        skin_summary,
-        lcu_status: probe_local_lcu(),
+        lcu_status,
+        lcu_player,
     }
 }
 
 #[tauri::command]
-fn get_bootstrap_data(
+async fn get_bootstrap_data(
     state: tauri::State<'_, AppState>,
     patch: Option<String>,
 ) -> Result<BaronBootstrapPayload, String> {
-    let payload = assemble_bootstrap_payload(patch.as_deref());
-    let db = state.db.lock().map_err(|e| e.to_string())?;
-    let _ = db.upsert_account(&payload.dashboard.account);
-    Ok(payload)
+    let _db = state.db.lock().map_err(|e| e.to_string())?;
+    drop(_db);
+    tauri::async_runtime::spawn_blocking(move || assemble_bootstrap_payload(patch.as_deref()))
+        .await
+        .map_err(|e| format!("Bootstrap task failed: {e}"))
+}
+
+#[tauri::command]
+fn get_provider_endpoints(patch: String) -> Vec<ProviderMeta> {
+    build_providers_meta(&patch)
 }
 
 #[tauri::command]
@@ -177,8 +165,81 @@ async fn get_provider_tier_list(
 }
 
 #[tauri::command]
-fn get_provider_endpoints(patch: String) -> Vec<ProviderMeta> {
-    build_providers_meta(&patch)
+async fn get_opgg_champion_analysis(champion: String, role: Role) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        baron_riot::fetch_opgg_champion_analysis(&champion, role)
+    })
+    .await
+    .map_err(|e| format!("OP.GG champion build task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_opgg_summoner_overview(
+    game_name: String,
+    tag_line: String,
+    region: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let profile = baron_riot::fetch_opgg_summoner_profile(&game_name, &tag_line, &region)?;
+        let matches = baron_riot::fetch_opgg_summoner_matches(&game_name, &tag_line, &region, 8)?;
+        Ok(serde_json::json!({
+            "profile": profile,
+            "matches": matches,
+        }))
+    })
+    .await
+    .map_err(|e| format!("OP.GG summoner task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_opgg_game_detail(
+    game_name: String,
+    tag_line: String,
+    region: String,
+    game_id: String,
+    created_at: String,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        baron_riot::fetch_opgg_game_detail(&game_name, &tag_line, &region, &game_id, &created_at)
+    })
+    .await
+    .map_err(|e| format!("OP.GG match detail task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_opgg_leaderboard(region: String, champion: String) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        baron_riot::fetch_opgg_champion_leaderboard(&region, &champion)
+    })
+    .await
+    .map_err(|e| format!("OP.GG leaderboard task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_opgg_discounted_skins() -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(baron_riot::fetch_opgg_discounted_skins)
+        .await
+        .map_err(|e| format!("OP.GG skins task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_opgg_esports_results() -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || baron_riot::fetch_opgg_esports_results(12))
+        .await
+        .map_err(|e| format!("OP.GG esports task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_opgg_matchup_guide(
+    champion: String,
+    opponent: String,
+    role: Role,
+) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        baron_riot::fetch_opgg_matchup_guide(&champion, &opponent, role)
+    })
+    .await
+    .map_err(|e| format!("OP.GG matchup guide task failed: {e}"))?
 }
 
 #[tauri::command]
@@ -197,8 +258,58 @@ fn build_baron_rune_page_payload(
 }
 
 #[tauri::command]
-fn get_lcu_status() -> LcuStatusDto {
-    probe_local_lcu()
+async fn get_lcu_status() -> Result<LcuStatusDto, String> {
+    tauri::async_runtime::spawn_blocking(probe_local_lcu)
+        .await
+        .map_err(|e| format!("LCU status task failed: {e}"))
+}
+
+#[tauri::command]
+async fn get_lcu_player_context() -> Result<Option<LcuPlayerContext>, String> {
+    tauri::async_runtime::spawn_blocking(fetch_lcu_player_context)
+        .await
+        .map_err(|e| format!("LCU player task failed: {e}"))
+}
+
+#[tauri::command]
+async fn import_opgg_runes_to_lcu(
+    champion_name: String,
+    primary_style_id: i32,
+    sub_style_id: i32,
+    selected_perk_ids: [i32; 9],
+) -> Result<LcuRuneImportResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        import_rune_page_to_lcu(
+            &champion_name,
+            primary_style_id,
+            sub_style_id,
+            selected_perk_ids,
+        )
+    })
+    .await
+    .map_err(|e| format!("LCU rune import task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_opgg_regions() -> Result<Vec<baron_riot::OpggRegionOption>, String> {
+    tauri::async_runtime::spawn_blocking(baron_riot::fetch_opgg_supported_regions)
+        .await
+        .map_err(|e| format!("OP.GG regions task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_lcu_owned_skins() -> Result<Vec<OwnedSkinEntry>, String> {
+    tauri::async_runtime::spawn_blocking(fetch_lcu_owned_skins)
+        .await
+        .map_err(|e| format!("LCU skins task failed: {e}"))?
+}
+
+fn show_main_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.show();
+        let _ = win.unminimize();
+        let _ = win.set_focus();
+    }
 }
 
 pub fn run() {
@@ -206,12 +317,73 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(AppState { db: Mutex::new(db) })
+        .setup(|app| {
+            let icon = app.default_window_icon().cloned();
+            if let (Some(win), Some(ico)) = (app.get_webview_window("main"), icon.as_ref()) {
+                let _ = win.set_icon(ico.clone());
+            }
+
+            let show_item = MenuItem::with_id(app, "tray_show", "Show Baron", true, None::<&str>)?;
+            let hide_item =
+                MenuItem::with_id(app, "tray_hide", "Hide to Tray", true, None::<&str>)?;
+            let sep = PredefinedMenuItem::separator(app)?;
+            let quit_item = MenuItem::with_id(app, "tray_quit", "Quit Baron", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_item, &hide_item, &sep, &quit_item])?;
+
+            let mut tray_builder = TrayIconBuilder::with_id("baron-tray")
+                .menu(&menu)
+                .tooltip("Baron")
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "tray_show" => show_main_window(app),
+                    "tray_hide" => {
+                        if let Some(win) = app.get_webview_window("main") {
+                            let _ = win.hide();
+                        }
+                    }
+                    "tray_quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        show_main_window(tray.app_handle());
+                    }
+                });
+
+            if let Some(ico) = icon {
+                tray_builder = tray_builder.icon(ico);
+            }
+            tray_builder.build(app)?;
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             get_bootstrap_data,
             get_provider_endpoints,
             get_provider_tier_list,
+            get_opgg_champion_analysis,
+            get_opgg_summoner_overview,
+            get_opgg_game_detail,
+            get_opgg_leaderboard,
+            get_opgg_discounted_skins,
+            get_opgg_esports_results,
+            get_opgg_matchup_guide,
+            get_opgg_regions,
             build_baron_rune_page_payload,
             get_lcu_status,
+            get_lcu_player_context,
+            import_opgg_runes_to_lcu,
+            get_lcu_owned_skins,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Baron Tauri application");
@@ -229,7 +401,6 @@ mod tests {
         assert_eq!(payload.patches.len(), 13);
         assert_eq!(payload.providers[0].label, "OP.GG");
         assert_eq!(payload.providers[1].label, "U.GG");
-        assert!(payload.primary_baron_score > 0.0);
     }
 
     #[test]

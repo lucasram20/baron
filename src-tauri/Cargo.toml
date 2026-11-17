@@ -28,4 +28,4 @@ baron-lcu = { path = "../crates/baron-lcu" }
 baron-riot = { path = "../crates/baron-riot" }
 serde.workspace = true
 serde_json.workspace = true
-tauri = { version = "2.12", features = [] }
+tauri = { version = "2.12", features = ["tray-icon"] }

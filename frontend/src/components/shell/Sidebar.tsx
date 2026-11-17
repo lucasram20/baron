@@ -1,17 +1,17 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { User } from "lucide-react";
 import {
-  BarChart3,
-  Crown,
-  Database,
-  Eye,
-  Home,
-  Layers,
-  Sparkles,
-  Swords,
-} from "lucide-react";
-import { champSquareUrl } from "@/lib/ddragon";
+  SidebarChampSelectIcon,
+  SidebarCollectionsIcon,
+  SidebarDashboardIcon,
+  SidebarDataStudioIcon,
+  SidebarLeaderboardIcon,
+  SidebarPostGameIcon,
+  SidebarSpectateIcon,
+  SidebarTierlistIcon,
+} from "@/components/icons/SidebarIcons";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type BaronRoute =
@@ -24,11 +24,22 @@ export type BaronRoute =
   | "champselect"
   | "postgame";
 
+export interface SidebarSummonerSummary {
+  gameName: string;
+  tagLine: string;
+  region: string;
+  tierLabel: string;
+  profileImageUrl?: string;
+  isLcuAccount?: boolean;
+}
+
 interface SidebarProps {
   activeRoute: BaronRoute;
   onSelectRoute: (route: BaronRoute) => void;
-  ddVersion: string;
   collapsed: boolean;
+  activeSummoner?: SidebarSummonerSummary | null;
+  lcuConnected?: boolean;
+  onProfileClick?: () => void;
 }
 
 interface NavItem {
@@ -39,31 +50,31 @@ interface NavItem {
 }
 
 const CORE_NAV: NavItem[] = [
-  { route: "dashboard", label: "Dashboard", icon: <Home className="h-[15px] w-[15px]" /> },
-  { route: "tierlist", label: "Tierlist & Builds", icon: <BarChart3 className="h-[15px] w-[15px]" /> },
-  { route: "leaderboards", label: "Leaderboards", icon: <Crown className="h-[15px] w-[15px]" /> },
+  { route: "dashboard", label: "Dashboard", icon: <SidebarDashboardIcon className="h-[16px] w-[16px]" /> },
+  { route: "tierlist", label: "Tierlist & Builds", icon: <SidebarTierlistIcon className="h-[16px] w-[16px]" /> },
+  { route: "leaderboards", label: "Leaderboards", icon: <SidebarLeaderboardIcon className="h-[16px] w-[16px]" /> },
 ];
 
 const APP_NAV: NavItem[] = [
-  { route: "spectate", label: "Spectate", icon: <Eye className="h-[15px] w-[15px]" /> },
-  { route: "collections", label: "Collections", icon: <Layers className="h-[15px] w-[15px]" /> },
+  { route: "spectate", label: "Spectate", icon: <SidebarSpectateIcon className="h-[16px] w-[16px]" /> },
+  { route: "collections", label: "Collections", icon: <SidebarCollectionsIcon className="h-[16px] w-[16px]" /> },
 ];
 
 const INSIGHTS_NAV: NavItem[] = [
-  { route: "datastudio", label: "Data Studio", icon: <Database className="h-[15px] w-[15px]" /> },
+  { route: "datastudio", label: "Data Studio", icon: <SidebarDataStudioIcon className="h-[16px] w-[16px]" /> },
 ];
 
 const INGAME_NAV: NavItem[] = [
   {
     route: "champselect",
     label: "Champ Select",
-    icon: <Sparkles className="h-[15px] w-[15px]" />,
+    icon: <SidebarChampSelectIcon className="h-[16px] w-[16px]" />,
     isInGame: true,
   },
   {
     route: "postgame",
     label: "Post-game",
-    icon: <Swords className="h-[15px] w-[15px]" />,
+    icon: <SidebarPostGameIcon className="h-[16px] w-[16px]" />,
     isInGame: true,
   },
 ];
@@ -102,6 +113,7 @@ function NavSection({
               key={item.route}
               type="button"
               onClick={() => onSelectRoute(item.route)}
+              aria-label={item.label}
               aria-current={isActive ? "page" : undefined}
               className={`group relative flex w-full items-center ${
                 collapsed ? "justify-center px-0 py-2" : "gap-2.5 px-2.5 py-[7px]"
@@ -113,7 +125,6 @@ function NavSection({
                     : "font-medium text-baron-ink-secondary hover:bg-baron-hover/65 hover:text-baron-ink"
               }`}
             >
-              {/* Left LineSidebar-inspired edge indicator */}
               <span
                 aria-hidden="true"
                 className={`absolute top-1.5 bottom-1.5 left-0 w-[2.5px] rounded-r-full transition-all duration-150 ${
@@ -159,7 +170,12 @@ function NavSection({
           return (
             <Tooltip key={item.route} delayDuration={120}>
               <TooltipTrigger asChild>{button}</TooltipTrigger>
-              <TooltipContent side="right" className="border-baron-border bg-baron-elevated text-baron-ink">
+              <TooltipContent
+                side="right"
+                sideOffset={8}
+                showArrow={false}
+                className="border border-baron-border-strong bg-baron-elevated px-2.5 py-1 text-[11.5px] font-medium text-baron-ink shadow-lg"
+              >
                 {item.label}
               </TooltipContent>
             </Tooltip>
@@ -170,7 +186,14 @@ function NavSection({
   );
 }
 
-export function Sidebar({ activeRoute, onSelectRoute, ddVersion, collapsed }: SidebarProps) {
+export function Sidebar({
+  activeRoute,
+  onSelectRoute,
+  collapsed,
+  activeSummoner = null,
+  lcuConnected = false,
+  onProfileClick,
+}: SidebarProps) {
   return (
     <TooltipProvider>
       <aside
@@ -213,43 +236,80 @@ export function Sidebar({ activeRoute, onSelectRoute, ddVersion, collapsed }: Si
           />
         </nav>
 
-        {/* Pinned Sample Profile Card */}
+        {/* Bottom Active Summoner or Search Trigger */}
         <div className="border-t border-baron-border p-2">
-          <Tooltip delayDuration={150}>
+          <Tooltip delayDuration={120}>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                onClick={() => onSelectRoute("dashboard")}
+                onClick={() => {
+                  if (onProfileClick) {
+                    onProfileClick();
+                  } else {
+                    onSelectRoute("dashboard");
+                  }
+                }}
                 className={`flex w-full items-center ${
                   collapsed ? "justify-center p-1" : "gap-2.5 px-2 py-1.5"
                 } rounded-lg transition-colors hover:bg-baron-surface`}
-                aria-label="Open sample summoner dashboard for Hide on bush #KR1"
+                aria-label={
+                  activeSummoner
+                    ? `Open dashboard for ${activeSummoner.gameName}#${activeSummoner.tagLine}`
+                    : "Search Riot ID on Dashboard"
+                }
               >
-                <div className="relative h-8 w-8 shrink-0">
-                  <img
-                    src={champSquareUrl("Ahri", ddVersion)}
-                    alt="Hide on bush avatar"
-                    className="h-8 w-8 rounded-md border border-baron-border-strong object-cover"
-                  />
-                  <span className="absolute -top-1 -left-1 rounded bg-baron-accent px-1 py-[1px] text-[8px] leading-none font-bold text-white">
-                    KR
-                  </span>
-                </div>
+                {activeSummoner?.profileImageUrl ? (
+                  <div className="relative h-8 w-8 shrink-0">
+                    <img
+                      src={activeSummoner.profileImageUrl}
+                      alt={activeSummoner.gameName}
+                      className="h-8 w-8 rounded-md border border-baron-border-strong object-cover"
+                    />
+                    <span className="absolute -top-1 -left-1 rounded bg-baron-accent px-1 py-[1px] text-[8px] leading-none font-bold text-white uppercase">
+                      {activeSummoner.region}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-baron-border bg-baron-surface text-baron-ink-muted">
+                    <User className="h-4 w-4" />
+                  </div>
+                )}
+
                 {!collapsed && (
                   <div className="min-w-0 flex-1 text-left">
-                    <div className="truncate text-[12px] font-semibold text-baron-ink">
-                      Hide on bush
-                    </div>
-                    <div className="truncate text-[10.5px] font-medium text-baron-cyan tnum">
-                      #KR1 · 1,042 LP
-                    </div>
+                    {activeSummoner ? (
+                      <>
+                        <div className="truncate text-[12px] font-semibold text-baron-ink">
+                          {activeSummoner.gameName}
+                        </div>
+                        <div className="truncate text-[10.5px] font-medium text-baron-cyan tnum">
+                          #{activeSummoner.tagLine} · {activeSummoner.tierLabel}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="truncate text-[12px] font-semibold text-baron-ink-secondary">
+                          League Client
+                        </div>
+                        <div className="truncate text-[10.5px] text-baron-ink-muted">
+                          {lcuConnected ? "Syncing account..." : "Offline · Search Riot ID"}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </button>
             </TooltipTrigger>
             {collapsed && (
-              <TooltipContent side="right" className="border-baron-border bg-baron-elevated text-baron-ink">
-                Hide on bush #KR1 · 1,042 LP (Sample)
+              <TooltipContent
+                side="right"
+                sideOffset={8}
+                showArrow={false}
+                className="border border-baron-border-strong bg-baron-elevated px-2.5 py-1 text-[11.5px] font-medium text-baron-ink shadow-lg"
+              >
+                {activeSummoner
+                  ? `${activeSummoner.gameName} #${activeSummoner.tagLine}`
+                  : "Search Riot ID"}
               </TooltipContent>
             )}
           </Tooltip>

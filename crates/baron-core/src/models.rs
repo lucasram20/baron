@@ -249,7 +249,8 @@ pub struct DashboardSampleData {
     pub leaderboard: Vec<LeaderboardMemberRow>,
 }
 
-/// Generates realistic sample dashboard data for offline operation or immediate initial rendering.
+/// Test-only sample dashboard fixture. Never exposed or served to the UI runtime.
+#[cfg(test)]
 pub fn sample_dashboard_data() -> DashboardSampleData {
     let account = Account {
         puuid: "baron-local-demo-faker-puuid".to_string(),

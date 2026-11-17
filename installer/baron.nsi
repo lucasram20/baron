@@ -41,6 +41,10 @@ RequestExecutionLevel user
 !insertmacro MUI_LANGUAGE "English"
 
 Section "${APP_NAME}" SecMain
+  ; Close any running tray instance before replacing Baron.exe
+  ExecWait 'cmd /c taskkill /F /IM "${EXE_NAME}" >nul 2>&1'
+  Sleep 350
+
   SetOutPath "$INSTDIR"
   File "..\dist\${EXE_NAME}"
   File "..\assets\logo\baron.ico"
@@ -48,6 +52,11 @@ Section "${APP_NAME}" SecMain
   File "..\dist\LICENSE"
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
+
+  ; Delete existing shortcuts before recreating them so Explorer drops stale icon entries
+  Delete "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk"
+  Delete "$SMPROGRAMS\${APP_NAME}\Uninstall ${APP_NAME}.lnk"
+  Delete "$DESKTOP\${APP_NAME}.lnk"
 
   CreateDirectory "$SMPROGRAMS\${APP_NAME}"
   CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\${EXE_NAME}" "" "$INSTDIR\baron.ico" 0
@@ -62,9 +71,15 @@ Section "${APP_NAME}" SecMain
   WriteRegStr HKCU "${UNINSTALL_REG_KEY}" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
   WriteRegDWORD HKCU "${UNINSTALL_REG_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${UNINSTALL_REG_KEY}" "NoRepair" 1
+
+  ; Notify Windows Explorer to invalidate cached icons (SHCNE_ASSOCCHANGED)
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd
 
 Section "Uninstall"
+  ExecWait 'cmd /c taskkill /F /IM "${EXE_NAME}" >nul 2>&1'
+  Sleep 350
+
   Delete "$DESKTOP\${APP_NAME}.lnk"
   Delete "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk"
   Delete "$SMPROGRAMS\${APP_NAME}\Uninstall ${APP_NAME}.lnk"
@@ -78,4 +93,5 @@ Section "Uninstall"
   RMDir "$INSTDIR"
 
   DeleteRegKey HKCU "${UNINSTALL_REG_KEY}"
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd

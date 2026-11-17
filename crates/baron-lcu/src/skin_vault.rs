@@ -89,7 +89,8 @@ pub fn evaluate_skin_collection(skins: &[OwnedSkinEntry]) -> SkinVaultSummary {
     summary
 }
 
-/// Returns a realistic sample of owned skins for offline demonstration.
+/// Test-only sample owned skin fixture. Live inventory requires League Client LCU.
+#[cfg(test)]
 pub fn sample_owned_skins() -> Vec<OwnedSkinEntry> {
     // ponytail: sample dataset; live inventory fetched from /lol-champions/v1/inventories/...
     vec![

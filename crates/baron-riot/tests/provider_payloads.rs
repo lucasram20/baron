@@ -1,20 +1,27 @@
-use baron_core::sample_dashboard_data;
+use baron_core::models::{ChampionTierEntry, Role};
 use baron_riot::{parse_fallback_build_json, parse_fallback_tier_list_json, FallbackProvider};
 
 #[test]
 #[ignore = "opt-in live request to the public OP.GG MCP server"]
 fn live_opgg_tier_list() {
-    let rows = baron_riot::fetch_opgg_tier_list(baron_core::models::Role::Top)
-        .expect("live OP.GG MCP request should succeed");
+    let rows =
+        baron_riot::fetch_opgg_tier_list(Role::Top).expect("live OP.GG MCP request should succeed");
     assert!(!rows.is_empty(), "OP.GG returned no top lane data");
-    assert!(rows
-        .iter()
-        .all(|row| row.role == baron_core::models::Role::Top));
+    assert!(rows.iter().all(|row| row.role == Role::Top));
 }
 
 #[test]
 fn providers_reject_baron_sample_rows_as_provider_responses() {
-    let rows = sample_dashboard_data().tier_list;
+    let rows = vec![ChampionTierEntry {
+        rank: 1,
+        champion_name: "Ahri".to_string(),
+        role: Role::Middle,
+        tier: "1".to_string(),
+        win_rate: 51.5,
+        pick_rate: 11.2,
+        ban_rate: 4.0,
+        matches_label: "250000".to_string(),
+    }];
     let sample_json = serde_json::to_string(&rows).expect("serialize sample rows");
 
     for provider in [
@@ -34,7 +41,13 @@ fn providers_reject_baron_sample_rows_as_provider_responses() {
 
 #[test]
 fn providers_reject_sample_builds() {
-    let sample = serde_json::to_string(&sample_dashboard_data().draft).unwrap();
+    let fake_build = serde_json::json!({
+        "champion_name": "Ashe",
+        "win_rate": 51.0,
+        "pick_rate": 12.0,
+        "core_items": ["Kraken Slayer"]
+    });
+    let sample = serde_json::to_string(&fake_build).unwrap();
     for provider in [
         FallbackProvider::OpGg,
         FallbackProvider::UGg,

@@ -59,14 +59,61 @@ impl LcuLockfile {
     }
 }
 
-/// Returns standard candidate lockfile paths across OS environments.
+/// Extracts `product_install_full_path` from Riot Client metadata YAML if present.
+fn parse_riot_install_yaml_lockfile(yaml_text: &str) -> Option<PathBuf> {
+    for line in yaml_text.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("product_install_full_path:") {
+            let unquoted = rest.trim().trim_matches('"').trim_matches('\'').trim();
+            if !unquoted.is_empty() {
+                return Some(PathBuf::from(unquoted).join("lockfile"));
+            }
+        }
+    }
+    None
+}
+
+/// Returns candidate League of Legends lockfile paths across Windows drives, Riot metadata, and macOS.
 pub fn candidate_lockfile_paths() -> Vec<PathBuf> {
-    // ponytail: static standard locations; future upgrade can query OS process list
-    vec![
-        PathBuf::from(r"C:\Riot Games\League of Legends\lockfile"),
-        PathBuf::from(r"D:\Riot Games\League of Legends\lockfile"),
-        PathBuf::from("/Applications/League of Legends.app/Contents/LoL/lockfile"),
-    ]
+    let mut paths = Vec::new();
+    let meta_yaml = PathBuf::from(
+        r"C:\ProgramData\Riot Games\Metadata\league_of_legends.live\league_of_legends.live.product_settings.yaml",
+    );
+    if let Ok(raw) = std::fs::read_to_string(&meta_yaml) {
+        if let Some(p) = parse_riot_install_yaml_lockfile(&raw) {
+            paths.push(p);
+        }
+    }
+    paths.push(PathBuf::from(r"C:\Riot Games\League of Legends\lockfile"));
+    paths.push(PathBuf::from(r"D:\Riot Games\League of Legends\lockfile"));
+    paths.push(PathBuf::from(r"E:\Riot Games\League of Legends\lockfile"));
+    paths.push(PathBuf::from(r"F:\Riot Games\League of Legends\lockfile"));
+    paths.push(PathBuf::from(
+        "/Applications/League of Legends.app/Contents/LoL/lockfile",
+    ));
+    paths
+}
+
+/// Maps a Riot LCU region/platform code (e.g., `NA1`, `EUW1`, `SG2`, `PH2`) to OP.GG MCP region code.
+pub fn map_riot_region_to_opgg(region: &str) -> &'static str {
+    match region.trim().to_ascii_uppercase().as_str() {
+        "KR" => "KR",
+        "NA" | "NA1" => "NA",
+        "EUW" | "EUW1" => "EUW",
+        "EUNE" | "EUN1" => "EUNE",
+        "JP" | "JP1" => "JP",
+        "OCE" | "OC1" => "OCE",
+        "BR" | "BR1" => "BR",
+        "LAN" | "LA1" => "LAN",
+        "LAS" | "LA2" => "LAS",
+        "TR" | "TR1" => "TR",
+        "RU" => "RU",
+        "TW" | "TW2" => "TW",
+        "VN" | "VN2" => "VN",
+        "ME" | "ME1" => "ME",
+        "SEA" | "SG" | "SG2" | "PH" | "PH2" | "TH" | "TH2" | "ID" | "MY" => "SEA",
+        _ => "KR",
+    }
 }
 
 /// Minimal standard base64 encoder in pure Rust std.
@@ -139,5 +186,22 @@ mod tests {
         assert_eq!(std_base64_encode(b"foo"), "Zm9v");
         assert_eq!(std_base64_encode(b"riot:secret"), "cmlvdDpzZWNyZXQ=");
         assert!(!candidate_lockfile_paths().is_empty());
+    }
+
+    #[test]
+    fn test_region_mapping_and_install_yaml() {
+        assert_eq!(map_riot_region_to_opgg("KR"), "KR");
+        assert_eq!(map_riot_region_to_opgg("NA1"), "NA");
+        assert_eq!(map_riot_region_to_opgg("euw1"), "EUW");
+        assert_eq!(map_riot_region_to_opgg("SG2"), "SEA");
+        assert_eq!(map_riot_region_to_opgg("PH2"), "SEA");
+        assert_eq!(map_riot_region_to_opgg("OC1"), "OCE");
+        let parsed = parse_riot_install_yaml_lockfile(
+            "product_install_full_path: \"D:/Riot Games/League of Legends\"\n",
+        );
+        assert_eq!(
+            parsed,
+            Some(PathBuf::from(r"D:/Riot Games/League of Legends").join("lockfile"))
+        );
     }
 }

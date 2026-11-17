@@ -105,9 +105,167 @@ pub const DEFAULT_FALLBACK_ORDER: [FallbackProvider; 6] = [
     FallbackProvider::MerakiCdn,
 ];
 
+const OPGG_MCP_URL: &str = "https://mcp-api.op.gg/mcp";
+
 /// Fetch a single lane from the official OP.GG MCP server.
 pub fn fetch_opgg_tier_list(role: Role) -> Result<Vec<ChampionTierEntry>, String> {
-    crate::providers::opgg::fetch_tier_list_from("https://mcp-api.op.gg/mcp", role)
+    crate::providers::opgg::fetch_tier_list_from(OPGG_MCP_URL, role)
+}
+
+/// Fetch live champion build analysis (items, runes, skills, counters, synergies) from OP.GG MCP.
+pub fn fetch_opgg_champion_analysis(
+    champion: &str,
+    role: Role,
+) -> Result<serde_json::Value, String> {
+    crate::providers::opgg::call_opgg_tool_json(
+        OPGG_MCP_URL,
+        "lol_get_champion_analysis",
+        serde_json::json!({
+            "game_mode": "RANKED",
+            "champion": champion.trim(),
+            "position": opgg_position(role),
+            "lang": "en_US",
+            "client_app": "baron/0.1"
+        }),
+    )
+}
+
+/// Fetch live summoner profile, rank standing, LP history, and champion pool from OP.GG MCP.
+pub fn fetch_opgg_summoner_profile(
+    game_name: &str,
+    tag_line: &str,
+    region: &str,
+) -> Result<serde_json::Value, String> {
+    crate::providers::opgg::call_opgg_tool_json(
+        OPGG_MCP_URL,
+        "lol_get_summoner_profile",
+        serde_json::json!({
+            "game_name": game_name.trim(),
+            "tag_line": tag_line.trim(),
+            "region": region.trim().to_ascii_uppercase(),
+            "lang": "en_US",
+            "client_app": "baron/0.1"
+        }),
+    )
+}
+
+/// Fetch recent summoner matches from OP.GG MCP.
+pub fn fetch_opgg_summoner_matches(
+    game_name: &str,
+    tag_line: &str,
+    region: &str,
+    limit: u8,
+) -> Result<serde_json::Value, String> {
+    crate::providers::opgg::call_opgg_tool_json(
+        OPGG_MCP_URL,
+        "lol_list_summoner_matches",
+        serde_json::json!({
+            "game_name": game_name.trim(),
+            "tag_line": tag_line.trim(),
+            "region": region.trim().to_ascii_uppercase(),
+            "lang": "en_US",
+            "limit": limit.clamp(1, 10),
+            "client_app": "baron/0.1"
+        }),
+    )
+}
+
+/// Fetch full 10-player post-game match details from OP.GG MCP.
+pub fn fetch_opgg_game_detail(
+    game_name: &str,
+    tag_line: &str,
+    region: &str,
+    game_id: &str,
+    created_at: &str,
+) -> Result<serde_json::Value, String> {
+    let focus_riot_id = format!("{}#{}", game_name.trim(), tag_line.trim());
+    crate::providers::opgg::call_opgg_tool_json(
+        OPGG_MCP_URL,
+        "lol_get_summoner_game_detail",
+        serde_json::json!({
+            "game_name": game_name.trim(),
+            "tag_line": tag_line.trim(),
+            "region": region.trim().to_ascii_uppercase(),
+            "lang": "en_US",
+            "game_id": game_id.trim(),
+            "created_at": created_at.trim(),
+            "focus_riot_id": focus_riot_id,
+            "client_app": "baron/0.1"
+        }),
+    )
+}
+
+/// Fetch Master+ / Challenger leaderboard for a region & champion from OP.GG MCP.
+pub fn fetch_opgg_champion_leaderboard(
+    region: &str,
+    champion: &str,
+) -> Result<serde_json::Value, String> {
+    crate::providers::opgg::call_opgg_tool_json(
+        OPGG_MCP_URL,
+        "lol_list_champion_leaderboard",
+        serde_json::json!({
+            "region": region.trim().to_ascii_uppercase(),
+            "champion": champion.trim(),
+            "client_app": "baron/0.1"
+        }),
+    )
+}
+
+/// Fetch current LoL skin sales from OP.GG MCP.
+pub fn fetch_opgg_discounted_skins() -> Result<serde_json::Value, String> {
+    crate::providers::opgg::call_opgg_tool_json(
+        OPGG_MCP_URL,
+        "lol_list_discounted_skins",
+        serde_json::json!({
+            "lang": "en_US",
+            "client_app": "baron/0.1"
+        }),
+    )
+}
+
+/// Fetch recent LoL esports match results and schedules from OP.GG MCP.
+pub fn fetch_opgg_esports_results(limit: u8) -> Result<serde_json::Value, String> {
+    crate::providers::opgg::call_opgg_tool_json(
+        OPGG_MCP_URL,
+        "lol_esports_list_schedules",
+        serde_json::json!({
+            "mode": "result",
+            "limit": limit.clamp(1, 20),
+            "client_app": "baron/0.1"
+        }),
+    )
+}
+
+/// Fetch lane matchup guidance for champion vs opponent from OP.GG MCP.
+pub fn fetch_opgg_matchup_guide(
+    champion: &str,
+    opponent: &str,
+    role: Role,
+) -> Result<serde_json::Value, String> {
+    crate::providers::opgg::call_opgg_tool_json(
+        OPGG_MCP_URL,
+        "lol_get_lane_matchup_guide",
+        serde_json::json!({
+            "position": opgg_position(role),
+            "my_champion": champion.trim(),
+            "opponent_champion": opponent.trim(),
+            "lang": "en_US",
+            "client_app": "baron/0.1"
+        }),
+    )
+}
+
+pub use crate::providers::opgg::OpggRegionOption;
+
+/// Fetches all League server regions supported by OP.GG MCP dynamically and caches them.
+pub fn fetch_opgg_supported_regions() -> Result<Vec<OpggRegionOption>, String> {
+    static CACHE: std::sync::OnceLock<Vec<OpggRegionOption>> = std::sync::OnceLock::new();
+    if let Some(cached) = CACHE.get() {
+        return Ok(cached.clone());
+    }
+    let regions = crate::providers::opgg::fetch_supported_regions_from(OPGG_MCP_URL)?;
+    let _ = CACHE.set(regions.clone());
+    Ok(regions)
 }
 
 /// Extracts embedded Qwik SSR JSON payload (`<script type="qwik/json">...</script>`) from LoLalytics HTML.
@@ -188,11 +346,18 @@ mod tests {
         );
         assert_eq!(extract_lolalytics_qwik_json("<html></html>"), None);
 
-        let sample = baron_core::models::sample_dashboard_data();
-        let build_json = serde_json::to_string(&sample.draft).unwrap();
-        assert!(parse_fallback_build_json(FallbackProvider::OpGg, &build_json).is_err());
-
-        let tier_json = serde_json::to_string(&sample.tier_list).unwrap();
+        let tier_entry = vec![ChampionTierEntry {
+            rank: 1,
+            champion_name: "Ahri".to_string(),
+            role: Role::Middle,
+            tier: "1".to_string(),
+            win_rate: 51.5,
+            pick_rate: 11.2,
+            ban_rate: 4.1,
+            matches_label: "250000".to_string(),
+        }];
+        let tier_json = serde_json::to_string(&tier_entry).unwrap();
+        assert!(parse_fallback_build_json(FallbackProvider::OpGg, &tier_json).is_err());
         assert!(parse_fallback_tier_list_json(FallbackProvider::UGg, &tier_json).is_err());
     }
 }
