@@ -115,7 +115,7 @@ fn parse_late_item_options(v: Option<&Value>) -> Vec<UggOptionStat> {
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    out.sort_by(|a, b| b.games.cmp(&a.games));
+    out.sort_by_key(|a| std::cmp::Reverse(a.games));
     out.truncate(6);
     out
 }
