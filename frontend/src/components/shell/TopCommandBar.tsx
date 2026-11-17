@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   Check,
   ChevronDown,
@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import type { BaronRoute } from "@/components/shell/Sidebar";
 import { AVAILABLE_PATCHES, AVAILABLE_PERIODS } from "@/lib/ddragon";
-import { isProviderAvailable, type ProviderMeta } from "@/lib/tauri";
+import { isProviderAvailable, isTauriRuntime, type ProviderMeta } from "@/lib/tauri";
 import { useTheme, type ThemePreference } from "@/lib/theme";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import {
@@ -70,6 +70,16 @@ const QUICK_ROUTES: { route: BaronRoute; label: string; hint: string }[] = [
   { route: "datastudio", label: "Data Studio", hint: "Providers, appearance & cache" },
 ];
 
+const emptySubscribe = () => () => {};
+
+function useIsDesktopHost(): boolean {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => isTauriRuntime(),
+    () => false,
+  );
+}
+
 export function TopCommandBar({
   searchQuery,
   onSearchChange,
@@ -93,12 +103,66 @@ export function TopCommandBar({
   onForward,
   onNavigate,
 }: TopCommandBarProps) {
-  const { preference, setPreference } = useTheme();
+  const { preference, resolved, setPreference } = useTheme();
+  const isDesktop = useIsDesktopHost();
+  const [maximized, setMaximized] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const patchRef = useRef<HTMLDivElement>(null);
   const providerRef = useRef<HTMLDivElement>(null);
 
   const activeProvider = providers.find((p) => p.id === activeProviderId) ?? providers[0];
+
+  useEffect(() => {
+    if (!isDesktop) return;
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+
+    import("@tauri-apps/api/window")
+      .then(async ({ getCurrentWindow }) => {
+        const win = getCurrentWindow();
+        win.setTheme(resolved === "dark" ? "dark" : "light").catch(() => {});
+        const max = await win.isMaximized().catch(() => false);
+        if (!cancelled) setMaximized(max);
+        unlisten = await win
+          .onResized(async () => {
+            const nextMax = await win.isMaximized().catch(() => false);
+            if (!cancelled) setMaximized(nextMax);
+          })
+          .catch(() => undefined);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [isDesktop, resolved]);
+
+  const handleMinimize = () => {
+    if (!isDesktop) return;
+    import("@tauri-apps/api/window")
+      .then(({ getCurrentWindow }) => getCurrentWindow().minimize())
+      .catch(() => {});
+  };
+
+  const handleToggleMaximize = () => {
+    if (!isDesktop) return;
+    import("@tauri-apps/api/window")
+      .then(async ({ getCurrentWindow }) => {
+        const win = getCurrentWindow();
+        await win.toggleMaximize();
+        const nextMax = await win.isMaximized().catch(() => false);
+        setMaximized(nextMax);
+      })
+      .catch(() => {});
+  };
+
+  const handleClose = () => {
+    if (!isDesktop) return;
+    import("@tauri-apps/api/window")
+      .then(({ getCurrentWindow }) => getCurrentWindow().close())
+      .catch(() => {});
+  };
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -129,7 +193,13 @@ export function TopCommandBar({
   }, [patchPopoverOpen, providerOpen, onTogglePatchPopover, onToggleProviderOpen]);
 
   return (
-    <header className="relative z-40 flex h-[44px] w-full shrink-0 items-center justify-between gap-2 bg-baron-chrome px-2.5 select-none">
+    <header
+      data-tauri-drag-region
+      onDoubleClick={(e) => {
+        if (e.target === e.currentTarget) handleToggleMaximize();
+      }}
+      className="relative z-40 flex h-[44px] w-full shrink-0 items-center justify-between gap-2 bg-baron-chrome px-2.5 select-none"
+    >
       {/* Left Brand + Sidebar Toggle + History Controls */}
       <div className="flex items-center gap-1.5">
         <button
@@ -198,11 +268,18 @@ export function TopCommandBar({
         </div>
       </div>
 
+      {/* Draggable Titlebar Spacer (Left) */}
+      <div
+        data-tauri-drag-region
+        onDoubleClick={handleToggleMaximize}
+        className="h-full min-w-[8px] flex-1"
+      />
+
       {/* Center Command Search Trigger */}
       <button
         type="button"
         onClick={() => setCommandOpen(true)}
-        className="flex h-[30px] max-w-[420px] min-w-[200px] flex-1 items-center justify-between gap-2 rounded-lg border border-baron-border bg-baron-surface px-2.5 text-left text-[12px] text-baron-ink-muted transition-colors hover:border-baron-border-strong hover:text-baron-ink-secondary"
+        className="flex h-[30px] w-full max-w-[380px] min-w-[200px] items-center justify-between gap-2 rounded-lg border border-baron-border bg-baron-surface px-2.5 text-left text-[12px] text-baron-ink-muted transition-colors hover:border-baron-border-strong hover:text-baron-ink-secondary"
         aria-label="Open global command palette (Ctrl+K)"
       >
         <span className="flex min-w-0 items-center gap-2 truncate">
@@ -222,6 +299,13 @@ export function TopCommandBar({
           </Kbd>
         </KbdGroup>
       </button>
+
+      {/* Draggable Titlebar Spacer (Right) */}
+      <div
+        data-tauri-drag-region
+        onDoubleClick={handleToggleMaximize}
+        className="h-full min-w-[8px] flex-1"
+      />
 
       {/* Right Utility Cluster */}
       <div className="flex items-center gap-1.5">
@@ -464,6 +548,72 @@ export function TopCommandBar({
         >
           <Settings className="h-3.5 w-3.5" />
         </button>
+
+        {/* Native-Matched Window Controls inside Tauri Desktop Host */}
+        {isDesktop && (
+          <div className="-mr-2.5 ml-1 flex h-[44px] items-center">
+            <div className="mr-0.5 h-4 w-px bg-baron-border" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={handleMinimize}
+              aria-label="Minimize window"
+              title="Minimize"
+              className="flex h-full w-[38px] items-center justify-center text-baron-ink-secondary transition-colors hover:bg-baron-hover hover:text-baron-ink"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <line x1="1" y1="5" x2="9" y2="5" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={handleToggleMaximize}
+              aria-label={maximized ? "Restore window" : "Maximize window"}
+              title={maximized ? "Restore" : "Maximize"}
+              className="flex h-full w-[38px] items-center justify-center text-baron-ink-secondary transition-colors hover:bg-baron-hover hover:text-baron-ink"
+            >
+              {maximized ? (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                  <rect
+                    x="1.5"
+                    y="3"
+                    width="5.5"
+                    height="5.5"
+                    stroke="currentColor"
+                    strokeWidth="1.15"
+                  />
+                  <path d="M3.2 3V1.5H8.5V6.8H7" stroke="currentColor" strokeWidth="1.15" />
+                </svg>
+              ) : (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                  <rect
+                    x="1.5"
+                    y="1.5"
+                    width="7"
+                    height="7"
+                    stroke="currentColor"
+                    strokeWidth="1.15"
+                  />
+                </svg>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Close window"
+              title="Close"
+              className="flex h-full w-[40px] items-center justify-center text-baron-ink-secondary transition-colors hover:bg-[#E11D48] hover:text-white"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <path
+                  d="M2 2L8 8M8 2L2 8"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Ctrl+K Command Palette */}

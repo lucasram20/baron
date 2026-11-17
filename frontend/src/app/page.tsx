@@ -144,7 +144,7 @@ export default function BaronAppPage() {
   const goldCurve = bootstrap?.goldCurve ?? DEFAULT_GOLD_CURVE;
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-baron-chrome text-baron-ink">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-baron-chrome text-baron-ink ring-1 ring-inset ring-baron-border/75">
       <TopCommandBar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
