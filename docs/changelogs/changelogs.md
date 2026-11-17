@@ -4,6 +4,11 @@ All notable changes to **Baron** are documented in this single consolidated chan
 
 ---
 
+## [v0.1.0] — 2026-11-17
+
+### Added
+- **First Official Stable Release (`release.yml`):** Promoted `v0.1.0-dev.11` to Baron `v0.1.0` with full LCU account auto-sync, live OP.GG MCP tier lists, interactive champion builds, regional leaderboards across all OP.GG MCP servers, 1-click LCU rune imports, system tray minimize-on-close support, zero mock data, and signed/packaged Windows NSIS & macOS artifacts.
+
 ## [v0.1.0-dev.11] — 2026-11-17
 
 ### Added
