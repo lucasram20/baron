@@ -142,7 +142,9 @@ pub fn opgg_mcp_champion_slug(name_or_key: &str) -> String {
     let mut out = String::with_capacity(trimmed.len() + 4);
     let mut prev_lower = false;
     for ch in trimmed.chars() {
-        if matches!(ch, ' ' | '-' | '\'' | '.' | '_') {
+        if ch == '\'' {
+            prev_lower = false;
+        } else if matches!(ch, ' ' | '-' | '.' | '_') {
             if !out.ends_with('_') && !out.is_empty() {
                 out.push('_');
             }
