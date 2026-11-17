@@ -4,6 +4,21 @@ All notable changes to **Baron** are documented in this single consolidated chan
 
 ---
 
+## [v0.1.0-dev.11] — 2026-11-17
+
+### Added
+- **Live LCU Account Auto-Sync & Direct OP.GG Rune Import (`crates/baron-lcu`):** Added HTTPS League Client integration (`fetch_lcu_player_context`, `import_rune_page_to_lcu`, `fetch_lcu_owned_skins`) reading the logged-in League of Legends player's Riot ID (`gameName#tagLine`), region, summoner level, Solo/Duo & Flex standing, active Champ Select draft pick (preserving ranked lobby anonymity), and owned skin inventory automatically with zero app account login required.
+- **Full OP.GG MCP Live Data Integration (`crates/baron-riot`, `src-tauri`):** Added a pure-Rust OP.GG TOON-to-JSON parser (`parse_toon_or_json`) and live IPC commands (`get_opgg_champion_analysis`, `get_opgg_summoner_overview`, `get_opgg_game_detail`, `get_opgg_leaderboard`, `get_opgg_discounted_skins`, `get_opgg_esports_results`, `get_opgg_matchup_guide`, `get_opgg_regions`) dynamically fetching OP.GG's supported server regions (`KR`, `BR`, `EUNE`, `EUW`, `LAN`, `LAS`, `NA`, `OCE`, `RU`, `TR`, `JP`, `TW`, `VN`, `ME`, `SEA`).
+- **OP.GG-Style Champion Build View:** Clicking any champion row in `Tierlist & Builds` opens a full live build sheet with primary/secondary runes, stat shards, summoner spells, skill max priority & 15-level grid, starter/boots/core/late items, favorable/hard matchups, and 1-click **"Import Runes (`Baron: <Champion>`)"** directly into League Client `/lol-perks/v1/pages`.
+- **System Tray Support:** Enabled Tauri `tray-icon` with `Show Baron`, `Hide to Tray`, and `Quit Baron` menu items plus minimize/hide-to-tray close interception on the main desktop window.
+
+### Changed
+- **Removed Mock Data:** Deleted `frontend/src/data/mockDpm.ts`, removed all sample profiles (`Hide on bush` / `Nyx`), sample tier rows, sample match ledgers, and hardcoded fallback rune IDs; gated `sample_dashboard_data()` and `sample_owned_skins()` behind `#[cfg(test)]` only.
+- **Sidebar Polish & 21st.dev Icons:** Replaced sidebar route glyphs with MIT `Hugeicons` vector components (`frontend/src/components/icons/SidebarIcons.tsx`), removed the rotated square arrow diamond from collapsed sidebar tooltips (`showArrow={false}`), and connected the bottom-left account footer directly to the local LCU / OP.GG active summoner.
+
+### Fixed
+- **Windows Taskbar & NSIS Installer Icon Refresh:** Applied `win.set_icon(...)` at Tauri window setup, added Cargo rerun triggers for `src-tauri/icons/*`, closed stale background `Baron.exe` processes, removed cached `.lnk` shortcuts before recreation, and invoked `SHChangeNotify(0x08000000)` on NSIS install and uninstall.
+
 ## [v0.1.0-dev.10] — 2026-11-17
 
 ### Changed
