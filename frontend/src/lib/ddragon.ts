@@ -195,7 +195,11 @@ export function statShardLabel(shardId: number): string {
 }
 
 export function runeIconUrl(iconPath: string): string {
-  return `https://ddragon.leagueoflegends.com/cdn/img/${iconPath}`;
+  if (!iconPath) return "";
+  if (iconPath.startsWith("http://") || iconPath.startsWith("https://")) {
+    return iconPath;
+  }
+  return `https://ddragon.leagueoflegends.com/cdn/img/${iconPath.replace(/^\/+/, "")}`;
 }
 
 export const RUNE_STYLE_ICON_FALLBACK: Record<number, string> = {
@@ -281,4 +285,233 @@ export function fetchChampionIdNameMap(
     .catch(() => ({}));
   champIdCache.set(ddVersion, req);
   return req;
+}
+
+export interface StatShardMeta {
+  id: number;
+  name: string;
+  iconUrl: string;
+}
+
+const STAT_SHARD_CDN =
+  "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/perk-images/statmods";
+
+const STAT_SHARD_ICONS: Record<number, string> = {
+  5001: `${STAT_SHARD_CDN}/statmodshealthscalingicon.png`,
+  5005: `${STAT_SHARD_CDN}/statmodsattackspeedicon.png`,
+  5007: `${STAT_SHARD_CDN}/statmodscdrscalingicon.png`,
+  5008: `${STAT_SHARD_CDN}/statmodsadaptiveforceicon.png`,
+  5010: `${STAT_SHARD_CDN}/statmodsmovementspeedicon.png`,
+  5011: `${STAT_SHARD_CDN}/statmodshealthplusicon.png`,
+  5013: `${STAT_SHARD_CDN}/statmodstenacityicon.png`,
+};
+
+export function statShardIconUrl(id: number): string {
+  return STAT_SHARD_ICONS[id] ?? `${STAT_SHARD_CDN}/statmodsadaptiveforceicon.png`;
+}
+
+export const STAT_SHARD_MATRIX: StatShardMeta[][] = [
+  [
+    { id: 5008, name: "Adaptive Force (+9)", iconUrl: statShardIconUrl(5008) },
+    { id: 5005, name: "Attack Speed (+10%)", iconUrl: statShardIconUrl(5005) },
+    { id: 5007, name: "Ability Haste (+8)", iconUrl: statShardIconUrl(5007) },
+  ],
+  [
+    { id: 5008, name: "Adaptive Force (+9)", iconUrl: statShardIconUrl(5008) },
+    { id: 5010, name: "Move Speed (+2.5%)", iconUrl: statShardIconUrl(5010) },
+    { id: 5001, name: "Health Scaling (+10-180)", iconUrl: statShardIconUrl(5001) },
+  ],
+  [
+    { id: 5011, name: "Health (+65)", iconUrl: statShardIconUrl(5011) },
+    { id: 5013, name: "Tenacity & Slow Resist (+15%)", iconUrl: statShardIconUrl(5013) },
+    { id: 5001, name: "Health Scaling (+10-180)", iconUrl: statShardIconUrl(5001) },
+  ],
+];
+
+export interface RuneTreeNode {
+  id: number;
+  key: string;
+  name: string;
+  icon: string;
+  shortDesc: string;
+}
+
+export interface RuneTreeSlot {
+  runes: RuneTreeNode[];
+}
+
+export interface RuneTreeMeta {
+  id: number;
+  key: string;
+  name: string;
+  icon: string;
+  slots: RuneTreeSlot[];
+}
+
+export interface ChampionSpellEntry {
+  slot: "Q" | "W" | "E" | "R";
+  id: string;
+  name: string;
+  description: string;
+  cooldownBurn: string;
+  costBurn: string;
+  imageUrl: string;
+}
+
+export interface ChampionSpellData {
+  id: string;
+  key: string;
+  name: string;
+  title: string;
+  passive: {
+    name: string;
+    description: string;
+    imageUrl: string;
+  };
+  spells: ChampionSpellEntry[];
+}
+
+export interface ItemCatalogEntry {
+  id: number;
+  name: string;
+  plaintext: string;
+  gold: number;
+}
+
+const runeTreesCache = new Map<string, Record<number, RuneTreeMeta>>();
+const championSpellsCache = new Map<string, ChampionSpellData>();
+const itemCatalogCache = new Map<string, Record<number, ItemCatalogEntry>>();
+
+export async function fetchRuneTreesMap(
+  version: string = LATEST_DDRAGON,
+): Promise<Record<number, RuneTreeMeta>> {
+  const v = version || LATEST_DDRAGON;
+  const hit = runeTreesCache.get(v);
+  if (hit) return hit;
+  try {
+    const res = await fetch(`https://ddragon.leagueoflegends.com/cdn/${v}/data/en_US/runesReforged.json`);
+    if (!res.ok) return {};
+    const trees = (await res.json()) as RuneTreeMeta[];
+    const map: Record<number, RuneTreeMeta> = {};
+    for (const t of trees) {
+      map[t.id] = {
+        id: t.id,
+        key: t.key,
+        name: t.name,
+        icon: `https://ddragon.leagueoflegends.com/cdn/img/${t.icon}`,
+        slots: (t.slots ?? []).map((slot) => ({
+          runes: (slot.runes ?? []).map((r) => ({
+            id: r.id,
+            key: r.key,
+            name: r.name,
+            icon: `https://ddragon.leagueoflegends.com/cdn/img/${r.icon}`,
+            shortDesc: r.shortDesc ?? "",
+          })),
+        })),
+      };
+    }
+    runeTreesCache.set(v, map);
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+export async function fetchChampionSpellData(
+  champNameOrKey: string,
+  version: string = LATEST_DDRAGON,
+): Promise<ChampionSpellData | null> {
+  const v = version || LATEST_DDRAGON;
+  const key = champSquareUrl(champNameOrKey, v).split("/").pop()?.replace(/\.png$/, "") || champNameOrKey;
+  if (!key) return null;
+  const cacheKey = `${v}:${key}`;
+  const hit = championSpellsCache.get(cacheKey);
+  if (hit) return hit;
+  try {
+    const res = await fetch(
+      `https://ddragon.leagueoflegends.com/cdn/${v}/data/en_US/champion/${encodeURIComponent(key)}.json`,
+    );
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      data?: Record<
+        string,
+        {
+          id: string;
+          key: string;
+          name: string;
+          title: string;
+          passive?: { name: string; description: string; image?: { full: string } };
+          spells?: {
+            id: string;
+            name: string;
+            description: string;
+            cooldownBurn?: string;
+            costBurn?: string;
+            image?: { full: string };
+          }[];
+        }
+      >;
+    };
+    const raw = body.data?.[key] ?? Object.values(body.data ?? {})[0];
+    if (!raw) return null;
+    const slots: ("Q" | "W" | "E" | "R")[] = ["Q", "W", "E", "R"];
+    const data: ChampionSpellData = {
+      id: raw.id,
+      key: raw.key,
+      name: raw.name,
+      title: raw.title,
+      passive: {
+        name: raw.passive?.name ?? "Passive",
+        description: raw.passive?.description ?? "",
+        imageUrl: raw.passive?.image?.full
+          ? `https://ddragon.leagueoflegends.com/cdn/${v}/img/passive/${raw.passive.image.full}`
+          : "",
+      },
+      spells: (raw.spells ?? []).slice(0, 4).map((sp, i) => ({
+        slot: slots[i] ?? "Q",
+        id: sp.id,
+        name: sp.name,
+        description: sp.description ?? "",
+        cooldownBurn: sp.cooldownBurn ?? "",
+        costBurn: sp.costBurn ?? "",
+        imageUrl: sp.image?.full
+          ? `https://ddragon.leagueoflegends.com/cdn/${v}/img/spell/${sp.image.full}`
+          : "",
+      })),
+    };
+    championSpellsCache.set(cacheKey, data);
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchItemCatalogMap(
+  version: string = LATEST_DDRAGON,
+): Promise<Record<number, ItemCatalogEntry>> {
+  const v = version || LATEST_DDRAGON;
+  const hit = itemCatalogCache.get(v);
+  if (hit) return hit;
+  try {
+    const res = await fetch(`https://ddragon.leagueoflegends.com/cdn/${v}/data/en_US/item.json`);
+    if (!res.ok) return {};
+    const body = (await res.json()) as {
+      data?: Record<string, { name?: string; plaintext?: string; gold?: { total?: number } }>;
+    };
+    const out: Record<number, ItemCatalogEntry> = {};
+    for (const [idStr, item] of Object.entries(body.data ?? {})) {
+      const id = Number(idStr);
+      if (!Number.isFinite(id)) continue;
+      out[id] = {
+        id,
+        name: item.name ?? `Item ${id}`,
+        plaintext: item.plaintext ?? "",
+        gold: item.gold?.total ?? 0,
+      };
+    }
+    itemCatalogCache.set(v, out);
+    return out;
+  } catch {
+    return {};
+  }
 }

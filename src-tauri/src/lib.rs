@@ -298,6 +298,78 @@ async fn get_opgg_regions() -> Result<Vec<baron_riot::OpggRegionOption>, String>
 }
 
 #[tauri::command]
+async fn get_opgg_mode_tier_list(
+    mode: String,
+    role: Option<Role>,
+    tier: Option<String>,
+) -> Result<Vec<baron_riot::OpggModeTierEntry>, String> {
+    let target_role = role.unwrap_or(Role::Unknown);
+    let target_tier = tier.unwrap_or_else(|| "emerald_plus".to_string());
+    tauri::async_runtime::spawn_blocking(move || {
+        baron_riot::fetch_opgg_mode_tier_list(&mode, target_role, &target_tier)
+    })
+    .await
+    .map_err(|e| format!("OP.GG mode tier list task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_opgg_champion_bundle(
+    champion: String,
+    mode: Option<String>,
+    role: Option<Role>,
+    tier: Option<String>,
+    region: Option<String>,
+) -> Result<Value, String> {
+    let target_mode = mode.unwrap_or_else(|| "ranked".to_string());
+    let target_role = role.unwrap_or(Role::Unknown);
+    let target_tier = tier.unwrap_or_else(|| "emerald_plus".to_string());
+    let target_region = region.unwrap_or_else(|| "NA".to_string());
+    tauri::async_runtime::spawn_blocking(move || {
+        baron_riot::fetch_opgg_champion_bundle(
+            &champion,
+            &target_mode,
+            target_role,
+            &target_tier,
+            &target_region,
+        )
+    })
+    .await
+    .map_err(|e| format!("OP.GG champion bundle task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_ugg_champion_build(
+    champion: String,
+    patch: Option<String>,
+    role: Option<Role>,
+) -> Result<baron_riot::UggBuildResponse, String> {
+    let target_patch = patch.unwrap_or_else(|| baron_riot::LATEST_PATCH.to_string());
+    let target_role = role.unwrap_or(Role::Unknown);
+    tauri::async_runtime::spawn_blocking(move || {
+        baron_riot::fetch_ugg_champion_build(&champion, &target_patch, target_role)
+    })
+    .await
+    .map_err(|e| format!("U.GG build task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_meraki_champion_kit(
+    champion: String,
+) -> Result<baron_riot::MerakiChampionDetail, String> {
+    tauri::async_runtime::spawn_blocking(move || baron_riot::fetch_meraki_champion_kit(&champion))
+        .await
+        .map_err(|e| format!("Meraki kit task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_provider_diagnostics(
+    patch: Option<String>,
+) -> Result<Vec<baron_riot::ProviderDiagnostic>, String> {
+    let target_patch = patch.unwrap_or_else(|| baron_riot::LATEST_PATCH.to_string());
+    Ok(baron_riot::get_provider_diagnostics(&target_patch))
+}
+
+#[tauri::command]
 async fn get_lcu_owned_skins() -> Result<Vec<OwnedSkinEntry>, String> {
     tauri::async_runtime::spawn_blocking(fetch_lcu_owned_skins)
         .await
@@ -379,6 +451,11 @@ pub fn run() {
             get_opgg_esports_results,
             get_opgg_matchup_guide,
             get_opgg_regions,
+            get_opgg_mode_tier_list,
+            get_opgg_champion_bundle,
+            get_ugg_champion_build,
+            get_meraki_champion_kit,
+            get_provider_diagnostics,
             build_baron_rune_page_payload,
             get_lcu_status,
             get_lcu_player_context,

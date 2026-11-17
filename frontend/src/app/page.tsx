@@ -388,11 +388,15 @@ export default function BaronAppPage() {
           )}
           {route === "tierlist" && (
             <TierListView
+              key={buildTarget ? `${buildTarget.champion}:${buildTarget.role}` : "tierlist-root"}
               activeProviderId={activeProviderId}
               activeProviderLabel={activeProvider?.label ?? "OP.GG"}
               refreshNonce={refreshNonce}
               searchFilter={searchQuery}
               initialSelectedChampion={buildTarget}
+              patch={patch}
+              ddVersion={ddVersion}
+              defaultRegion={lcuPlayer?.opggRegion ?? "NA"}
             />
           )}
           {route === "leaderboards" && (

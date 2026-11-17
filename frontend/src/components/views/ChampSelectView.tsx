@@ -5,16 +5,13 @@ import { AlertCircle, Check, Download, Sparkles, Swords } from "lucide-react";
 import { LaneIcon } from "@/components/icons/LolIcons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RuneMatrixPanel } from "@/components/views/RuneMatrixPanel";
 import {
   champSplashUrl,
   champSquareUrl,
   fetchChampionIdNameMap,
-  fetchRuneMetadataMap,
   itemIconUrl,
-  RUNE_STYLE_ICON_FALLBACK,
-  runeIconUrl,
   spellIdUrl,
-  statShardLabel,
 } from "@/lib/ddragon";
 import {
   asList,
@@ -68,7 +65,6 @@ export function ChampSelectView({
   const [role, setRole] = useState<TierRole>("Middle");
   const [metaTopChampion, setMetaTopChampion] = useState<string | null>(null);
   const [champIdMap, setChampIdMap] = useState<Record<number, { id: string; name: string }>>({});
-  const [runeMeta, setRuneMeta] = useState<Record<number, { name: string; icon: string }>>({});
   const [importingRunes, setImportingRunes] = useState(false);
   const [runeStatus, setRuneStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [state, setState] = useState<{
@@ -79,9 +75,6 @@ export function ChampSelectView({
 
   useEffect(() => {
     let cancelled = false;
-    fetchRuneMetadataMap(ddVersion).then((m) => {
-      if (!cancelled) setRuneMeta(m);
-    });
     fetchChampionIdNameMap(ddVersion).then((m) => {
       if (!cancelled) setChampIdMap(m);
     });
@@ -388,79 +381,23 @@ export function ChampSelectView({
               )}
             </div>
 
-            {topRune && (
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border border-baron-border bg-baron-inset p-3">
-                  <div className="mb-2 flex items-center gap-2 text-[12px] font-bold text-baron-ink">
-                    <img
-                      src={runeIconUrl(
-                        runeMeta[topRune.primary_page_id]?.icon ??
-                          RUNE_STYLE_ICON_FALLBACK[topRune.primary_page_id] ??
-                          RUNE_STYLE_ICON_FALLBACK[8000],
-                      )}
-                      alt={topRune.primary_page_name}
-                      className="h-5 w-5 rounded-full"
-                    />
-                    {topRune.primary_page_name}
-                  </div>
-                  <div className="space-y-1.5">
-                    {(topRune.primary_rune_ids ?? []).map((id, i) => (
-                      <div key={`${id}-${i}`} className="flex items-center gap-2 text-[12px]">
-                        {runeMeta[id]?.icon && (
-                          <img
-                            src={runeIconUrl(runeMeta[id].icon)}
-                            alt={topRune.primary_rune_names?.[i] ?? "Rune"}
-                            className="h-5 w-5 rounded-full"
-                          />
-                        )}
-                        <span className="text-baron-ink-secondary">
-                          {topRune.primary_rune_names?.[i] ?? `#${id}`}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-lg border border-baron-border bg-baron-inset p-3">
-                  <div className="mb-2 flex items-center gap-2 text-[12px] font-bold text-baron-ink">
-                    <img
-                      src={runeIconUrl(
-                        runeMeta[topRune.secondary_page_id]?.icon ??
-                          RUNE_STYLE_ICON_FALLBACK[topRune.secondary_page_id] ??
-                          RUNE_STYLE_ICON_FALLBACK[8200],
-                      )}
-                      alt={topRune.secondary_page_name}
-                      className="h-5 w-5 rounded-full"
-                    />
-                    {topRune.secondary_page_name}
-                  </div>
-                  <div className="space-y-1.5">
-                    {(topRune.secondary_rune_ids ?? []).map((id, i) => (
-                      <div key={`${id}-${i}`} className="flex items-center gap-2 text-[12px]">
-                        {runeMeta[id]?.icon && (
-                          <img
-                            src={runeIconUrl(runeMeta[id].icon)}
-                            alt={topRune.secondary_rune_names?.[i] ?? "Rune"}
-                            className="h-5 w-5 rounded-full"
-                          />
-                        )}
-                        <span className="text-baron-ink-secondary">
-                          {topRune.secondary_rune_names?.[i] ?? `#${id}`}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2.5 flex flex-wrap gap-1 border-t border-baron-border pt-2">
-                    {(topRune.stat_mod_ids ?? []).map((sid, i) => (
-                      <span
-                        key={`${sid}-${i}`}
-                        className="rounded bg-baron-surface px-1.5 py-0.5 text-[10.5px] text-baron-ink-secondary"
-                      >
-                        {statShardLabel(sid)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+            {asList(analysis?.data.runes).length > 0 && activeChampion && (
+              <div className="mt-3">
+                <RuneMatrixPanel
+                  championName={activeChampion}
+                  ddVersion={ddVersion}
+                  runePages={asList(analysis?.data.runes).map((r, idx) => ({
+                    id: idx + 1,
+                    primary_page_id: r.primary_page_id,
+                    primary_rune_ids: r.primary_rune_ids ?? [],
+                    secondary_page_id: r.secondary_page_id,
+                    secondary_rune_ids: r.secondary_rune_ids ?? [],
+                    stat_mod_ids: r.stat_mod_ids ?? [],
+                    play: r.play ?? 0,
+                    win: r.win ?? 0,
+                    pick_rate: r.pick_rate ?? 0,
+                  }))}
+                />
               </div>
             )}
 

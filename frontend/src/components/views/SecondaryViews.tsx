@@ -38,6 +38,7 @@ import {
   type ProviderMeta,
   type TierRole,
 } from "@/lib/tauri";
+import { ProviderDiagnosticsPanel } from "@/components/views/ProviderDiagnosticsPanel";
 import { useTheme, type ThemePreference } from "@/lib/theme";
 
 function formatDuration(secs = 0): string {
@@ -932,12 +933,13 @@ export function DataStudioView({
         <div className="divide-y divide-baron-border overflow-hidden rounded-xl border border-baron-border bg-baron-surface">
           {providers.map((p) => {
             const available = isProviderAvailable(p.id);
+            const partialLive = p.id === "ugg" || p.id === "merakicdn";
             const active = activeProviderId === p.id;
             return (
               <div
                 key={p.id}
                 className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${
-                  available ? "" : "opacity-55"
+                  available || partialLive ? "" : "opacity-55"
                 }`}
               >
                 <div className="min-w-0">
@@ -945,7 +947,13 @@ export function DataStudioView({
                     <span
                       aria-hidden="true"
                       className={`h-2 w-2 rounded-full ${
-                        available ? "bg-baron-emerald" : "bg-baron-ink-muted"
+                        available
+                          ? "bg-baron-emerald"
+                          : p.id === "ugg"
+                            ? "bg-baron-victory"
+                            : p.id === "merakicdn"
+                              ? "bg-baron-cyan"
+                              : "bg-baron-ink-muted"
                       }`}
                     />
                     <span className="text-[13px] font-bold text-baron-ink">{p.label}</span>
@@ -953,10 +961,20 @@ export function DataStudioView({
                       className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
                         available
                           ? "bg-baron-emerald/15 text-baron-emerald"
-                          : "bg-baron-elevated text-baron-ink-muted"
+                          : p.id === "ugg"
+                            ? "bg-baron-victory/15 text-baron-victory"
+                            : p.id === "merakicdn"
+                              ? "bg-baron-cyan/15 text-baron-cyan"
+                              : "bg-baron-elevated text-baron-ink-muted"
                       }`}
                     >
-                      {available ? "Live OP.GG MCP" : "Unavailable"}
+                      {available
+                        ? "Live OP.GG MCP"
+                        : p.id === "ugg"
+                          ? "Builds Live"
+                          : p.id === "merakicdn"
+                            ? "Kit Live"
+                            : "Unavailable"}
                     </span>
                   </div>
                   <div className="mt-1 truncate font-mono text-[11px] text-baron-ink-muted">
@@ -977,9 +995,17 @@ export function DataStudioView({
                     {active && <Check className="h-3.5 w-3.5" />}
                     <span>{active ? "Active Provider" : "Use Provider"}</span>
                   </button>
+                ) : p.id === "ugg" ? (
+                  <span className="rounded-md border border-baron-victory/30 bg-baron-victory/10 px-2.5 py-1 text-[11px] font-medium text-baron-victory">
+                    Builds Live (Tierlist 403)
+                  </span>
+                ) : p.id === "merakicdn" ? (
+                  <span className="rounded-md border border-baron-cyan/30 bg-baron-cyan/10 px-2.5 py-1 text-[11px] font-medium text-baron-cyan">
+                    Kit Reference Only
+                  </span>
                 ) : (
                   <span className="rounded-md border border-baron-border bg-baron-inset px-2.5 py-1 text-[11px] font-medium text-baron-ink-muted">
-                    Disabled (Unverified)
+                    Blocked / Token-Gated
                   </span>
                 )}
               </div>
@@ -1012,6 +1038,10 @@ export function DataStudioView({
           </p>
         </div>
       </section>
+
+      <div className="px-5 pb-6">
+        <ProviderDiagnosticsPanel patch={patch} />
+      </div>
     </div>
   );
 }
