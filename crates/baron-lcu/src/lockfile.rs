@@ -79,10 +79,11 @@ pub fn candidate_lockfile_paths() -> Vec<PathBuf> {
     let meta_yaml = PathBuf::from(
         r"C:\ProgramData\Riot Games\Metadata\league_of_legends.live\league_of_legends.live.product_settings.yaml",
     );
-    if let Ok(raw) = std::fs::read_to_string(&meta_yaml) {
-        if let Some(p) = parse_riot_install_yaml_lockfile(&raw) {
-            paths.push(p);
-        }
+    if let Some(p) = std::fs::read_to_string(&meta_yaml)
+        .ok()
+        .and_then(|raw| parse_riot_install_yaml_lockfile(&raw))
+    {
+        paths.push(p);
     }
     paths.push(PathBuf::from(r"C:\Riot Games\League of Legends\lockfile"));
     paths.push(PathBuf::from(r"D:\Riot Games\League of Legends\lockfile"));

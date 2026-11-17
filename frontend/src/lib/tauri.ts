@@ -71,7 +71,6 @@ export interface LcuRuneImportResult {
 
 export interface LcuOwnedSkinDto {
   skin_id: number;
-  champion_id: number;
   champion_name: string;
   name: string;
   is_base: boolean;

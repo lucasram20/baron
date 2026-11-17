@@ -130,15 +130,15 @@ fn find_active_lcu_lockfile() -> Option<(LcuLockfile, Client, Value)> {
         let Ok((client, base, auth)) = lcu_http_client(&lock) else {
             continue;
         };
-        if let Ok(summoner) =
-            lcu_get_json(&client, &base, &auth, "/lol-summoner/v1/current-summoner")
+        let Ok(summoner) = lcu_get_json(&client, &base, &auth, "/lol-summoner/v1/current-summoner")
+        else {
+            continue;
+        };
+        if summoner.get("summonerId").is_some()
+            || summoner.get("gameName").is_some()
+            || summoner.get("displayName").is_some()
         {
-            if summoner.get("summonerId").is_some()
-                || summoner.get("gameName").is_some()
-                || summoner.get("displayName").is_some()
-            {
-                return Some((lock, client, summoner));
-            }
+            return Some((lock, client, summoner));
         }
     }
     None
@@ -188,6 +188,26 @@ pub fn parse_lcu_ranked_stats(
     (solo, flex)
 }
 
+fn find_action_champion_id(json: &Value, local_cell: i64) -> i32 {
+    let Some(actions) = json.get("actions").and_then(|v| v.as_array()) else {
+        return 0;
+    };
+    let mut found = 0;
+    for items in actions.iter().filter_map(|group| group.as_array()) {
+        for action in items {
+            if action["actorCellId"].as_i64() == Some(local_cell)
+                && action["type"].as_str() == Some("pick")
+            {
+                let act_champ = json_i32(&action["championId"]).unwrap_or(0);
+                if act_champ > 0 {
+                    found = act_champ;
+                }
+            }
+        }
+    }
+    found
+}
+
 /// Parses active champion select picks cleanly from `/lol-champ-select/v1/session`.
 pub fn parse_lcu_champ_select(json: &Value) -> Option<LcuChampSelectContext> {
     let local_cell = json["localPlayerCellId"].as_i64()?;
@@ -201,22 +221,7 @@ pub fn parse_lcu_champ_select(json: &Value) -> Option<LcuChampSelectContext> {
         champion_id = json_i32(&local_member["championPickIntent"]).unwrap_or(0);
     }
     if champion_id <= 0 {
-        if let Some(actions) = json.get("actions").and_then(|v| v.as_array()) {
-            for group in actions {
-                if let Some(items) = group.as_array() {
-                    for action in items {
-                        if action["actorCellId"].as_i64() == Some(local_cell)
-                            && action["type"].as_str() == Some("pick")
-                        {
-                            let act_champ = json_i32(&action["championId"]).unwrap_or(0);
-                            if act_champ > 0 {
-                                champion_id = act_champ;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        champion_id = find_action_champion_id(json, local_cell);
     }
 
     let enemy_champion_ids = json
@@ -253,7 +258,6 @@ pub fn parse_lcu_owned_skins(json: &Value) -> Vec<OwnedSkinEntry> {
     };
     let mut owned = Vec::new();
     for champ in champions {
-        let champ_id = json_i32(&champ["id"]).unwrap_or(0);
         let champ_name = champ["name"].as_str().unwrap_or("").to_string();
         let Some(skins) = champ.get("skins").and_then(|s| s.as_array()) else {
             continue;
@@ -270,12 +274,11 @@ pub fn parse_lcu_owned_skins(json: &Value) -> Vec<OwnedSkinEntry> {
                 .unwrap_or("NoRarity");
             owned.push(OwnedSkinEntry {
                 skin_id: json_i32(&skin["id"]).unwrap_or(0),
-                champion_id: json_i32(&skin["championId"]).unwrap_or(champ_id),
                 champion_name: champ_name.clone(),
                 name: skin["name"].as_str().unwrap_or("Unknown Skin").to_string(),
                 is_base,
                 owned: is_owned,
-                rarity: SkinRarity::from_lcu_rarity(rarity_str),
+                rarity: SkinRarity::from_cdragon_str(rarity_str),
             });
         }
     }
