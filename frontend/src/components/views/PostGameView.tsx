@@ -290,7 +290,7 @@ export function PostGameView({
       {tab === "scoreboard" && (
         <div className="divide-y divide-baron-border">
           {teams.map((tm) => {
-            const isBlue = tm.key.toUpperCase() === "BLUE";
+            const isBlue = (tm.key ?? "").toUpperCase() === "BLUE";
             const isWin = tm.game_stat?.is_win ?? false;
             const side: "blue" | "red" = isBlue ? "blue" : "red";
             const players = tm.participants ?? [];

@@ -137,6 +137,21 @@ pub fn fetch_opgg_champion_analysis(
             "champion": slug,
             "position": opgg_mcp_position(role),
             "lang": "en_US",
+            "desired_output_fields": [
+                "champion",
+                "position",
+                "data.damage_type",
+                "data.summary.average_stats.{ban_rate,kda,pick_rate,play,rank,tier,win_rate}",
+                "data.runes.{id,pick_rate,play,primary_page_id,primary_page_name,primary_rune_ids[],primary_rune_names[],secondary_page_id,secondary_page_name,secondary_rune_ids[],secondary_rune_names[],stat_mod_ids[],stat_mod_names[],win}",
+                "data.core_items.{ids[],ids_names[],pick_rate,play,win}",
+                "data.starter_items.{ids[],ids_names[],pick_rate,play,win}",
+                "data.boots.{ids[],ids_names[],pick_rate,play,win}",
+                "data.summoner_spells.{ids[],ids_names[],pick_rate,play,win}",
+                "data.skills.{order[],pick_rate,play,win}",
+                "data.skill_masteries.{ids[],pick_rate,play,win}",
+                "data.weak_counters[].{champion_id,champion_name,counter_win_rate,my_win_rate,play,win,win_rate}",
+                "data.strong_counters[].{champion_id,champion_name,counter_win_rate,my_win_rate,play,win,win_rate}"
+            ],
             "client_app": "baron/0.1"
         }),
     )
@@ -156,6 +171,16 @@ pub fn fetch_opgg_summoner_profile(
             "tag_line": tag_line.trim(),
             "region": region.trim().to_ascii_uppercase(),
             "lang": "en_US",
+            "desired_output_fields": [
+                "data.summoner.{game_name,tagline,region,level,profile_image_url,puuid}",
+                "data.summoner.ladder_rank.{rank,total}",
+                "data.summoner.league_stats[].{game_type,win,lose,is_hot_streak}",
+                "data.summoner.league_stats[].tier_info.{tier,division,lp,level,tier_image_url}",
+                "data.summoner.lp_histories[].{created_at,elo_point}",
+                "data.summoner.lp_histories[].tier_info.{tier,division,lp}",
+                "data.summoner.most_champions.champion_stats[].{id,champion_name,play,win,lose,kill,death,assist,op_score}",
+                "data.summoner.ranked_most_champions.my_champion_stats[].{id,champion_name,play,win,lose}"
+            ],
             "client_app": "baron/0.1"
         }),
     )
@@ -177,6 +202,16 @@ pub fn fetch_opgg_summoner_matches(
             "region": region.trim().to_ascii_uppercase(),
             "lang": "en_US",
             "limit": limit.clamp(5, 20),
+            "desired_output_fields": [
+                "data.game_history[].{id,created_at,game_map,game_type,game_length_second}",
+                "data.game_history[].average_tier_info.{tier,division}",
+                "data.game_history[].participants[].{champion_id,champion_name,team_key,position,items[],items_names[],spells[]}",
+                "data.game_history[].participants[].summoner.{puuid,game_name,tagline,profile_image_url}",
+                "data.game_history[].participants[].rune.{primary_page_id,primary_rune_id,secondary_page_id}",
+                "data.game_history[].participants[].stats.{champion_level,kill,death,assist,minion_kill,neutral_minion_kill,gold_earned,total_damage_dealt_to_champions,total_damage_taken,vision_wards_bought_in_game,ward_place,result,op_score,op_score_rank}",
+                "data.game_history[].teams[].{key,banned_champions_names[]}",
+                "data.game_history[].teams[].game_stat.{is_win,champion_kill,tower_kill,dragon_kill,baron_kill,rift_herald_kill,horde_kill,gold_earned}"
+            ],
             "client_app": "baron/0.1"
         }),
     )
@@ -202,6 +237,16 @@ pub fn fetch_opgg_game_detail(
             "game_id": game_id.trim(),
             "created_at": created_at.trim(),
             "focus_riot_id": focus_riot_id,
+            "desired_output_fields": [
+                "data.game_detail.{id,created_at,game_map,game_type,game_length_second}",
+                "data.game_detail.average_tier_info.{tier,division}",
+                "data.game_detail.teams[].{key,banned_champions_names[]}",
+                "data.game_detail.teams[].game_stat.{is_win,champion_kill,tower_kill,dragon_kill,baron_kill,rift_herald_kill,horde_kill,gold_earned}",
+                "data.game_detail.teams[].participants[].{is_target,champion_id,champion_name,team_key,position,items[],items_names[],spells[]}",
+                "data.game_detail.teams[].participants[].summoner.{puuid,game_name,tagline}",
+                "data.game_detail.teams[].participants[].rune.{primary_page_id,primary_rune_id,secondary_page_id}",
+                "data.game_detail.teams[].participants[].stats.{champion_level,kill,death,assist,minion_kill,neutral_minion_kill,gold_earned,total_damage_dealt_to_champions,total_damage_taken,vision_wards_bought_in_game,ward_place,result,op_score,op_score_rank}"
+            ],
             "client_app": "baron/0.1"
         }),
     )
@@ -318,9 +363,245 @@ pub fn fetch_opgg_discounted_skins() -> Result<serde_json::Value, String> {
         "lol_list_discounted_skins",
         serde_json::json!({
             "lang": "en_US",
+            "desired_output_fields": [
+                "lang",
+                "data[].{champion_id,champion_key,champion_name,cost,currency,discount_rate,ended_at,skin_id,skin_name,started_at}"
+            ],
             "client_app": "baron/0.1"
         }),
     )
+}
+
+fn ranked_tier_weight(tier: &str) -> u32 {
+    match tier.trim().to_ascii_uppercase().as_str() {
+        "CHALLENGER" => 10,
+        "GRANDMASTER" => 9,
+        "MASTER" => 8,
+        "DIAMOND" => 7,
+        "EMERALD" => 6,
+        "PLATINUM" => 5,
+        "GOLD" => 4,
+        "SILVER" => 3,
+        "BRONZE" => 2,
+        "IRON" => 1,
+        _ => 0,
+    }
+}
+
+fn best_ranked_standing_from_summoner(
+    summoner: &serde_json::Value,
+) -> (String, u32, i64, i64, i64) {
+    let stats = summoner
+        .get("league_stats")
+        .and_then(|v| v.as_array())
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+
+    let pick = stats
+        .iter()
+        .find(|s| {
+            s.get("game_type")
+                .and_then(|g| g.as_str())
+                .is_some_and(|g| g.eq_ignore_ascii_case("SOLORANKED"))
+                && s.get("tier_info")
+                    .and_then(|t| t.get("tier"))
+                    .and_then(|t| t.as_str())
+                    .is_some_and(|t| !t.trim().is_empty())
+        })
+        .or_else(|| {
+            stats.iter().find(|s| {
+                s.get("tier_info")
+                    .and_then(|t| t.get("tier"))
+                    .and_then(|t| t.as_str())
+                    .is_some_and(|t| !t.trim().is_empty())
+            })
+        });
+
+    if let Some(entry) = pick {
+        let ti = entry.get("tier_info").unwrap_or(&serde_json::Value::Null);
+        let tier = ti
+            .get("tier")
+            .and_then(|v| v.as_str())
+            .unwrap_or("UNRANKED")
+            .to_ascii_uppercase();
+        let division = ti.get("division").and_then(|v| v.as_u64()).unwrap_or(1) as u32;
+        let lp = ti.get("lp").and_then(|v| v.as_i64()).unwrap_or(0);
+        let win = entry.get("win").and_then(|v| v.as_i64()).unwrap_or(0);
+        let lose = entry.get("lose").and_then(|v| v.as_i64()).unwrap_or(0);
+        (tier, division, lp, win, lose)
+    } else {
+        ("UNRANKED".to_string(), 1, 0, 0, 0)
+    }
+}
+
+fn collect_ranked_players_for_region(region: &str, champs: &[&str]) -> serde_json::Value {
+    let reg_upper = region.trim().to_ascii_uppercase();
+    let per_champ: Vec<(&str, Result<serde_json::Value, String>)> = std::thread::scope(|s| {
+        let handles: Vec<_> = champs
+            .iter()
+            .map(|&ch| {
+                let reg_clone = reg_upper.clone();
+                s.spawn(move || (ch, fetch_opgg_champion_leaderboard(&reg_clone, ch)))
+            })
+            .collect();
+        handles.into_iter().filter_map(|h| h.join().ok()).collect()
+    });
+
+    let mut by_key: std::collections::HashMap<String, (u64, serde_json::Value)> =
+        std::collections::HashMap::new();
+    let mut last_err: Option<String> = None;
+
+    for (champ_label, res) in per_champ {
+        match res {
+            Ok(val) => {
+                let Some(rows) = val.get("leaderboard").and_then(|v| v.as_array()) else {
+                    continue;
+                };
+                for row in rows {
+                    let Some(summ) = row.get("summoner") else {
+                        continue;
+                    };
+                    let game_name = summ
+                        .get("game_name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .trim();
+                    let tagline = summ
+                        .get("tagline")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .trim();
+                    if game_name.is_empty() {
+                        continue;
+                    }
+                    let (tier, division, lp, solo_win, solo_lose) =
+                        best_ranked_standing_from_summoner(summ);
+                    let tier_w = ranked_tier_weight(&tier);
+                    let sort_score = (tier_w as u64) * 1_000_000
+                        + ((5u32.saturating_sub(division.min(4))) as u64) * 100_000
+                        + (lp.max(0) as u64);
+
+                    let dedupe_key = format!(
+                        "{}#{}",
+                        game_name.to_ascii_lowercase(),
+                        tagline.to_ascii_lowercase()
+                    );
+                    let candidate = serde_json::json!({
+                        "region": reg_upper,
+                        "gameName": game_name,
+                        "tagLine": tagline,
+                        "level": summ.get("level").and_then(|v| v.as_u64()).unwrap_or(0),
+                        "profileImageUrl": summ.get("profile_image_url").and_then(|v| v.as_str()).unwrap_or(""),
+                        "tier": tier,
+                        "division": division,
+                        "lp": lp,
+                        "wins": solo_win,
+                        "losses": solo_lose,
+                        "signatureChampion": champ_label,
+                        "mostChampionStat": row.get("most_champion_stat").cloned().unwrap_or(serde_json::Value::Null),
+                    });
+
+                    match by_key.get(&dedupe_key) {
+                        Some((existing_score, _)) if *existing_score >= sort_score => {}
+                        _ => {
+                            by_key.insert(dedupe_key, (sort_score, candidate));
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                last_err = Some(e);
+            }
+        }
+    }
+
+    let mut ranked: Vec<(u64, serde_json::Value)> = by_key.into_values().collect();
+    ranked.sort_by(|a, b| b.0.cmp(&a.0));
+    let players: Vec<serde_json::Value> = ranked
+        .into_iter()
+        .enumerate()
+        .map(|(idx, (_, mut obj))| {
+            if let Some(map) = obj.as_object_mut() {
+                map.insert("rank".to_string(), serde_json::json!(idx + 1));
+            }
+            obj
+        })
+        .collect();
+
+    serde_json::json!({
+        "region": reg_upper,
+        "players": players,
+        "error": if players.is_empty() { last_err.map(serde_json::Value::String).unwrap_or(serde_json::Value::Null) } else { serde_json::Value::Null }
+    })
+}
+
+/// Fetches live Ranked Solo/Duo Master+/GM/Challenger player leaderboards across one or all 15 League regions
+/// by aggregating & deduplicating OP.GG MCP's regional Master+ player pools and ranking strictly by Solo/Duo Tier + LP.
+pub fn fetch_opgg_ranked_player_leaderboard(
+    region: Option<&str>,
+    regions: &[String],
+) -> Result<serde_json::Value, String> {
+    if let Some(single) = region
+        .map(str::trim)
+        .filter(|r| !r.is_empty() && !r.eq_ignore_ascii_case("ALL"))
+    {
+        let champs = ["Aatrox", "Lee Sin", "Ahri", "Jinx", "Thresh"];
+        let entry = collect_ranked_players_for_region(single, &champs);
+        return Ok(serde_json::json!({
+            "mode": "single",
+            "regions": [entry],
+        }));
+    }
+
+    let target_regions: Vec<String> = if regions.is_empty() {
+        [
+            "KR", "EUW", "NA", "EUNE", "VN", "BR", "SEA", "TW", "JP", "TR", "LAN", "LAS", "OCE",
+            "RU", "ME",
+        ]
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect()
+    } else {
+        regions
+            .iter()
+            .map(|r| r.trim().to_ascii_uppercase())
+            .filter(|r| !r.is_empty())
+            .take(15)
+            .collect()
+    };
+
+    let mut results = Vec::with_capacity(target_regions.len());
+    // 2 cross-role high-volume champions per region in batches of 5 regions keeps all-15-regions load under ~2s.
+    let overview_champs = ["Lee Sin", "Ahri"];
+    for batch in target_regions.chunks(5) {
+        let batch_out: Vec<serde_json::Value> = std::thread::scope(|s| {
+            let handles: Vec<_> = batch
+                .iter()
+                .map(|reg| {
+                    let reg_clone = reg.clone();
+                    s.spawn(move || collect_ranked_players_for_region(&reg_clone, &overview_champs))
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|h| {
+                    h.join().unwrap_or_else(|_| {
+                        serde_json::json!({
+                            "region": "UNKNOWN",
+                            "players": [],
+                            "error": "Ranked leaderboard thread panicked"
+                        })
+                    })
+                })
+                .collect()
+        });
+        results.extend(batch_out);
+    }
+
+    Ok(serde_json::json!({
+        "mode": "all",
+        "regions": results,
+    }))
 }
 
 /// Fetch recent LoL esports match results and schedules from OP.GG MCP.
@@ -474,5 +755,22 @@ mod tests {
         let tier_json = serde_json::to_string(&tier_entry).unwrap();
         assert!(parse_fallback_build_json(FallbackProvider::OpGg, &tier_json).is_err());
         assert!(parse_fallback_tier_list_json(FallbackProvider::UGg, &tier_json).is_err());
+    }
+
+    #[test]
+    fn test_ranked_standing_extraction_handles_null_tiers() {
+        let summ = serde_json::json!({
+            "league_stats": [
+                { "game_type": "SOLORANKED", "tier_info": { "tier": null, "division": null, "lp": null }, "win": 0, "lose": 0 },
+                { "game_type": "FLEXRANKED", "tier_info": { "tier": "GRANDMASTER", "division": 1, "lp": 940 }, "win": 120, "lose": 90 }
+            ]
+        });
+        let (tier, div, lp, w, l) = best_ranked_standing_from_summoner(&summ);
+        assert_eq!(tier, "GRANDMASTER");
+        assert_eq!(div, 1);
+        assert_eq!(lp, 940);
+        assert_eq!((w, l), (120, 90));
+        assert!(ranked_tier_weight("CHALLENGER") > ranked_tier_weight("GRANDMASTER"));
+        assert!(ranked_tier_weight("GRANDMASTER") > ranked_tier_weight("MASTER"));
     }
 }

@@ -546,12 +546,49 @@ export async function fetchOpggLeaderboard(
   return invokeTauri<OpggLeaderboardResponse>("get_opgg_leaderboard", { region, champion });
 }
 
+export interface OpggRankedPlayerRow {
+  rank: number;
+  region: string;
+  gameName: string;
+  tagLine: string;
+  level: number;
+  profileImageUrl: string;
+  tier: string;
+  division: number;
+  lp: number;
+  wins: number;
+  losses: number;
+  signatureChampion: string;
+  mostChampionStat?: OpggLeaderboardRow["most_champion_stat"] | null;
+}
+
+export interface OpggRankedRegionBucket {
+  region: string;
+  players: OpggRankedPlayerRow[];
+  error: string | null;
+}
+
+export interface OpggRankedLeaderboardResponse {
+  mode: "single" | "all";
+  regions: OpggRankedRegionBucket[];
+}
+
 export async function fetchOpggMultiRegionLeaderboard(
   champion: string,
   regions?: string[],
 ): Promise<OpggMultiRegionLeaderboardResponse> {
   return invokeTauri<OpggMultiRegionLeaderboardResponse>("get_opgg_multi_region_leaderboard", {
     champion,
+    regions: regions && regions.length > 0 ? regions : null,
+  });
+}
+
+export async function fetchOpggRankedLeaderboard(
+  region?: string,
+  regions?: string[],
+): Promise<OpggRankedLeaderboardResponse> {
+  return invokeTauri<OpggRankedLeaderboardResponse>("get_opgg_ranked_leaderboard", {
+    region: region && region !== "ALL" ? region : null,
     regions: regions && regions.length > 0 ? regions : null,
   });
 }
@@ -594,8 +631,27 @@ export async function fetchOpggEsportsResults(): Promise<OpggEsportsMatch[]> {
 }
 
 export interface OpggMatchupGuide {
+  lang?: string;
+  position?: string;
+  my_champion?: string;
+  opponent_champion?: string;
   summary?: { summary?: string };
   lane_strategy?: { lane_tips?: string[] };
+  data?: {
+    opponent_champion_tip?: string | null;
+    lane_advantage_champion?: string | null;
+    lane_solo_kill_advantage_champion?: string | null;
+    recommended_play_style?: string | null;
+    summoner_spells?: OpggItemOption[];
+    starter_items?: OpggItemOption[];
+    boots?: OpggItemOption[];
+    core_items?: OpggItemOption[];
+    last_items?: OpggItemOption[];
+    runes?: OpggRuneOption[];
+    skill_masteries?: OpggSkillMastery[];
+    skills?: OpggSkillBuild[];
+    counters?: { champion_id: number; champion_name?: string; play: number; win: number }[];
+  };
   [key: string]: unknown;
 }
 
@@ -1019,7 +1075,8 @@ export interface OpggMasteryLeaderEntry {
     level?: number;
     profile_image_url?: string;
     league_stats?: {
-      tier_info?: { tier?: string; division?: number; lp?: number };
+      game_type?: string;
+      tier_info?: { tier?: string | null; division?: number; lp?: number };
     }[];
   };
   most_champion_stat?: {
@@ -1243,11 +1300,13 @@ export async function fetchOpggModeTierList(
     return mapped.toSorted((a, b) => a.rank - b.rank);
   }
 
+  const tracksRankedPatch =
+    mode === "ranked" || mode === "flex" || mode === "aram" || mode === "classic";
   const baseUrl =
     mode === "ranked" || mode === "flex" || mode === "aram"
       ? `https://lol-api-champion.op.gg/api/global/champions/${mode}?tier=${encodeURIComponent(tier)}`
       : `https://lol-api-champion.op.gg/api/global/champions/${mode}`;
-  const url = appendVersionParam(baseUrl, patch);
+  const url = tracksRankedPatch ? appendVersionParam(baseUrl, patch) : baseUrl;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} loading OP.GG ${mode} tier list`);
   const body = (await res.json()) as { data?: Record<string, unknown>[] };
@@ -1352,8 +1411,10 @@ export async function fetchOpggChampionBundle(
               : mode === "brawl"
                 ? ""
                 : `https://lol-api-champion.op.gg/api/global/champions/${mode}/${resolved.id}/none`;
+  const tracksRankedPatch =
+    mode === "ranked" || mode === "flex" || mode === "aram" || mode === "classic";
   const desktopUrl =
-    rawDesktopUrl && mode !== "aram_mayhem" ? appendVersionParam(rawDesktopUrl, patch) : rawDesktopUrl;
+    rawDesktopUrl && tracksRankedPatch ? appendVersionParam(rawDesktopUrl, patch) : rawDesktopUrl;
 
   const errors: string[] = [];
   let desktopData: OpggDesktopData | null = null;

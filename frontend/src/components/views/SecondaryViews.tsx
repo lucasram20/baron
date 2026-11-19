@@ -14,6 +14,7 @@ import {
   Search,
   ShieldCheck,
   Sun,
+  Trophy,
 } from "lucide-react";
 import type { BaronRoute } from "@/components/shell/Sidebar";
 import { LaneIcon, RankCrest } from "@/components/icons/LolIcons";
@@ -47,11 +48,16 @@ import {
   ALL_OPGG_REGIONS,
   fetchOpggLeaderboard,
   fetchOpggMultiRegionLeaderboard,
+  fetchOpggRankedLeaderboard,
   isProviderAvailable,
   type LcuPlayerContext,
   type OpggLeaderboardResponse,
   type OpggLeaderboardRow,
+  type OpggMultiRegionEntry,
   type OpggMultiRegionLeaderboardResponse,
+  type OpggRankedLeaderboardResponse,
+  type OpggRankedPlayerRow,
+  type OpggRankedRegionBucket,
   type OpggRegionOption,
   type OpggSummonerOverview,
   type ProviderMeta,
@@ -66,7 +72,7 @@ function formatDuration(secs = 0): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function mapOpggPosToRole(pos?: string): TierRole {
+function mapOpggPosToRole(pos?: string | null): TierRole {
   switch ((pos ?? "").toUpperCase()) {
     case "TOP":
       return "Top";
@@ -82,19 +88,6 @@ function mapOpggPosToRole(pos?: string): TierRole {
       return "Middle";
   }
 }
-
-const TIER_WEIGHT: Record<string, number> = {
-  CHALLENGER: 10,
-  GRANDMASTER: 9,
-  MASTER: 8,
-  DIAMOND: 7,
-  EMERALD: 6,
-  PLATINUM: 5,
-  GOLD: 4,
-  SILVER: 3,
-  BRONZE: 2,
-  IRON: 1,
-};
 
 function mergeOpggRegions(dynamicRegions: OpggRegionOption[]): OpggRegionOption[] {
   const byCode = new Map<string, OpggRegionOption>();
@@ -115,23 +108,31 @@ function regionFullLabel(code: string, options: OpggRegionOption[]): string {
   return options.find((r) => r.code.toUpperCase() === upper)?.label ?? upper;
 }
 
+function hasLeagueTier(s: { tier_info?: { tier?: string | null } | null }): boolean {
+  return typeof s.tier_info?.tier === "string" && s.tier_info.tier.trim().length > 0;
+}
+
 function extractBestStanding(leagueStats?: {
-  game_type?: string;
-  tier_info?: { tier?: string; division?: number; lp?: number };
-  win?: number;
-  lose?: number;
-  is_hot_streak?: boolean;
+  game_type?: string | null;
+  tier_info?: { tier?: string | null; division?: number | null; lp?: number | null } | null;
+  win?: number | null;
+  lose?: number | null;
+  is_hot_streak?: boolean | null;
 }[]) {
   if (!Array.isArray(leagueStats) || leagueStats.length === 0) return undefined;
   return (
-    leagueStats.find((s) => (s.game_type ?? "").toUpperCase() === "SOLORANKED") ??
-    leagueStats.find((s) => (s.game_type ?? "").toUpperCase() === "FLEXRANKED") ??
-    leagueStats.find((s) => Boolean(s.tier_info?.tier)) ??
+    leagueStats.find(
+      (s) => (s.game_type ?? "").toUpperCase() === "SOLORANKED" && hasLeagueTier(s),
+    ) ??
+    leagueStats.find(
+      (s) => (s.game_type ?? "").toUpperCase() === "FLEXRANKED" && hasLeagueTier(s),
+    ) ??
+    leagueStats.find(hasLeagueTier) ??
     leagueStats[0]
   );
 }
 
-function computeMasteryStats(stat?: OpggLeaderboardRow["most_champion_stat"]) {
+function computeMasteryStats(stat?: OpggLeaderboardRow["most_champion_stat"] | null) {
   const play = stat?.play ?? 0;
   const win = stat?.win ?? 0;
   const wr = play > 0 ? Math.round((win / play) * 100) : 0;
@@ -151,11 +152,514 @@ function computeMasteryStats(stat?: OpggLeaderboardRow["most_champion_stat"]) {
   return { play, win, wr, avgK, avgD, avgA, kdaRatio, avgOpScore };
 }
 
-function standingSortScore(row: OpggLeaderboardRow): number {
-  const st = extractBestStanding(row.summoner?.league_stats);
-  const tierW = TIER_WEIGHT[(st?.tier_info?.tier ?? "").toUpperCase()] ?? 0;
-  const lp = st?.tier_info?.lp ?? 0;
-  return tierW * 100_000 + lp;
+function RankedRegionalCardsGrid({
+  buckets,
+  regionOptions,
+  ddVersion,
+  onSelectRegion,
+  onSelectPlayer,
+}: {
+  buckets: OpggRankedRegionBucket[];
+  regionOptions: OpggRegionOption[];
+  ddVersion: string;
+  onSelectRegion: (regionCode: string) => void;
+  onSelectPlayer: (gameName: string, tagLine: string, regionCode: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
+      {buckets.map((bucket) => {
+        const topPlayers = (bucket.players ?? []).slice(0, 5);
+        const fullLabel = regionFullLabel(bucket.region, regionOptions);
+        return (
+          <section
+            key={bucket.region}
+            className="baron-surface-card flex flex-col overflow-hidden rounded-xl border border-baron-border bg-baron-surface"
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-baron-border bg-baron-elevated/45 px-3.5 py-2.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="rounded bg-baron-accent/18 px-1.5 py-0.5 text-[10.5px] font-extrabold text-baron-accent-soft">
+                  {bucket.region}
+                </span>
+                <h3 className="truncate text-[13px] font-bold text-baron-ink">{fullLabel}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => onSelectRegion(bucket.region)}
+                className="shrink-0 text-[11px] font-semibold text-baron-accent-soft hover:underline"
+              >
+                Full {bucket.region} →
+              </button>
+            </div>
+
+            {bucket.error && topPlayers.length === 0 ? (
+              <div className="p-4 text-[11.5px] text-baron-ink-muted">{bucket.error}</div>
+            ) : topPlayers.length === 0 ? (
+              <div className="p-4 text-[11.5px] text-baron-ink-muted">
+                No Master+ ranked players returned for {bucket.region}.
+              </div>
+            ) : (
+              <div className="divide-y divide-baron-border/70">
+                {topPlayers.map((p) => {
+                  const games = (p.wins ?? 0) + (p.losses ?? 0);
+                  const wr = games > 0 ? Math.round(((p.wins ?? 0) / games) * 100) : null;
+                  const champFallback = p.signatureChampion || "Ahri";
+                  return (
+                    <button
+                      key={`${bucket.region}-${p.rank}-${p.gameName}-${p.tagLine}`}
+                      type="button"
+                      onClick={() => {
+                        if (p.gameName && p.tagLine) {
+                          onSelectPlayer(p.gameName, p.tagLine, bucket.region);
+                        }
+                      }}
+                      className="group grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2 px-3.5 py-2 text-left transition-colors hover:bg-baron-hover/45"
+                    >
+                      <span
+                        className={`text-[11.5px] font-extrabold tnum ${
+                          p.rank === 1
+                            ? "text-baron-gold"
+                            : p.rank <= 3
+                              ? "text-baron-cyan"
+                              : "text-baron-ink-muted"
+                        }`}
+                      >
+                        #{p.rank}
+                      </span>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <img
+                          src={p.profileImageUrl || champSquareUrl(champFallback, ddVersion)}
+                          alt={p.gameName}
+                          className="h-6 w-6 shrink-0 rounded border border-baron-border-strong/75 object-cover"
+                        />
+                        <div className="min-w-0">
+                          <div className="truncate text-[12px] font-semibold text-baron-ink">
+                            {p.gameName}{" "}
+                            <span className="text-[10.5px] font-normal text-baron-ink-muted">
+                              #{p.tagLine}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10.5px] text-baron-ink-muted tnum">
+                            <RankCrest tier={p.tier} className="h-3 w-3" />
+                            <span className="font-semibold text-baron-cyan">
+                              {p.tier || "MASTER"} · {(p.lp ?? 0).toLocaleString()} LP
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-right text-[11px] tnum">
+                        <div>
+                          {wr !== null ? (
+                            <>
+                              <div
+                                className={`font-bold ${
+                                  wr >= 55
+                                    ? "text-baron-emerald"
+                                    : wr >= 50
+                                      ? "text-baron-victory"
+                                      : "text-baron-ink-secondary"
+                                }`}
+                              >
+                                {wr}% WR
+                              </div>
+                              <div className="text-[10px] text-baron-ink-muted">
+                                {p.wins}W {p.losses}L
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-[10px] text-baron-ink-muted">Solo/Duo</div>
+                          )}
+                        </div>
+                        <img
+                          src={champSquareUrl(champFallback, ddVersion)}
+                          alt={champFallback}
+                          title={`Signature: ${champFallback}`}
+                          className="h-5 w-5 shrink-0 rounded-[3px] border border-baron-border object-cover"
+                        />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function RankedSingleRegionTable({
+  region,
+  players,
+  regionOptions,
+  ddVersion,
+  onSelectPlayer,
+}: {
+  region: string;
+  players: OpggRankedPlayerRow[];
+  regionOptions: OpggRegionOption[];
+  ddVersion: string;
+  onSelectPlayer: (gameName: string, tagLine: string, regionCode: string) => void;
+}) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="border-baron-border hover:bg-transparent">
+          <TableHead className="w-16 pl-5 text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+            Rank
+          </TableHead>
+          <TableHead className="text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+            Summoner ({regionFullLabel(region, regionOptions)})
+          </TableHead>
+          <TableHead className="text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+            Standing
+          </TableHead>
+          <TableHead className="text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+            LP
+          </TableHead>
+          <TableHead className="text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+            Solo/Duo W-L
+          </TableHead>
+          <TableHead className="pr-5 text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+            Signature Champ
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {players.map((p) => {
+          const games = (p.wins ?? 0) + (p.losses ?? 0);
+          const wr = games > 0 ? Math.round(((p.wins ?? 0) / games) * 100) : null;
+          const sig = p.signatureChampion || "Ahri";
+          return (
+            <TableRow
+              key={`${region}-${p.rank}-${p.gameName}-${p.tagLine}`}
+              onClick={() => {
+                if (p.gameName && p.tagLine) {
+                  onSelectPlayer(p.gameName, p.tagLine, region);
+                }
+              }}
+              className="group cursor-pointer border-baron-border/75 transition-colors hover:bg-baron-hover/45"
+            >
+              <TableCell className="pl-5 font-bold tnum">
+                <span
+                  className={
+                    p.rank === 1
+                      ? "text-baron-gold"
+                      : p.rank <= 3
+                        ? "text-baron-cyan"
+                        : "text-baron-ink-muted"
+                  }
+                >
+                  #{p.rank}
+                </span>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src={p.profileImageUrl || champSquareUrl(sig, ddVersion)}
+                    alt={p.gameName}
+                    className="h-8 w-8 rounded-md border border-baron-border-strong/75 object-cover transition-transform duration-150 group-hover:scale-105"
+                  />
+                  <div>
+                    <span className="font-semibold text-baron-ink">{p.gameName}</span>{" "}
+                    <span className="text-[11.5px] text-baron-ink-muted">#{p.tagLine}</span>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-baron-cyan">
+                  <RankCrest tier={p.tier} className="h-3.5 w-3.5" />
+                  {p.tier || "MASTER"}
+                </span>
+              </TableCell>
+              <TableCell className="text-right font-bold text-baron-cyan tnum">
+                {(p.lp ?? 0).toLocaleString()} LP
+              </TableCell>
+              <TableCell className="text-right text-[12px] tnum">
+                {wr !== null ? (
+                  <>
+                    <span
+                      className={`font-bold ${
+                        wr >= 55
+                          ? "text-baron-emerald"
+                          : wr >= 50
+                            ? "text-baron-victory"
+                            : "text-baron-ink-secondary"
+                      }`}
+                    >
+                      {wr}%
+                    </span>{" "}
+                    <span className="text-baron-ink-muted">
+                      ({p.wins}W {p.losses}L)
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-baron-ink-muted">—</span>
+                )}
+              </TableCell>
+              <TableCell className="pr-5 text-right">
+                <span className="inline-flex items-center justify-end gap-1.5 text-[11.5px] font-semibold text-baron-ink">
+                  <img
+                    src={champSquareUrl(sig, ddVersion)}
+                    alt={sig}
+                    className="h-5 w-5 rounded-[3px] border border-baron-border object-cover"
+                  />
+                  <span>{sig}</span>
+                </span>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
+function ChampionRegionalCardsGrid({
+  regions,
+  champion,
+  regionOptions,
+  ddVersion,
+  onSelectRegion,
+  onSelectPlayer,
+}: {
+  regions: OpggMultiRegionEntry[];
+  champion: string;
+  regionOptions: OpggRegionOption[];
+  ddVersion: string;
+  onSelectRegion: (regionCode: string) => void;
+  onSelectPlayer: (gameName: string, tagLine: string, regionCode: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
+      {regions.map((entry) => {
+        const topRows = (entry.leaderboard ?? []).slice(0, 5);
+        const fullLabel = regionFullLabel(entry.region, regionOptions);
+        return (
+          <section
+            key={entry.region}
+            className="baron-surface-card flex flex-col overflow-hidden rounded-xl border border-baron-border bg-baron-surface"
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-baron-border bg-baron-elevated/45 px-3.5 py-2.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="rounded bg-baron-accent/18 px-1.5 py-0.5 text-[10.5px] font-extrabold text-baron-accent-soft">
+                  {entry.region}
+                </span>
+                <h3 className="truncate text-[13px] font-bold text-baron-ink">{fullLabel}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => onSelectRegion(entry.region)}
+                className="shrink-0 text-[11px] font-semibold text-baron-accent-soft hover:underline"
+              >
+                Full {entry.region} →
+              </button>
+            </div>
+
+            {entry.error && topRows.length === 0 ? (
+              <div className="p-4 text-[11.5px] text-baron-ink-muted">{entry.error}</div>
+            ) : topRows.length === 0 ? (
+              <div className="p-4 text-[11.5px] text-baron-ink-muted">
+                No {champion} Master+ entries returned for {entry.region}.
+              </div>
+            ) : (
+              <div className="divide-y divide-baron-border/70">
+                {topRows.map((row) => {
+                  const s = row.summoner;
+                  const standing = extractBestStanding(s?.league_stats);
+                  const tier = standing?.tier_info?.tier ?? "MASTER";
+                  const lp = standing?.tier_info?.lp ?? 0;
+                  const m = computeMasteryStats(row.most_champion_stat);
+                  return (
+                    <button
+                      key={`${entry.region}-${row.rank}`}
+                      type="button"
+                      onClick={() => {
+                        if (s?.game_name && s?.tagline) {
+                          onSelectPlayer(s.game_name, s.tagline, entry.region);
+                        }
+                      }}
+                      className="group grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2 px-3.5 py-2 text-left transition-colors hover:bg-baron-hover/45"
+                    >
+                      <span
+                        className={`text-[11.5px] font-extrabold tnum ${
+                          row.rank === 1
+                            ? "text-baron-gold"
+                            : row.rank <= 3
+                              ? "text-baron-cyan"
+                              : "text-baron-ink-muted"
+                        }`}
+                      >
+                        #{row.rank}
+                      </span>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <img
+                          src={s?.profile_image_url || champSquareUrl(champion, ddVersion)}
+                          alt={s?.game_name ?? "Summoner"}
+                          className="h-6 w-6 shrink-0 rounded border border-baron-border-strong/75 object-cover"
+                        />
+                        <div className="min-w-0">
+                          <div className="truncate text-[12px] font-semibold text-baron-ink">
+                            {s?.game_name}{" "}
+                            <span className="text-[10.5px] font-normal text-baron-ink-muted">
+                              #{s?.tagline}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10.5px] text-baron-ink-muted tnum">
+                            <RankCrest tier={tier} className="h-3 w-3" />
+                            <span className="font-semibold text-baron-cyan">
+                              {tier} · {lp.toLocaleString()} LP
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right text-[11px] tnum">
+                        <div className="font-bold text-baron-emerald">{m.wr}% WR</div>
+                        <div className="text-[10px] text-baron-ink-muted">
+                          {m.play.toLocaleString()}G
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function ChampionSingleRegionTable({
+  region,
+  champion,
+  rows,
+  regionOptions,
+  ddVersion,
+  onSelectPlayer,
+}: {
+  region: string;
+  champion: string;
+  rows: OpggLeaderboardRow[];
+  regionOptions: OpggRegionOption[];
+  ddVersion: string;
+  onSelectPlayer: (gameName: string, tagLine: string, regionCode: string) => void;
+}) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="border-baron-border hover:bg-transparent">
+          <TableHead className="w-16 pl-5 text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+            Rank
+          </TableHead>
+          <TableHead className="text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+            Summoner ({regionFullLabel(region, regionOptions)})
+          </TableHead>
+          <TableHead className="text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+            Standing
+          </TableHead>
+          <TableHead className="text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+            LP
+          </TableHead>
+          <TableHead className="text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+            Avg KDA
+          </TableHead>
+          <TableHead className="text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+            OP Score
+          </TableHead>
+          <TableHead className="pr-5 text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+            {champion} Games / WR
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row) => {
+          const s = row.summoner;
+          const standing = extractBestStanding(s?.league_stats);
+          const tier = standing?.tier_info?.tier ?? "MASTER";
+          const lp = standing?.tier_info?.lp ?? 0;
+          const m = computeMasteryStats(row.most_champion_stat);
+          return (
+            <TableRow
+              key={`${region}-${row.rank}`}
+              onClick={() => {
+                if (s?.game_name && s?.tagline) {
+                  onSelectPlayer(s.game_name, s.tagline, region);
+                }
+              }}
+              className="group cursor-pointer border-baron-border/75 transition-colors hover:bg-baron-hover/45"
+            >
+              <TableCell className="pl-5 font-bold tnum">
+                <span
+                  className={
+                    row.rank === 1
+                      ? "text-baron-gold"
+                      : row.rank <= 3
+                        ? "text-baron-cyan"
+                        : "text-baron-ink-muted"
+                  }
+                >
+                  #{row.rank}
+                </span>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src={s?.profile_image_url || champSquareUrl(champion, ddVersion)}
+                    alt={s?.game_name ?? "Summoner"}
+                    className="h-8 w-8 rounded-md border border-baron-border-strong/75 object-cover transition-transform duration-150 group-hover:scale-105"
+                  />
+                  <div>
+                    <span className="font-semibold text-baron-ink">{s?.game_name}</span>{" "}
+                    <span className="text-[11.5px] text-baron-ink-muted">#{s?.tagline}</span>
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-baron-cyan">
+                  <RankCrest tier={tier} className="h-3.5 w-3.5" />
+                  {tier}
+                </span>
+              </TableCell>
+              <TableCell className="text-right font-bold text-baron-cyan tnum">
+                {lp.toLocaleString()} LP
+              </TableCell>
+              <TableCell className="text-right text-[11.5px] tnum">
+                {m.kdaRatio ? (
+                  <div>
+                    <div className="font-semibold text-baron-ink">{m.kdaRatio}:1</div>
+                    <div className="text-[10px] text-baron-ink-muted">
+                      {m.avgK} / {m.avgD} / {m.avgA}
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-baron-ink-muted">—</span>
+                )}
+              </TableCell>
+              <TableCell className="text-right font-bold text-baron-gold tnum">
+                {m.avgOpScore ?? "—"}
+              </TableCell>
+              <TableCell className="pr-5 text-right text-[12px] tnum">
+                <span
+                  className={`font-bold ${
+                    m.wr >= 55
+                      ? "text-baron-emerald"
+                      : m.wr >= 50
+                        ? "text-baron-victory"
+                        : "text-baron-ink-secondary"
+                  }`}
+                >
+                  {m.wr}%
+                </span>{" "}
+                <span className="text-baron-ink-muted">({m.play.toLocaleString()}G)</span>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
 }
 
 const LEADERBOARD_CHAMPS = [
@@ -211,20 +715,24 @@ export function DashboardView({
   const [manualRegionInput, setManualRegionInput] = useState<string | null>(null);
   const [queueFilter, setQueueFilter] = useState<"all" | "SOLORANKED" | "FLEXRANKED">("all");
   const [lpIdx, setLpIdx] = useState(0);
+  const [boardMode, setBoardMode] = useState<"ranked" | "champion">("ranked");
   const [boardRegion, setBoardRegion] = useState<string>("ALL");
   const [boardChamp, setBoardChamp] = useState<string>("Ahri");
   const [dashBoardState, setDashBoardState] = useState<{
     key: string;
+    ranked: OpggRankedLeaderboardResponse | null;
     multi: OpggMultiRegionLeaderboardResponse | null;
     single: OpggLeaderboardResponse | null;
     error: string | null;
-  }>({ key: "", multi: null, single: null, error: null });
+  }>({ key: "", ranked: null, multi: null, single: null, error: null });
 
   const regionOptions = mergeOpggRegions(regions);
   const regionInput = manualRegionInput ?? activeRegion ?? "KR";
 
   const summoner = summonerData?.profile?.data?.summoner;
-  const matches = summonerData?.matches?.data?.game_history ?? [];
+  const matches = Array.isArray(summonerData?.matches?.data?.game_history)
+    ? summonerData.matches.data.game_history
+    : [];
   const matchesError = summonerData?.matchesError ?? null;
 
   const displayName =
@@ -259,7 +767,8 @@ export function DashboardView({
   const totalGames = wins + losses;
   const wrPct = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
 
-  const lpPoints = (summoner?.lp_histories ?? [])
+  const lpHistories = Array.isArray(summoner?.lp_histories) ? summoner.lp_histories : [];
+  const lpPoints = lpHistories
     .slice(0, 8)
     .toReversed()
     .map((pt) => ({
@@ -268,10 +777,16 @@ export function DashboardView({
     }));
   const activeLpIdx = Math.min(lpIdx, Math.max(0, lpPoints.length - 1));
 
+  const mostChampStats = Array.isArray(summoner?.most_champions?.champion_stats)
+    ? summoner.most_champions.champion_stats
+    : [];
+  const rankedChampStats = Array.isArray(summoner?.ranked_most_champions?.my_champion_stats)
+    ? summoner.ranked_most_champions.my_champion_stats
+    : [];
   const championPool =
-    summoner?.most_champions?.champion_stats?.length
-      ? summoner.most_champions.champion_stats
-      : (summoner?.ranked_most_champions?.my_champion_stats ?? []).map((c) => ({
+    mostChampStats.length > 0
+      ? mostChampStats
+      : rankedChampStats.map((c) => ({
           id: c.id,
           champion_name: c.champion_name,
           play: c.play,
@@ -282,11 +797,11 @@ export function DashboardView({
           assist: undefined,
         }));
 
+  const firstMatchParts = Array.isArray(matches[0]?.participants) ? matches[0].participants : [];
   const heroChamp =
     championPool[0]?.champion_name ??
-    matches[0]?.participants?.find((p) => p.summoner?.game_name === summoner?.game_name)
-      ?.champion_name ??
-    matches[0]?.participants?.[0]?.champion_name ??
+    firstMatchParts.find((p) => p.summoner?.game_name === summoner?.game_name)?.champion_name ??
+    firstMatchParts[0]?.champion_name ??
     null;
 
   const filteredMatches =
@@ -295,22 +810,58 @@ export function DashboardView({
       : matches.filter((m) => (m.game_type ?? "").toUpperCase() === queueFilter);
 
   const regionCodesKey = regionOptions.map((r) => r.code).join(",");
-  const dashBoardKey = `${boardRegion}:${boardChamp}:${refreshNonce}`;
+  const dashBoardKey = `${boardMode}:${boardRegion}:${boardMode === "champion" ? boardChamp : "ranked"}:${refreshNonce}`;
   const dashBoardLoading = !displayName && dashBoardState.key !== dashBoardKey;
 
   useEffect(() => {
     if (displayName) return;
     let cancelled = false;
-    if (boardRegion === "ALL") {
-      const codes = regionCodesKey.split(",").filter(Boolean);
-      fetchOpggMultiRegionLeaderboard(boardChamp, codes)
-        .then((multi) => {
-          if (!cancelled) setDashBoardState({ key: dashBoardKey, multi, single: null, error: null });
+    const codes = regionCodesKey.split(",").filter(Boolean);
+    if (boardMode === "ranked") {
+      fetchOpggRankedLeaderboard(boardRegion, codes)
+        .then((ranked) => {
+          if (!cancelled) {
+            setDashBoardState({
+              key: dashBoardKey,
+              ranked,
+              multi: null,
+              single: null,
+              error: null,
+            });
+          }
         })
         .catch((err: unknown) => {
           if (!cancelled) {
             setDashBoardState({
               key: dashBoardKey,
+              ranked: null,
+              multi: null,
+              single: null,
+              error:
+                err instanceof Error
+                  ? err.message
+                  : "Failed to load OP.GG ranked player leaderboards.",
+            });
+          }
+        });
+    } else if (boardRegion === "ALL") {
+      fetchOpggMultiRegionLeaderboard(boardChamp, codes)
+        .then((multi) => {
+          if (!cancelled) {
+            setDashBoardState({
+              key: dashBoardKey,
+              ranked: null,
+              multi,
+              single: null,
+              error: null,
+            });
+          }
+        })
+        .catch((err: unknown) => {
+          if (!cancelled) {
+            setDashBoardState({
+              key: dashBoardKey,
+              ranked: null,
               multi: null,
               single: null,
               error:
@@ -324,13 +875,20 @@ export function DashboardView({
       fetchOpggLeaderboard(boardRegion, boardChamp)
         .then((single) => {
           if (!cancelled) {
-            setDashBoardState({ key: dashBoardKey, multi: null, single, error: null });
+            setDashBoardState({
+              key: dashBoardKey,
+              ranked: null,
+              multi: null,
+              single,
+              error: null,
+            });
           }
         })
         .catch((err: unknown) => {
           if (!cancelled) {
             setDashBoardState({
               key: dashBoardKey,
+              ranked: null,
               multi: null,
               single: null,
               error:
@@ -342,7 +900,7 @@ export function DashboardView({
     return () => {
       cancelled = true;
     };
-  }, [displayName, boardRegion, boardChamp, dashBoardKey, regionCodesKey]);
+  }, [displayName, boardMode, boardRegion, boardChamp, dashBoardKey, regionCodesKey]);
 
   const handleSubmitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -356,16 +914,19 @@ export function DashboardView({
     }
   };
 
-  const dashGlobalRows: { region: string; row: OpggLeaderboardRow }[] =
-    dashBoardState.key === dashBoardKey
-      ? boardRegion === "ALL"
-        ? (dashBoardState.multi?.regions ?? [])
-            .flatMap((entry) =>
-              (entry.leaderboard ?? []).slice(0, 5).map((row) => ({ region: entry.region, row })),
-            )
-            .toSorted((a, b) => standingSortScore(b.row) - standingSortScore(a.row))
-        : (dashBoardState.single?.leaderboard ?? []).map((row) => ({ region: boardRegion, row }))
-      : [];
+  const handleSelectDashPlayer = (gameName: string, tagLine: string, regionCode: string) => {
+    setManualRegionInput(regionCode);
+    setQueueFilter("all");
+    onLookupSummoner?.(gameName, tagLine, regionCode);
+  };
+
+  const dashRankedBuckets =
+    dashBoardState.key === dashBoardKey ? (dashBoardState.ranked?.regions ?? []) : [];
+  const dashRankedSinglePlayers = dashRankedBuckets[0]?.players ?? [];
+  const dashChampRegions =
+    dashBoardState.key === dashBoardKey ? (dashBoardState.multi?.regions ?? []) : [];
+  const dashChampSingleRows =
+    dashBoardState.key === dashBoardKey ? (dashBoardState.single?.leaderboard ?? []) : [];
   const dashBoardError = dashBoardState.key === dashBoardKey ? dashBoardState.error : null;
 
   return (
@@ -549,27 +1110,47 @@ export function DashboardView({
             </div>
           </div>
 
-          {/* Live All-Regions Master+ Players Leaderboard */}
+          {/* Live Separated Regional Ranked & Champion Master+ Leaderboards */}
           <section className="baron-surface-card overflow-hidden rounded-xl border border-baron-border bg-baron-surface">
             <div className="border-b border-baron-border px-4 py-3.5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Globe className="h-4 w-4 text-baron-accent-soft" />
+                    {boardMode === "ranked" ? (
+                      <Trophy className="h-4 w-4 text-baron-gold" />
+                    ) : (
+                      <Globe className="h-4 w-4 text-baron-accent-soft" />
+                    )}
                     <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-baron-ink">
-                      Global &amp; Regional Master+ Players
+                      {boardMode === "ranked"
+                        ? "Ranked Player Leaderboards"
+                        : "Champion Master+ Leaderboards"}
                     </h2>
                     <span className="rounded-md border border-baron-emerald/30 bg-baron-emerald/12 px-2 py-0.5 text-[10px] font-semibold text-baron-emerald">
-                      Live · All {regionOptions.length} Regions
+                      Live · {regionOptions.length} Separated Regions
                     </span>
                   </div>
                   <p className="mt-0.5 text-[11.5px] text-baron-ink-muted">
-                    Top Master+ &amp; Challenger {boardChamp} specialists across every League server
-                    from OP.GG MCP. Click any row to load their live match history.
+                    {boardMode === "ranked"
+                      ? "Top Challenger, Grandmaster & Master Solo/Duo players separated by League server via OP.GG MCP. Click any player to open their live profile."
+                      : `Top Master+ & Challenger ${boardChamp} specialists separated by League server via OP.GG MCP. Click any player to inspect their match history.`}
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1">
+                <AnimatedTabs
+                  layoutId="dash-board-mode"
+                  ariaLabel="Switch Dashboard leaderboard mode"
+                  value={boardMode}
+                  onChange={setBoardMode}
+                  items={[
+                    { id: "ranked", label: "Ranked Players" },
+                    { id: "champion", label: "Champion Master+" },
+                  ]}
+                />
+              </div>
+
+              {boardMode === "champion" && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-1 border-t border-baron-border/70 pt-2.5">
                   {LEADERBOARD_CHAMPS.slice(0, 8).map((c) => {
                     const active = boardChamp === c;
                     return (
@@ -593,10 +1174,10 @@ export function DashboardView({
                     );
                   })}
                 </div>
-              </div>
+              )}
 
               {/* All 15 Regions Filter Strip */}
-              <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-baron-border/70 pt-2.5">
+              <div className="mt-2.5 flex flex-wrap items-center gap-1 border-t border-baron-border/70 pt-2.5">
                 <button
                   type="button"
                   onClick={() => setBoardRegion("ALL")}
@@ -632,14 +1213,25 @@ export function DashboardView({
             </div>
 
             {dashBoardLoading && (
-              <div role="status" className="space-y-2 p-4">
-                <div className="text-[11.5px] text-baron-ink-muted">
-                  Fetching live OP.GG Master+ players across{" "}
-                  {boardRegion === "ALL" ? `all ${regionOptions.length} regions` : boardRegion}...
+              <div role="status" className="p-4">
+                <div className="mb-3 text-[11.5px] text-baron-ink-muted">
+                  Fetching live OP.GG{" "}
+                  {boardMode === "ranked" ? "Ranked Solo/Duo players" : `${boardChamp} Master+ specialists`}{" "}
+                  across {boardRegion === "ALL" ? `all ${regionOptions.length} regions` : boardRegion}...
                 </div>
-                {Array.from({ length: 8 }).map((_, idx) => (
-                  <Skeleton key={idx} className="h-10 w-full rounded-lg bg-baron-inset" />
-                ))}
+                {boardRegion === "ALL" ? (
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {Array.from({ length: 9 }).map((_, idx) => (
+                      <Skeleton key={idx} className="h-52 w-full rounded-xl bg-baron-inset" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {Array.from({ length: 8 }).map((_, idx) => (
+                      <Skeleton key={idx} className="h-10 w-full rounded-lg bg-baron-inset" />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -650,120 +1242,46 @@ export function DashboardView({
               </div>
             )}
 
-            {!dashBoardLoading && !dashBoardError && dashGlobalRows.length > 0 && (
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-baron-border hover:bg-transparent">
-                    <TableHead className="w-14 pl-4 text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                      #
-                    </TableHead>
-                    <TableHead className="text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                      Summoner
-                    </TableHead>
-                    <TableHead className="w-20 text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                      Region
-                    </TableHead>
-                    <TableHead className="text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                      Standing
-                    </TableHead>
-                    <TableHead className="text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                      LP
-                    </TableHead>
-                    <TableHead className="text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                      KDA
-                    </TableHead>
-                    <TableHead className="pr-4 text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                      {boardChamp} WR / Games
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dashGlobalRows.map(({ region: rowRegion, row }, idx) => {
-                    const s = row.summoner;
-                    const standing = extractBestStanding(s?.league_stats);
-                    const tier = standing?.tier_info?.tier ?? "MASTER";
-                    const lp = standing?.tier_info?.lp ?? 0;
-                    const m = computeMasteryStats(row.most_champion_stat);
-                    const displayIdx = boardRegion === "ALL" ? idx + 1 : row.rank;
+            {!dashBoardLoading && !dashBoardError && boardMode === "ranked" && boardRegion === "ALL" && (
+              <RankedRegionalCardsGrid
+                buckets={dashRankedBuckets}
+                regionOptions={regionOptions}
+                ddVersion={ddVersion}
+                onSelectRegion={setBoardRegion}
+                onSelectPlayer={handleSelectDashPlayer}
+              />
+            )}
 
-                    return (
-                      <TableRow
-                        key={`${rowRegion}-${row.rank}-${s?.game_name ?? idx}`}
-                        onClick={() => {
-                          if (s?.game_name && s?.tagline) {
-                            setManualRegionInput(rowRegion);
-                            setQueueFilter("all");
-                            onLookupSummoner?.(s.game_name, s.tagline, rowRegion);
-                          }
-                        }}
-                        className="group cursor-pointer border-baron-border/75 transition-colors hover:bg-baron-hover/45"
-                      >
-                        <TableCell className="pl-4 font-bold tnum">
-                          <span
-                            className={
-                              displayIdx === 1
-                                ? "text-baron-gold"
-                                : displayIdx <= 3
-                                  ? "text-baron-cyan"
-                                  : "text-baron-ink-muted"
-                            }
-                          >
-                            #{displayIdx}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2.5">
-                            <img
-                              src={s?.profile_image_url || champSquareUrl(boardChamp, ddVersion)}
-                              alt={s?.game_name ?? "Summoner"}
-                              className="h-7 w-7 rounded-md border border-baron-border-strong/75 object-cover transition-transform duration-150 group-hover:scale-105"
-                            />
-                            <div className="min-w-0">
-                              <span className="font-semibold text-baron-ink">{s?.game_name}</span>{" "}
-                              <span className="text-[11px] text-baron-ink-muted">
-                                #{s?.tagline}
-                              </span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="rounded border border-baron-border-strong bg-baron-elevated px-1.5 py-0.5 text-[10px] font-bold text-baron-ink-secondary">
-                            {rowRegion}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-baron-cyan">
-                            <RankCrest tier={tier} className="h-3.5 w-3.5" />
-                            {tier}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-baron-cyan tnum">
-                          {lp.toLocaleString()} LP
-                        </TableCell>
-                        <TableCell className="text-right text-[11.5px] text-baron-ink-secondary tnum">
-                          {m.kdaRatio ? `${m.kdaRatio}:1` : "—"}
-                        </TableCell>
-                        <TableCell className="pr-4 text-right text-[12px] tnum">
-                          <span
-                            className={`font-bold ${
-                              m.wr >= 55
-                                ? "text-baron-emerald"
-                                : m.wr >= 50
-                                  ? "text-baron-victory"
-                                  : "text-baron-ink-secondary"
-                            }`}
-                          >
-                            {m.wr}%
-                          </span>{" "}
-                          <span className="text-baron-ink-muted">
-                            ({m.play.toLocaleString()}G)
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+            {!dashBoardLoading && !dashBoardError && boardMode === "ranked" && boardRegion !== "ALL" && (
+              <RankedSingleRegionTable
+                region={boardRegion}
+                players={dashRankedSinglePlayers}
+                regionOptions={regionOptions}
+                ddVersion={ddVersion}
+                onSelectPlayer={handleSelectDashPlayer}
+              />
+            )}
+
+            {!dashBoardLoading && !dashBoardError && boardMode === "champion" && boardRegion === "ALL" && (
+              <ChampionRegionalCardsGrid
+                regions={dashChampRegions}
+                champion={boardChamp}
+                regionOptions={regionOptions}
+                ddVersion={ddVersion}
+                onSelectRegion={setBoardRegion}
+                onSelectPlayer={handleSelectDashPlayer}
+              />
+            )}
+
+            {!dashBoardLoading && !dashBoardError && boardMode === "champion" && boardRegion !== "ALL" && (
+              <ChampionSingleRegionTable
+                region={boardRegion}
+                champion={boardChamp}
+                rows={dashChampSingleRows}
+                regionOptions={regionOptions}
+                ddVersion={ddVersion}
+                onSelectPlayer={handleSelectDashPlayer}
+              />
             )}
           </section>
         </div>
@@ -996,11 +1514,12 @@ export function DashboardView({
                   </div>
                 ) : (
                   filteredMatches.map((m) => {
+                    const parts = Array.isArray(m.participants) ? m.participants : [];
                     const me =
-                      m.participants?.find(
+                      parts.find(
                         (p) =>
-                          p.summoner?.game_name?.toLowerCase() === displayName.toLowerCase(),
-                      ) ?? m.participants?.[0];
+                          (p.summoner?.game_name ?? "").toLowerCase() === displayName.toLowerCase(),
+                      ) ?? parts[0];
                     if (!me) return null;
                     const win = (me.stats?.result ?? "").toUpperCase() === "WIN";
                     const kills = me.stats?.kill ?? 0;
@@ -1010,6 +1529,11 @@ export function DashboardView({
                       (me.stats?.minion_kill ?? 0) + (me.stats?.neutral_minion_kill ?? 0);
                     const mins = Math.max(1, (m.game_length_second ?? 600) / 60);
                     const opScore = Math.round((me.stats?.op_score ?? 5) * 10);
+                    const champName = me.champion_name || "Ahri";
+                    const posLabel =
+                      me.position ||
+                      (m.game_type ? m.game_type.replace("RANKED", "").trim() || "Fill" : "Fill");
+                    const items = Array.isArray(me.items) ? me.items : [];
 
                     return (
                       <button
@@ -1044,17 +1568,17 @@ export function DashboardView({
 
                         <div className="flex items-center gap-2.5">
                           <img
-                            src={champSquareUrl(me.champion_name, ddVersion)}
-                            alt={me.champion_name}
+                            src={champSquareUrl(champName, ddVersion)}
+                            alt={champName}
                             className="h-9 w-9 shrink-0 rounded-md border border-baron-border-strong object-cover transition-transform duration-150 group-hover:scale-105"
                           />
                           <div className="min-w-0">
                             <div className="truncate text-[13px] font-bold text-baron-ink">
-                              {me.champion_name}
+                              {champName}
                             </div>
                             <div className="flex items-center gap-1 text-[10.5px] text-baron-ink-muted">
                               <LaneIcon role={me.position} className="h-3 w-3" />
-                              <span>{me.position}</span>
+                              <span>{posLabel}</span>
                             </div>
                           </div>
                         </div>
@@ -1069,7 +1593,7 @@ export function DashboardView({
                         </div>
 
                         <div className="grid w-[68px] grid-cols-3 gap-[2px]">
-                          {(me.items ?? []).slice(0, 6).map((itemId, idx) =>
+                          {items.slice(0, 6).map((itemId, idx) =>
                             itemId > 0 ? (
                               <img
                                 key={`${m.id}-${itemId}-${idx}`}
@@ -1174,33 +1698,59 @@ export function LeaderboardsView({
 }) {
   const reducedMotion = Boolean(useReducedMotion());
   const regionOptions = mergeOpggRegions(regions);
+  const [boardMode, setBoardMode] = useState<"ranked" | "champion">("ranked");
   const [region, setRegion] = useState<string>("ALL");
   const [champion, setChampion] = useState<string>("Ahri");
   const [customChamp, setCustomChamp] = useState("");
   const [state, setState] = useState<{
     key: string;
+    ranked: OpggRankedLeaderboardResponse | null;
     single: OpggLeaderboardResponse | null;
     multi: OpggMultiRegionLeaderboardResponse | null;
     error: string | null;
-  }>({ key: "", single: null, multi: null, error: null });
+  }>({ key: "", ranked: null, single: null, multi: null, error: null });
 
   const regionCodesKey = regionOptions.map((r) => r.code).join(",");
-  const reqKey = `${region}:${champion}:${refreshNonce}`;
+  const reqKey = `${boardMode}:${region}:${boardMode === "champion" ? champion : "ranked"}:${refreshNonce}`;
   const isLoading = state.key !== reqKey;
   const preferredSingleRegion = defaultRegion && defaultRegion !== "ALL" ? defaultRegion : "KR";
 
   useEffect(() => {
     let cancelled = false;
-    if (region === "ALL") {
-      const codes = regionCodesKey.split(",").filter(Boolean);
-      fetchOpggMultiRegionLeaderboard(champion, codes)
-        .then((multi) => {
-          if (!cancelled) setState({ key: reqKey, single: null, multi, error: null });
+    const codes = regionCodesKey.split(",").filter(Boolean);
+    if (boardMode === "ranked") {
+      fetchOpggRankedLeaderboard(region, codes)
+        .then((ranked) => {
+          if (!cancelled) {
+            setState({ key: reqKey, ranked, single: null, multi: null, error: null });
+          }
         })
         .catch((err: unknown) => {
           if (!cancelled) {
             setState({
               key: reqKey,
+              ranked: null,
+              single: null,
+              multi: null,
+              error:
+                err instanceof Error
+                  ? err.message
+                  : "Failed to load OP.GG ranked player leaderboards.",
+            });
+          }
+        });
+    } else if (region === "ALL") {
+      fetchOpggMultiRegionLeaderboard(champion, codes)
+        .then((multi) => {
+          if (!cancelled) {
+            setState({ key: reqKey, ranked: null, single: null, multi, error: null });
+          }
+        })
+        .catch((err: unknown) => {
+          if (!cancelled) {
+            setState({
+              key: reqKey,
+              ranked: null,
               single: null,
               multi: null,
               error:
@@ -1213,12 +1763,15 @@ export function LeaderboardsView({
     } else {
       fetchOpggLeaderboard(region, champion)
         .then((single) => {
-          if (!cancelled) setState({ key: reqKey, single, multi: null, error: null });
+          if (!cancelled) {
+            setState({ key: reqKey, ranked: null, single, multi: null, error: null });
+          }
         })
         .catch((err: unknown) => {
           if (!cancelled) {
             setState({
               key: reqKey,
+              ranked: null,
               single: null,
               multi: null,
               error: err instanceof Error ? err.message : "Failed to load OP.GG leaderboard.",
@@ -1229,8 +1782,10 @@ export function LeaderboardsView({
     return () => {
       cancelled = true;
     };
-  }, [region, champion, reqKey, regionCodesKey]);
+  }, [boardMode, region, champion, reqKey, regionCodesKey]);
 
+  const rankedBuckets = (state.key === reqKey ? state.ranked?.regions : null) ?? [];
+  const rankedSinglePlayers = rankedBuckets[0]?.players ?? [];
   const rows = (state.key === reqKey ? state.single?.leaderboard : null) ?? [];
   const multiRegions = (state.key === reqKey ? state.multi?.regions : null) ?? [];
   const error = state.key === reqKey ? state.error : null;
@@ -1238,46 +1793,66 @@ export function LeaderboardsView({
     (c) => c.toLowerCase() === champion.toLowerCase(),
   );
 
+  const handleSelectPlayer = (gameName: string, tagLine: string, regionCode: string) => {
+    onLookupSummoner?.(gameName, tagLine, regionCode);
+  };
+
   return (
     <div className="min-h-full">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-baron-border bg-baron-surface px-5 py-4 shadow-[inset_0_1px_0_var(--baron-top-sheen)]">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-[18px] font-extrabold tracking-[-0.02em] text-baron-ink">
-              Champion Master+ Leaderboards
+              {boardMode === "ranked"
+                ? "Ranked Player Leaderboards"
+                : "Champion Master+ Leaderboards"}
             </h1>
             <span className="rounded-md border border-baron-emerald/30 bg-baron-emerald/12 px-2 py-0.5 text-[10.5px] font-semibold text-baron-emerald">
               Live · OP.GG MCP
             </span>
             <span className="rounded-md border border-baron-accent/30 bg-baron-accent/12 px-2 py-0.5 text-[10.5px] font-semibold text-baron-accent-soft">
-              All {regionOptions.length} Regions · Champion Specialists Only
+              {regionOptions.length} Separated Regions
             </span>
           </div>
           <p className="mt-1 text-[12px] text-baron-ink-muted">
-            OP.GG MCP provides regional Champion Master+ specialist ladders per server (no general
-            SoloQ player rank ladder). Compare all {regionOptions.length} regions side by side or
-            drill into any server below.
+            {boardMode === "ranked"
+              ? `Challenger, Grandmaster & Master Solo/Duo player ladders separated across all ${regionOptions.length} League servers. Click any player to open their profile.`
+              : `Regional Champion Master+ specialist ladders separated across all ${regionOptions.length} servers. Compare regions side by side or drill into any server below.`}
           </p>
         </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (customChamp.trim()) setChampion(customChamp.trim());
-          }}
-          className="relative flex items-center gap-2"
-        >
-          <div className="relative flex items-center">
-            <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-baron-ink-muted" />
-            <Input
-              type="search"
-              value={customChamp}
-              onChange={(e) => setCustomChamp(e.target.value)}
-              placeholder={`Search champion (${champion})...`}
-              aria-label="Search leaderboard by champion"
-              className="h-8 w-52 border-baron-border bg-baron-inset pr-2.5 pl-8 text-[12px] text-baron-ink placeholder:text-baron-ink-muted"
-            />
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <AnimatedTabs
+            layoutId="leaderboards-view-mode"
+            ariaLabel="Switch leaderboard type"
+            value={boardMode}
+            onChange={setBoardMode}
+            items={[
+              { id: "ranked", label: "Ranked Players" },
+              { id: "champion", label: "Champion Master+" },
+            ]}
+          />
+
+          {boardMode === "champion" && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (customChamp.trim()) setChampion(customChamp.trim());
+              }}
+              className="relative flex items-center"
+            >
+              <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-baron-ink-muted" />
+              <Input
+                type="search"
+                value={customChamp}
+                onChange={(e) => setCustomChamp(e.target.value)}
+                placeholder={`Search champion (${champion})...`}
+                aria-label="Search leaderboard by champion"
+                className="h-8 w-48 border-baron-border bg-baron-inset pr-2.5 pl-8 text-[12px] text-baron-ink placeholder:text-baron-ink-muted"
+              />
+            </form>
+          )}
+
           {region === "ALL" && (
             <Button
               type="button"
@@ -1289,7 +1864,7 @@ export function LeaderboardsView({
               My Server ({preferredSingleRegion})
             </Button>
           )}
-        </form>
+        </div>
       </header>
 
       {/* Dedicated Separated All-15-Regions Strip */}
@@ -1351,58 +1926,63 @@ export function LeaderboardsView({
         })}
       </div>
 
-      {/* Dedicated Champion Quick-Pick Bar */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-baron-border bg-baron-surface/35 px-5 py-2">
-        {LEADERBOARD_CHAMPS.map((c) => {
-          const active = champion.toLowerCase() === c.toLowerCase();
-          return (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setChampion(c)}
-              className={`relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
-                active ? "text-baron-ink" : "text-baron-ink-secondary hover:text-baron-ink"
-              }`}
-            >
-              {active && (
-                <motion.span
-                  layoutId="leaderboard-champ-pill"
-                  transition={
-                    reducedMotion
-                      ? { duration: 0 }
-                      : { type: "spring", stiffness: 520, damping: 38, mass: 0.55 }
-                  }
-                  className="absolute inset-0 rounded-md border border-baron-accent/60 bg-baron-accent/15 shadow-[inset_0_1px_0_var(--baron-top-sheen)]"
+      {/* Dedicated Champion Quick-Pick Bar (Champion Master+ mode) */}
+      {boardMode === "champion" && (
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-baron-border bg-baron-surface/35 px-5 py-2">
+          {LEADERBOARD_CHAMPS.map((c) => {
+            const active = champion.toLowerCase() === c.toLowerCase();
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setChampion(c)}
+                className={`relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
+                  active ? "text-baron-ink" : "text-baron-ink-secondary hover:text-baron-ink"
+                }`}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="leaderboard-champ-pill"
+                    transition={
+                      reducedMotion
+                        ? { duration: 0 }
+                        : { type: "spring", stiffness: 520, damping: 38, mass: 0.55 }
+                    }
+                    className="absolute inset-0 rounded-md border border-baron-accent/60 bg-baron-accent/15 shadow-[inset_0_1px_0_var(--baron-top-sheen)]"
+                  />
+                )}
+                <img
+                  src={champSquareUrl(c, ddVersion)}
+                  alt={c}
+                  className="relative z-10 h-4 w-4 rounded-[3px] object-cover"
                 />
-              )}
+                <span className="relative z-10">{c}</span>
+              </button>
+            );
+          })}
+          {isCustomChamp && (
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-baron-accent/60 bg-baron-accent/15 px-2.5 py-1 text-[11.5px] font-semibold text-baron-ink">
               <img
-                src={champSquareUrl(c, ddVersion)}
-                alt={c}
-                className="relative z-10 h-4 w-4 rounded-[3px] object-cover"
+                src={champSquareUrl(champion, ddVersion)}
+                alt={champion}
+                className="h-4 w-4 rounded-[3px] object-cover"
               />
-              <span className="relative z-10">{c}</span>
-            </button>
-          );
-        })}
-        {isCustomChamp && (
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-baron-accent/60 bg-baron-accent/15 px-2.5 py-1 text-[11.5px] font-semibold text-baron-ink">
-            <img
-              src={champSquareUrl(champion, ddVersion)}
-              alt={champion}
-              className="h-4 w-4 rounded-[3px] object-cover"
-            />
-            <span>{champion}</span>
-          </span>
-        )}
-      </div>
+              <span>{champion}</span>
+            </span>
+          )}
+        </div>
+      )}
 
       {isLoading && (
         <div role="status" className="p-5">
           {region === "ALL" ? (
             <div className="space-y-3">
               <div className="text-[12px] text-baron-ink-muted">
-                Loading {champion} Master+ specialists across all {regionOptions.length} regions
-                from OP.GG MCP...
+                Loading{" "}
+                {boardMode === "ranked"
+                  ? "Ranked Solo/Duo player leaderboards"
+                  : `${champion} Master+ specialists`}{" "}
+                across all {regionOptions.length} regions from OP.GG MCP...
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {Array.from({ length: 9 }).map((_, i) => (
@@ -1430,222 +2010,46 @@ export function LeaderboardsView({
         </div>
       )}
 
-      {/* Separated Multi-Region Cards View (All 15 Regions) */}
-      {!isLoading && !error && region === "ALL" && (
-        <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
-          {multiRegions.map((entry) => {
-            const topRows = (entry.leaderboard ?? []).slice(0, 5);
-            const fullLabel = regionFullLabel(entry.region, regionOptions);
-            return (
-              <section
-                key={entry.region}
-                className="baron-surface-card flex flex-col overflow-hidden rounded-xl border border-baron-border bg-baron-surface"
-              >
-                <div className="flex items-center justify-between gap-2 border-b border-baron-border bg-baron-elevated/45 px-4 py-2.5">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="rounded bg-baron-accent/18 px-1.5 py-0.5 text-[10.5px] font-extrabold text-baron-accent-soft">
-                      {entry.region}
-                    </span>
-                    <h2 className="truncate text-[13px] font-bold text-baron-ink">{fullLabel}</h2>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setRegion(entry.region)}
-                    className="shrink-0 text-[11px] font-semibold text-baron-accent-soft hover:underline"
-                  >
-                    Full {entry.region} →
-                  </button>
-                </div>
-
-                {entry.error ? (
-                  <div className="p-4 text-[11.5px] text-baron-ink-muted">{entry.error}</div>
-                ) : topRows.length === 0 ? (
-                  <div className="p-4 text-[11.5px] text-baron-ink-muted">
-                    No {champion} Master+ entries returned for {entry.region}.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-baron-border/70">
-                    {topRows.map((row) => {
-                      const s = row.summoner;
-                      const standing = extractBestStanding(s?.league_stats);
-                      const tier = standing?.tier_info?.tier ?? "MASTER";
-                      const lp = standing?.tier_info?.lp ?? 0;
-                      const m = computeMasteryStats(row.most_champion_stat);
-                      return (
-                        <button
-                          key={`${entry.region}-${row.rank}`}
-                          type="button"
-                          onClick={() => {
-                            if (s?.game_name && s?.tagline) {
-                              onLookupSummoner?.(s.game_name, s.tagline, entry.region);
-                            }
-                          }}
-                          className="group grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2 px-3.5 py-2 text-left transition-colors hover:bg-baron-hover/45"
-                        >
-                          <span
-                            className={`text-[11.5px] font-extrabold tnum ${
-                              row.rank === 1
-                                ? "text-baron-gold"
-                                : row.rank <= 3
-                                  ? "text-baron-cyan"
-                                  : "text-baron-ink-muted"
-                            }`}
-                          >
-                            #{row.rank}
-                          </span>
-                          <div className="flex min-w-0 items-center gap-2">
-                            <img
-                              src={s?.profile_image_url || champSquareUrl(champion, ddVersion)}
-                              alt={s?.game_name ?? "Summoner"}
-                              className="h-6 w-6 shrink-0 rounded border border-baron-border-strong/75 object-cover"
-                            />
-                            <div className="min-w-0">
-                              <div className="truncate text-[12px] font-semibold text-baron-ink">
-                                {s?.game_name}{" "}
-                                <span className="text-[10.5px] font-normal text-baron-ink-muted">
-                                  #{s?.tagline}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1.5 text-[10.5px] text-baron-ink-muted tnum">
-                                <RankCrest tier={tier} className="h-3 w-3" />
-                                <span className="font-semibold text-baron-cyan">
-                                  {tier} · {lp.toLocaleString()} LP
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right text-[11px] tnum">
-                            <div className="font-bold text-baron-emerald">{m.wr}% WR</div>
-                            <div className="text-[10px] text-baron-ink-muted">
-                              {m.play.toLocaleString()}G
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            );
-          })}
-        </div>
+      {!isLoading && !error && boardMode === "ranked" && region === "ALL" && (
+        <RankedRegionalCardsGrid
+          buckets={rankedBuckets}
+          regionOptions={regionOptions}
+          ddVersion={ddVersion}
+          onSelectRegion={setRegion}
+          onSelectPlayer={handleSelectPlayer}
+        />
       )}
 
-      {/* Full Single-Region Specialist Table */}
-      {!isLoading && !error && region !== "ALL" && (
-        <Table>
-          <TableHeader>
-            <TableRow className="border-baron-border hover:bg-transparent">
-              <TableHead className="w-16 pl-5 text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                Rank
-              </TableHead>
-              <TableHead className="text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                Summoner ({regionFullLabel(region, regionOptions)})
-              </TableHead>
-              <TableHead className="text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                Standing
-              </TableHead>
-              <TableHead className="text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                LP
-              </TableHead>
-              <TableHead className="text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                Avg KDA
-              </TableHead>
-              <TableHead className="text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                OP Score
-              </TableHead>
-              <TableHead className="pr-5 text-right text-[10.5px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
-                {champion} Games / WR
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => {
-              const s = row.summoner;
-              const standing = extractBestStanding(s?.league_stats);
-              const tier = standing?.tier_info?.tier ?? "MASTER";
-              const lp = standing?.tier_info?.lp ?? 0;
-              const m = computeMasteryStats(row.most_champion_stat);
+      {!isLoading && !error && boardMode === "ranked" && region !== "ALL" && (
+        <RankedSingleRegionTable
+          region={region}
+          players={rankedSinglePlayers}
+          regionOptions={regionOptions}
+          ddVersion={ddVersion}
+          onSelectPlayer={handleSelectPlayer}
+        />
+      )}
 
-              return (
-                <TableRow
-                  key={`${region}-${row.rank}`}
-                  onClick={() => {
-                    if (s?.game_name && s?.tagline) {
-                      onLookupSummoner?.(s.game_name, s.tagline, region);
-                    }
-                  }}
-                  className="group cursor-pointer border-baron-border/75 transition-colors hover:bg-baron-hover/45"
-                >
-                  <TableCell className="pl-5 font-bold tnum">
-                    <span
-                      className={
-                        row.rank === 1
-                          ? "text-baron-gold"
-                          : row.rank <= 3
-                            ? "text-baron-cyan"
-                            : "text-baron-ink-muted"
-                      }
-                    >
-                      #{row.rank}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2.5">
-                      <img
-                        src={s?.profile_image_url || champSquareUrl(champion, ddVersion)}
-                        alt={s?.game_name ?? "Summoner"}
-                        className="h-8 w-8 rounded-md border border-baron-border-strong/75 object-cover transition-transform duration-150 group-hover:scale-105"
-                      />
-                      <div>
-                        <span className="font-semibold text-baron-ink">{s?.game_name}</span>{" "}
-                        <span className="text-[11.5px] text-baron-ink-muted">#{s?.tagline}</span>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-baron-cyan">
-                      <RankCrest tier={tier} className="h-3.5 w-3.5" />
-                      {tier}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right font-bold text-baron-cyan tnum">
-                    {lp.toLocaleString()} LP
-                  </TableCell>
-                  <TableCell className="text-right text-[11.5px] tnum">
-                    {m.kdaRatio ? (
-                      <div>
-                        <div className="font-semibold text-baron-ink">{m.kdaRatio}:1</div>
-                        <div className="text-[10px] text-baron-ink-muted">
-                          {m.avgK} / {m.avgD} / {m.avgA}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="text-baron-ink-muted">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right font-bold text-baron-gold tnum">
-                    {m.avgOpScore ?? "—"}
-                  </TableCell>
-                  <TableCell className="pr-5 text-right text-[12px] tnum">
-                    <span
-                      className={`font-bold ${
-                        m.wr >= 55
-                          ? "text-baron-emerald"
-                          : m.wr >= 50
-                            ? "text-baron-victory"
-                            : "text-baron-ink-secondary"
-                      }`}
-                    >
-                      {m.wr}%
-                    </span>{" "}
-                    <span className="text-baron-ink-muted">({m.play.toLocaleString()}G)</span>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+      {!isLoading && !error && boardMode === "champion" && region === "ALL" && (
+        <ChampionRegionalCardsGrid
+          regions={multiRegions}
+          champion={champion}
+          regionOptions={regionOptions}
+          ddVersion={ddVersion}
+          onSelectRegion={setRegion}
+          onSelectPlayer={handleSelectPlayer}
+        />
+      )}
+
+      {!isLoading && !error && boardMode === "champion" && region !== "ALL" && (
+        <ChampionSingleRegionTable
+          region={region}
+          champion={champion}
+          rows={rows}
+          regionOptions={regionOptions}
+          ddVersion={ddVersion}
+          onSelectPlayer={handleSelectPlayer}
+        />
       )}
     </div>
   );

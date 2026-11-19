@@ -41,9 +41,11 @@ const CHAMPION_KEY_ALIASES: Record<string, string> = {
   "Kog'Maw": "KogMaw",
 };
 
-export function championKey(name: string): string {
+export function championKey(name?: string | null): string {
+  if (!name || typeof name !== "string") return "Ahri";
   // Strip OP.GG mode-variant prefixes (e.g. Classic mode's `Jade_Gangplank` -> `Gangplank`).
   const stripped = name.trim().replace(/^[A-Za-z]+_/, "");
+  if (!stripped) return "Ahri";
   const exact = CHAMPION_KEY_ALIASES[stripped];
   if (exact) return exact;
   const upper = stripped.toUpperCase().replace(/[^A-Z]/g, "");

@@ -38,13 +38,29 @@ fn resolve_opgg_api_version(requested: Option<&str>) -> Option<String> {
     meta.opgg_patches.first().cloned()
 }
 
-fn append_version_param(url: String, version: Option<&str>) -> String {
+fn mode_tracks_ranked_patch(mode: &str) -> bool {
+    matches!(mode, "ranked" | "flex" | "aram" | "classic")
+}
+
+fn append_version_param(url: &str, version: Option<&str>) -> String {
     match version.filter(|v| crate::assets::is_valid_short_patch(v)) {
         Some(ver) => {
             let sep = if url.contains('?') { '&' } else { '?' };
             format!("{url}{sep}version={ver}")
         }
-        None => url,
+        None => url.to_string(),
+    }
+}
+
+/// Fetches an OP.GG Desktop JSON endpoint with an optional `version` query param, automatically
+/// falling back to the unversioned latest endpoint if OP.GG returns an error (e.g. HTTP 422
+/// for a rotating mode or mid-rollout patch).
+fn http_get_opgg_json(base_url: &str, version: Option<&str>) -> Result<Value, String> {
+    let versioned = append_version_param(base_url, version);
+    match http_get_json(&versioned) {
+        Ok(val) => Ok(val),
+        Err(err) if versioned != base_url => http_get_json(base_url).map_err(|_| err),
+        Err(err) => Err(err),
     }
 }
 
@@ -422,9 +438,13 @@ pub fn fetch_opgg_mode_tier_list(
         }
         _ => format!("{OPGG_CHAMPION_API}/global/champions/{api_mode}"),
     };
-    let url = append_version_param(base_url, resolved_version.as_deref());
+    let effective_version = if mode_tracks_ranked_patch(api_mode) {
+        resolved_version.as_deref()
+    } else {
+        None
+    };
 
-    let json = http_get_json(&url)?;
+    let json = http_get_opgg_json(&base_url, effective_version)?;
     let rows = json
         .get("data")
         .and_then(|d| d.as_array())
@@ -587,62 +607,49 @@ pub fn fetch_opgg_champion_bundle(
         region.trim().to_ascii_uppercase()
     };
 
-    let desktop_url = match norm_mode {
-        "arena" => Some(append_version_param(
-            format!(
-                "{OPGG_CHAMPION_API}/global/champions/arena/{}",
-                entry.champion_id
-            ),
-            resolved_version.as_deref(),
+    let desktop_base_url = match norm_mode {
+        "arena" => Some(format!(
+            "{OPGG_CHAMPION_API}/global/champions/arena/{}",
+            entry.champion_id
         )),
-        "ranked" | "flex" => Some(append_version_param(
-            format!(
-                "{OPGG_CHAMPION_API}/global/champions/{norm_mode}/{}/{opgg_pos}?tier={norm_tier}&is_more=true",
-                entry.champion_id
-            ),
-            resolved_version.as_deref(),
+        "ranked" | "flex" => Some(format!(
+            "{OPGG_CHAMPION_API}/global/champions/{norm_mode}/{}/{opgg_pos}?tier={norm_tier}&is_more=true",
+            entry.champion_id
         )),
-        "classic" => Some(append_version_param(
-            format!(
-                "{OPGG_CHAMPION_API}/global/champions/classic/{}/{opgg_pos}",
-                entry.champion_id
-            ),
-            resolved_version.as_deref(),
+        "classic" => Some(format!(
+            "{OPGG_CHAMPION_API}/global/champions/classic/{}/{opgg_pos}",
+            entry.champion_id
         )),
-        "aram" => Some(append_version_param(
-            format!(
-                "{OPGG_CHAMPION_API}/global/champions/aram/{}/none?tier={norm_tier}&is_more=true",
-                entry.champion_id
-            ),
-            resolved_version.as_deref(),
+        "aram" => Some(format!(
+            "{OPGG_CHAMPION_API}/global/champions/aram/{}/none?tier={norm_tier}&is_more=true",
+            entry.champion_id
         )),
         "aram_mayhem" => Some(format!(
             "{OPGG_CHAMPION_API}/global/champions/aram_mayhem_classic/{}/none?tier=all&is_more=true",
             entry.champion_id
         )),
-        "urf" => Some(append_version_param(
-            format!(
-                "{OPGG_CHAMPION_API}/global/champions/urf/{}/none",
-                entry.champion_id
-            ),
-            resolved_version.as_deref(),
+        "urf" => Some(format!(
+            "{OPGG_CHAMPION_API}/global/champions/urf/{}/none",
+            entry.champion_id
         )),
-        "nexus_blitz" => Some(append_version_param(
-            format!(
-                "{OPGG_CHAMPION_API}/global/champions/nexus_blitz/{}/none",
-                entry.champion_id
-            ),
-            resolved_version.as_deref(),
+        "nexus_blitz" => Some(format!(
+            "{OPGG_CHAMPION_API}/global/champions/nexus_blitz/{}/none",
+            entry.champion_id
         )),
-        "doom" => Some(append_version_param(
-            format!(
-                "{OPGG_CHAMPION_API}/global/champions/doom/{}/none",
-                entry.champion_id
-            ),
-            resolved_version.as_deref(),
+        "doom" => Some(format!(
+            "{OPGG_CHAMPION_API}/global/champions/doom/{}/none",
+            entry.champion_id
         )),
         _ => None, // "brawl" exposes OP.GG tier rankings without per-champion item/rune tables.
     };
+    let effective_version = if mode_tracks_ranked_patch(norm_mode) {
+        resolved_version.as_deref()
+    } else {
+        None
+    };
+    let desktop_url = desktop_base_url
+        .as_deref()
+        .map(|base| append_version_param(base, effective_version));
 
     let (
         desktop_res,
@@ -653,16 +660,21 @@ pub fn fetch_opgg_champion_bundle(
         aram_augments_res,
         arena_aug_meta_res,
     ) = std::thread::scope(|s| {
-        let h_desktop = desktop_url
-            .as_ref()
-            .map(|url| s.spawn(move || http_get_json(url)));
+        let h_desktop = desktop_base_url
+            .as_deref()
+            .map(|base| s.spawn(move || http_get_opgg_json(base, effective_version)));
         let h_details = s.spawn(|| {
             call_opgg_tool_json(
                 OPGG_MCP_URL,
                 "lol_list_champion_details",
                 json!({
-                    "champion_names": [mcp_slug],
-                    "lang": "en_US"
+                    "champions": [mcp_slug],
+                    "lang": "en_US",
+                    "desired_output_fields": [
+                        "data.champions[].{ally_tips[],blurb,enemy_tips[],id,key,lore,name,partype,release_date,tags[],title}",
+                        "data.champions[].passive.{description,name}",
+                        "data.champions[].spells[].{cooldown_burn[],cost_burn[],description,key,name}"
+                    ]
                 }),
             )
         });
@@ -672,7 +684,13 @@ pub fn fetch_opgg_champion_bundle(
                 "lol_list_skin_stats_for_champion",
                 json!({
                     "champion": mcp_slug,
-                    "lang": "en_US"
+                    "lang": "en_US",
+                    "desired_output_fields": [
+                        "champion_id",
+                        "champion_key",
+                        "champion_name",
+                        "data[].{rank,skin_id,skin_name}"
+                    ]
                 }),
             )
         });
@@ -688,6 +706,7 @@ pub fn fetch_opgg_champion_bundle(
                         "region",
                         "leaderboard[].rank",
                         "leaderboard[].summoner.{game_name,tagline,level,profile_image_url}",
+                        "leaderboard[].summoner.league_stats[].{game_type,win,lose}",
                         "leaderboard[].summoner.league_stats[].tier_info.{tier,division,lp}",
                         "leaderboard[].most_champion_stat.{play,win,lose,kill,death,assist,op_score}"
                     ]
@@ -799,6 +818,14 @@ pub fn fetch_opgg_champion_bundle(
     });
 
     let mut errors = Vec::new();
+    let served_patch = desktop_res
+        .as_ref()
+        .ok()
+        .and_then(|v| v.get("meta"))
+        .and_then(|m| m.get("version"))
+        .and_then(|v| v.as_str())
+        .map(str::to_owned)
+        .or(resolved_version);
     let desktop_data = match desktop_res {
         Ok(v) => v.get("data").cloned().unwrap_or(v),
         Err(e) => {
@@ -813,7 +840,13 @@ pub fn fetch_opgg_champion_bundle(
             .get("data")
             .and_then(|d| d.get("champions"))
             .and_then(|c| c.as_array())
-            .and_then(|a| a.first())
+            .and_then(|arr| {
+                arr.iter()
+                    .find(|item| {
+                        item.get("id").and_then(|id| id.as_u64()) == Some(entry.champion_id as u64)
+                    })
+                    .or_else(|| arr.first())
+            })
             .cloned()
             .unwrap_or(Value::Null),
         Err(e) => {
@@ -899,7 +932,7 @@ pub fn fetch_opgg_champion_bundle(
         "role": role,
         "tier": norm_tier,
         "region": region_code,
-        "patch": resolved_version,
+        "patch": served_patch,
         "endpointUrl": desktop_url.unwrap_or_default(),
         "desktopData": desktop_data,
         "mcpAnalysis": mcp_analysis,

@@ -87,6 +87,27 @@ const LANE_ROLES: { id: TierRole; label: string; opggName: string }[] = [
 
 type BuildSubTab = "build" | "counters" | "synergies" | "providers" | "skins";
 
+function mapSynergyPosToRole(pos?: string, fallback: TierRole = "Middle"): TierRole {
+  switch ((pos ?? "").trim().toUpperCase()) {
+    case "TOP":
+      return "Top";
+    case "JUNGLE":
+      return "Jungle";
+    case "MID":
+    case "MIDDLE":
+      return "Middle";
+    case "ADC":
+    case "BOTTOM":
+    case "BOT":
+      return "Bottom";
+    case "SUPPORT":
+    case "UTILITY":
+      return "Utility";
+    default:
+      return fallback;
+  }
+}
+
 function stripHtmlTags(text: string): string {
   return text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -490,7 +511,7 @@ export function ChampionBuildView({
             </Select>
           )}
           <span className="rounded-md border border-baron-border bg-baron-surface px-2.5 py-1 text-[11px] font-semibold text-baron-ink-secondary">
-            {region} · Patch {patch}
+            {region} · Patch {bundle?.patch || patch}
           </span>
         </div>
       </div>
@@ -534,7 +555,8 @@ export function ChampionBuildView({
                   {bundle?.name ?? champion}
                 </h1>
                 <span className="text-[13px] font-medium text-baron-ink-secondary">
-                  Build for {activeModeDef.hasRoles ? role : activeModeDef.shortLabel}, Patch {patch}
+                  Build for {activeModeDef.hasRoles ? role : activeModeDef.shortLabel}, Patch{" "}
+                  {bundle?.patch || patch}
                 </span>
                 {details?.tags?.map((tag) => (
                   <span
@@ -562,7 +584,7 @@ export function ChampionBuildView({
                           alt={spellData.passive.name}
                           className="h-7 w-7 rounded object-cover"
                         />
-                        <span className="absolute -right-0.5 -bottom-0.5 rounded bg-black/85 px-1 text-[8.5px] font-bold text-baron-ink">
+                        <span className="absolute -right-0.5 -bottom-0.5 rounded bg-black/85 px-1 text-[8.5px] font-bold text-white">
                           P
                         </span>
                       </div>
@@ -584,7 +606,7 @@ export function ChampionBuildView({
                             alt={sp.name}
                             className="h-7 w-7 rounded object-cover"
                           />
-                          <span className="absolute -right-0.5 -bottom-0.5 rounded bg-black/85 px-1 text-[8.5px] font-bold text-baron-ink">
+                          <span className="absolute -right-0.5 -bottom-0.5 rounded bg-black/85 px-1 text-[8.5px] font-bold text-white">
                             {sp.slot}
                           </span>
                         </div>
@@ -1323,7 +1345,12 @@ export function ChampionBuildView({
                           <button
                             key={`msyn-${s.synergy_champion_name}-${s.lane}-${idx}`}
                             type="button"
-                            onClick={() => onSelectChampion(s.synergy_champion_name, role)}
+                            onClick={() =>
+                              onSelectChampion(
+                                s.synergy_champion_name,
+                                mapSynergyPosToRole(s.synergy_position || s.lane, role),
+                              )
+                            }
                             className="flex w-full items-center justify-between rounded-lg border border-baron-border bg-baron-inset px-3 py-2 text-left hover:border-baron-accent"
                           >
                             <div className="flex items-center gap-2">
@@ -1361,7 +1388,14 @@ export function ChampionBuildView({
                   </h2>
                   <div className="space-y-1.5">
                     {bundle?.masteryLeaderboard.slice(0, 5).map((entry) => {
-                      const tierInfo = entry.summoner?.league_stats?.[0]?.tier_info;
+                      const stats = entry.summoner?.league_stats ?? [];
+                      const solo =
+                        stats.find(
+                          (st) =>
+                            (st.game_type ?? "").toUpperCase() === "SOLORANKED" &&
+                            Boolean(st.tier_info?.tier),
+                        ) ?? stats.find((st) => Boolean(st.tier_info?.tier));
+                      const tierInfo = solo?.tier_info;
                       const stat = entry.most_champion_stat;
                       const games = stat?.play ?? 0;
                       const wr = games > 0 && stat?.win ? (stat.win / games) * 100 : 0;
@@ -1495,22 +1529,284 @@ export function ChampionBuildView({
                   advice from OP.GG MCP.
                 </div>
               )}
-              {!matchupLoading && matchupGuide && (
-                <div className="space-y-3 text-[12px] text-baron-ink-secondary">
-                  {matchupGuide.summary?.summary && (
-                    <p className="rounded-lg border border-baron-border bg-baron-inset p-3 text-baron-ink">
-                      {matchupGuide.summary.summary}
-                    </p>
-                  )}
-                  {(matchupGuide.lane_strategy?.lane_tips?.length ?? 0) > 0 && (
-                    <ul className="list-disc space-y-1.5 pl-4">
-                      {(matchupGuide.lane_strategy?.lane_tips ?? []).map((tip: string, i: number) => (
-                        <li key={`tip-${i}`}>{tip}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
+              {!matchupLoading && matchupGuide && (() => {
+                const mg = matchupGuide.data;
+                const tip =
+                  mg?.opponent_champion_tip ?? matchupGuide.summary?.summary ?? null;
+                const laneAdv = mg?.lane_advantage_champion ?? null;
+                const soloKillAdv = mg?.lane_solo_kill_advantage_champion ?? null;
+                const playStyle = mg?.recommended_play_style ?? null;
+                const spells = asList(mg?.summoner_spells).slice(0, 2);
+                const starters = asList(mg?.starter_items).slice(0, 2);
+                const boots = asList(mg?.boots).slice(0, 3);
+                const cores = asList(mg?.core_items).slice(0, 3);
+                const runes = asList(mg?.runes).slice(0, 2);
+                const skillMax = asList(mg?.skill_masteries)[0];
+                const extraTips = matchupGuide.lane_strategy?.lane_tips ?? [];
+                const hasAnyData = Boolean(
+                  tip ||
+                    laneAdv ||
+                    soloKillAdv ||
+                    playStyle ||
+                    starters.length ||
+                    boots.length ||
+                    cores.length ||
+                    runes.length ||
+                    extraTips.length,
+                );
+
+                if (!hasAnyData) {
+                  return (
+                    <div className="rounded-lg border border-baron-border bg-baron-inset p-4 text-[12px] text-baron-ink-muted">
+                      OP.GG MCP returned insufficient matchup sample for {bundle?.name ?? champion}{" "}
+                      vs {matchupOpponent} in {role}.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-3.5 text-[12px] text-baron-ink-secondary">
+                    {(laneAdv || soloKillAdv || playStyle) && (
+                      <div className="flex flex-wrap gap-2">
+                        {laneAdv && (
+                          <span className="rounded-md border border-baron-victory/35 bg-baron-victory/12 px-2 py-1 text-[11px] font-bold text-baron-victory">
+                            Lane Advantage: {laneAdv}
+                          </span>
+                        )}
+                        {soloKillAdv && (
+                          <span className="rounded-md border border-baron-accent/35 bg-baron-accent/12 px-2 py-1 text-[11px] font-bold text-baron-accent-soft">
+                            Solo-Kill Edge: {soloKillAdv}
+                          </span>
+                        )}
+                        {playStyle && (
+                          <span className="rounded-md border border-baron-border bg-baron-inset px-2 py-1 text-[11px] font-semibold text-baron-ink capitalize">
+                            Tempo: {playStyle}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {tip && (
+                      <div className="rounded-lg border border-baron-accent/30 bg-baron-inset p-3 leading-relaxed text-baron-ink">
+                        <div className="mb-1 text-[10px] font-bold tracking-[0.06em] text-baron-accent-soft uppercase">
+                          OP.GG Matchup Strategy
+                        </div>
+                        <p>{tip}</p>
+                      </div>
+                    )}
+
+                    {extraTips.length > 0 && (
+                      <ul className="list-disc space-y-1.5 pl-4">
+                        {extraTips.map((t: string, i: number) => (
+                          <li key={`tip-${i}`}>{t}</li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {(spells.length > 0 || starters.length > 0 || skillMax) && (
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                        {spells[0] && (
+                          <div className="rounded-lg border border-baron-border bg-baron-inset p-2.5">
+                            <div className="mb-1.5 text-[10px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+                              Spells vs {matchupOpponent}
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1">
+                                {(spells[0].ids ?? []).map((id, idx) => (
+                                  <img
+                                    key={`mg-sp-${id}-${idx}`}
+                                    src={spellIdUrl(id, ddVersion)}
+                                    alt={`Spell ${id}`}
+                                    className="h-7 w-7 rounded border border-baron-border object-cover"
+                                  />
+                                ))}
+                              </div>
+                              <div className="text-right text-[10.5px] tabular-nums">
+                                <div className="font-bold text-baron-victory">
+                                  {wrLabel(spells[0].win, spells[0].play)}
+                                </div>
+                                <div className="text-baron-ink-muted">{spells[0].play}G</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {starters[0] && (
+                          <div className="rounded-lg border border-baron-border bg-baron-inset p-2.5">
+                            <div className="mb-1.5 text-[10px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+                              Starter Items
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1">
+                                {(starters[0].ids ?? [])
+                                  .filter((id) => id > 0)
+                                  .map((id, idx) => (
+                                    <span key={`mg-st-${id}-${idx}`}>
+                                      {renderItemImg(id, "h-7 w-7")}
+                                    </span>
+                                  ))}
+                              </div>
+                              <div className="text-right text-[10.5px] tabular-nums">
+                                <div className="font-bold text-baron-victory">
+                                  {wrLabel(starters[0].win, starters[0].play)}
+                                </div>
+                                <div className="text-baron-ink-muted">{starters[0].play}G</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {skillMax && (
+                          <div className="rounded-lg border border-baron-border bg-baron-inset p-2.5">
+                            <div className="mb-1.5 text-[10px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+                              Skill Priority
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1">
+                                {(skillMax.ids ?? []).slice(0, 3).map((sk, idx) => (
+                                  <span key={`mg-sk-${sk}-${idx}`} className="flex items-center gap-1">
+                                    <span className="flex h-6 w-6 items-center justify-center rounded border border-baron-accent/40 bg-baron-accent/15 text-[11px] font-extrabold text-baron-accent-soft">
+                                      {sk}
+                                    </span>
+                                    {idx < 2 && (
+                                      <ChevronRight className="h-3 w-3 text-baron-ink-muted" />
+                                    )}
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="text-right text-[10.5px] tabular-nums">
+                                <div className="font-bold text-baron-victory">
+                                  {wrLabel(skillMax.win, skillMax.play)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {runes.length > 0 && (
+                      <div>
+                        <div className="mb-1.5 text-[10px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+                          Recommended Matchup Runes
+                        </div>
+                        <div className="space-y-1.5">
+                          {runes.map((r, idx) => {
+                            const keystoneId = r.primary_rune_ids?.[0];
+                            const keystoneIcon =
+                              (keystoneId ? runeMeta[keystoneId]?.icon : undefined) ??
+                              RUNE_STYLE_ICON_FALLBACK[r.primary_page_id] ??
+                              RUNE_STYLE_ICON_FALLBACK[8000];
+                            const secIcon =
+                              runeMeta[r.secondary_page_id]?.icon ??
+                              RUNE_STYLE_ICON_FALLBACK[r.secondary_page_id] ??
+                              RUNE_STYLE_ICON_FALLBACK[8400];
+                            return (
+                              <div
+                                key={`mg-rune-${idx}`}
+                                className="flex items-center justify-between gap-2 rounded-lg border border-baron-border bg-baron-inset px-3 py-2"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <img
+                                    src={runeIconUrl(keystoneIcon)}
+                                    alt={r.primary_page_name || "Keystone"}
+                                    className="h-7 w-7 rounded-full border border-baron-accent/50 bg-baron-surface object-cover"
+                                  />
+                                  <img
+                                    src={runeIconUrl(secIcon)}
+                                    alt={r.secondary_page_name || "Secondary"}
+                                    className="h-5 w-5 rounded-full border border-baron-border bg-baron-surface object-cover"
+                                  />
+                                  <div className="min-w-0">
+                                    <div className="truncate font-semibold text-baron-ink">
+                                      {r.primary_rune_names?.[0] ?? r.primary_page_name ?? "Keystone"}{" "}
+                                      + {r.secondary_page_name ?? "Secondary"}
+                                    </div>
+                                    <div className="truncate text-[10.5px] text-baron-ink-muted">
+                                      {(r.primary_rune_names ?? []).slice(1).join(" · ")}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="shrink-0 text-right text-[11px] tabular-nums">
+                                  <div className="font-bold text-baron-victory">
+                                    {wrLabel(r.win, r.play)} WR
+                                  </div>
+                                  <div className="text-baron-ink-muted">
+                                    {pctLabel(r.pick_rate)} ({r.play}G)
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {boots.length > 0 && (
+                      <div>
+                        <div className="mb-1.5 text-[10px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+                          Best Boots vs {matchupOpponent}
+                        </div>
+                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                          {boots.map((b, idx) => (
+                            <div
+                              key={`mg-boot-${idx}`}
+                              className="flex items-center justify-between rounded-lg border border-baron-border bg-baron-inset px-2.5 py-1.5"
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                {b.ids?.[0] ? renderItemImg(b.ids[0], "h-6 w-6 shrink-0") : null}
+                                <span className="truncate text-[11px] font-medium text-baron-ink">
+                                  {b.ids_names?.[0] ?? itemCatalog[b.ids?.[0]]?.name ?? "Boots"}
+                                </span>
+                              </div>
+                              <span className="shrink-0 text-[11px] font-bold text-baron-victory tabular-nums">
+                                {wrLabel(b.win, b.play)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {cores.length > 0 && (
+                      <div>
+                        <div className="mb-1.5 text-[10px] font-bold tracking-[0.06em] text-baron-ink-muted uppercase">
+                          Core Item Paths vs {matchupOpponent}
+                        </div>
+                        <div className="space-y-1.5">
+                          {cores.map((c, idx) => (
+                            <div
+                              key={`mg-core-${idx}`}
+                              className="flex items-center justify-between gap-2 rounded-lg border border-baron-border bg-baron-inset px-3 py-2"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                {(c.ids ?? [])
+                                  .filter((id) => id > 0)
+                                  .map((id, i) => (
+                                    <span key={`mg-ci-${id}-${i}`} className="flex items-center gap-1">
+                                      {renderItemImg(id, "h-7 w-7")}
+                                      {i < (c.ids?.length ?? 0) - 1 && (
+                                        <ChevronRight className="h-3 w-3 text-baron-ink-muted" />
+                                      )}
+                                    </span>
+                                  ))}
+                              </div>
+                              <div className="shrink-0 text-right text-[11px] tabular-nums">
+                                <div className="font-bold text-baron-victory">
+                                  {wrLabel(c.win, c.play)} WR
+                                </div>
+                                <div className="text-baron-ink-muted">
+                                  {pctLabel(c.pick_rate)} ({c.play}G)
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}

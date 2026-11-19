@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar, type BaronRoute, type SidebarSummonerSummary } from "@/components/shell/Sidebar";
 import { TopCommandBar } from "@/components/shell/TopCommandBar";
 import { BlurFade } from "@/components/ui/blur-fade";
@@ -375,15 +376,19 @@ export default function BaronAppPage() {
         />
 
         <main className="baron-inset-shell min-w-0 flex-1 overflow-y-auto rounded-tl-[14px] border-t border-l border-baron-border bg-baron-inset">
-          <BlurFade
-            key={route}
-            duration={0.18}
-            delay={0}
-            offset={4}
-            blur="3px"
-            direction="up"
-            className="min-h-full"
+          <ErrorBoundary
+            resetKey={`${route}:${activeQuery?.gameName ?? ""}:${activeQuery?.region ?? ""}:${refreshNonce}`}
+            onReset={handleRefresh}
           >
+            <BlurFade
+              key={route}
+              duration={0.18}
+              delay={0}
+              offset={4}
+              blur="3px"
+              direction="up"
+              className="min-h-full"
+            >
             {route === "dashboard" && (
               <DashboardView
                 ddVersion={ddVersion}
@@ -465,7 +470,8 @@ export default function BaronAppPage() {
                 onNavigate={navigateTo}
               />
             )}
-          </BlurFade>
+            </BlurFade>
+          </ErrorBoundary>
         </main>
       </div>
     </div>

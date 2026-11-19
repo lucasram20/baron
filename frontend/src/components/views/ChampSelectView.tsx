@@ -447,14 +447,16 @@ export function ChampSelectView({
                     Starters
                   </div>
                   <div className="flex gap-1">
-                    {topStarters.ids.map((id, i) => (
-                      <img
-                        key={`${id}-${i}`}
-                        src={itemIconUrl(id, ddVersion)}
-                        alt="Starter"
-                        className="h-7 w-7 rounded border border-baron-border"
-                      />
-                    ))}
+                    {topStarters.ids
+                      .filter((id) => id > 0)
+                      .map((id, i) => (
+                        <img
+                          key={`${id}-${i}`}
+                          src={itemIconUrl(id, ddVersion)}
+                          alt="Starter"
+                          className="h-7 w-7 rounded border border-baron-border"
+                        />
+                      ))}
                   </div>
                 </div>
               )}
@@ -476,14 +478,16 @@ export function ChampSelectView({
                     Core Path
                   </div>
                   <div className="flex gap-1.5">
-                    {topCore.ids.map((id, i) => (
-                      <img
-                        key={`${id}-${i}`}
-                        src={itemIconUrl(id, ddVersion)}
-                        alt={topCore.ids_names?.[i] ?? "Item"}
-                        className="h-7 w-7 rounded border border-baron-border-strong"
-                      />
-                    ))}
+                    {topCore.ids
+                      .filter((id) => id > 0)
+                      .map((id, i) => (
+                        <img
+                          key={`${id}-${i}`}
+                          src={itemIconUrl(id, ddVersion)}
+                          alt={topCore.ids_names?.[i] ?? "Item"}
+                          className="h-7 w-7 rounded border border-baron-border-strong"
+                        />
+                      ))}
                   </div>
                 </div>
               )}
@@ -498,7 +502,8 @@ export function ChampSelectView({
             </div>
             <div className="mt-3 space-y-2">
               {weakCounters.slice(0, 5).map((c) => {
-                const wr = c.my_win_rate ?? (c.play ? c.win / c.play : 0.5);
+                const rawWr = c.my_win_rate ?? (c.play ? c.win / c.play : 0.5);
+                const wrPct = rawWr <= 1 ? rawWr * 100 : rawWr;
                 return (
                   <div
                     key={c.champion_name}
@@ -515,7 +520,7 @@ export function ChampSelectView({
                       </span>
                     </div>
                     <span className="text-[11.5px] font-bold text-baron-defeat tnum">
-                      {(wr * 100).toFixed(1)}% WR
+                      {wrPct.toFixed(1)}% WR
                     </span>
                   </div>
                 );

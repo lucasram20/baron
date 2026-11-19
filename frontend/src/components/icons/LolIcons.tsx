@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 
-export function LaneIcon({ role, className }: { role: string; className?: string }) {
-  const norm = role.toLowerCase();
-  if (norm === "*" || norm === "all" || norm === "fill") {
+export function LaneIcon({ role, className }: { role?: string | null; className?: string }) {
+  const norm = (role ?? "").trim().toLowerCase();
+  if (!norm || norm === "none" || norm === "unknown" || norm === "*" || norm === "all" || norm === "fill") {
     return (
       <svg viewBox="0 0 16 16" fill="currentColor" className={cn("h-3.5 w-3.5", className)}>
         <path d="M8 1.25a.75.75 0 0 1 .75.75v2.05l1.55-.9a.75.75 0 1 1 .75 1.3L9.5 5.35l1.55.9a.75.75 0 1 1-.75 1.3l-1.55-.9V8l1.55.9a.75.75 0 1 1-.75 1.3l-1.55-.9V14a.75.75 0 0 1-1.5 0V9.3l-1.55.9a.75.75 0 1 1-.75-1.3l1.55-.9V6.65l-1.55.9a.75.75 0 0 1-.75-1.3l1.55-.9-1.55-.9a.75.75 0 0 1 .75-1.3l1.55.9V2A.75.75 0 0 1 8 1.25Z" />
@@ -51,10 +51,10 @@ export function RankCrest({
   tier,
   className,
 }: {
-  tier: "CHALLENGER" | "GRANDMASTER" | "MASTER" | "DIAMOND" | "EMERALD" | string;
+  tier?: "CHALLENGER" | "GRANDMASTER" | "MASTER" | "DIAMOND" | "EMERALD" | string | null;
   className?: string;
 }) {
-  const up = tier.toUpperCase();
+  const up = (tier ?? "UNRANKED").trim().toUpperCase();
   const colors =
     up.includes("CHALLENGER")
       ? { primary: "#E8BE74", secondary: "#D46233", core: "#FFF3D6" }
@@ -129,8 +129,8 @@ export function RarityDiamond({ className }: { className?: string }) {
   );
 }
 
-export function ShardIcon({ kind, className }: { kind: string; className?: string }) {
-  const k = kind.toLowerCase();
+export function ShardIcon({ kind, className }: { kind?: string | null; className?: string }) {
+  const k = (kind ?? "").toLowerCase();
   if (k.includes("attack")) {
     return (
       <svg viewBox="0 0 14 14" fill="currentColor" className={cn("h-3 w-3", className)}>

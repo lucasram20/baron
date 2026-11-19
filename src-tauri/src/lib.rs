@@ -288,6 +288,19 @@ async fn get_opgg_multi_region_leaderboard(
 }
 
 #[tauri::command]
+async fn get_opgg_ranked_leaderboard(
+    region: Option<String>,
+    regions: Option<Vec<String>>,
+) -> Result<Value, String> {
+    let target_regions = regions.unwrap_or_default();
+    tauri::async_runtime::spawn_blocking(move || {
+        baron_riot::fetch_opgg_ranked_player_leaderboard(region.as_deref(), &target_regions)
+    })
+    .await
+    .map_err(|e| format!("OP.GG ranked player leaderboard task failed: {e}"))?
+}
+
+#[tauri::command]
 async fn get_opgg_discounted_skins() -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(baron_riot::fetch_opgg_discounted_skins)
         .await
@@ -611,6 +624,7 @@ pub fn run() {
             get_opgg_game_detail,
             get_opgg_leaderboard,
             get_opgg_multi_region_leaderboard,
+            get_opgg_ranked_leaderboard,
             get_opgg_discounted_skins,
             get_opgg_esports_results,
             get_opgg_matchup_guide,
