@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "project": {
+    "name": "baron",
+    "productType": null,
+    "stack": [
+      "shadcn"
+    ]
+  },
+  "sources": {
+    "tokens": [],
+    "components": [
+      "frontend/src/components/ui"
+    ],
+    "assets": [
+      "assets"
+    ],
+    "instructions": [
+      "DESIGN.md",
+      "PRODUCT.md",
+      "AGENTS.md"
+    ]
+  },
+  "design": {
+    "colorMode": "unknown",
+    "colors": {},
+    "typography": {},
+    "spacing": {},
+    "radius": {},
+    "shadows": {},
+    "motion": {},
+    "density": "unknown"
+  },
+  "components": {
+    "installed": [
+      "badge",
+      "border-beam",
+      "button",
+      "checkbox",
+      "command",
+      "dialog",
+      "hover-border-gradient",
+      "magic-card",
+      "number-ticker",
+      "progress",
+      "select",
+      "switch",
+      "tabs",
+      "tooltip"
+    ],
+    "preferredPrimitives": [],
+    "patterns": []
+  },
+  "constraints": {
+    "must": [],
+    "avoid": []
+  },
+  "decisions": [],
+  "evidence": [
+    {
+      "fact": "components.installed",
+      "source": "frontend/src/components/ui"
+    },
+    {
+      "fact": "project.instructions",
+      "source": "AGENTS.md"
+    },
+    {
+      "fact": "project.instructions",
+      "source": "DESIGN.md"
+    },
+    {
+      "fact": "project.instructions",
+      "source": "PRODUCT.md"
+    },
+    {
+      "fact": "project.stack:shadcn",
+      "source": "components.json"
+    }
+  ],
+  "generatedAt": "2026-11-16T12:55:30.503Z"
+}
