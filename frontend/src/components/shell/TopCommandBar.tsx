@@ -73,13 +73,13 @@ const THEME_OPTIONS: { id: ThemePreference; label: string; icon: typeof Sun }[] 
 
 const QUICK_ROUTES: { route: BaronRoute; label: string; hint: string }[] = [
   { route: "dashboard", label: "Dashboard", hint: "Live OP.GG summoner profile & matches" },
-  { route: "tierlist", label: "Tierlist & Builds", hint: "Live OP.GG lane rankings & champion builds" },
+  { route: "tierlist", label: "Tierlist & Builds", hint: "Live meta lane rankings & champion builds (OP.GG, U.GG, LoLalytics)" },
   {
     route: "leaderboards",
     label: "Champion Master+",
     hint: "OP.GG Champion Master+ specialists across all 15 regions",
   },
-  { route: "champselect", label: "Champ Select", hint: "Live OP.GG matchup builds & LCU rune push" },
+  { route: "champselect", label: "Champ Select", hint: "Live matchup builds & 1-click LCU rune push" },
   { route: "postgame", label: "Post-game", hint: "Live OP.GG match scoreboard & analysis" },
   { route: "spectate", label: "Spectate", hint: "OP.GG esports results & LCU spectate" },
   { route: "collections", label: "Collections", hint: "Live OP.GG skin sales & LCU inventory" },

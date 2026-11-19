@@ -127,6 +127,24 @@ function wrLabel(wins: number, plays: number): string {
   return `${((wins / plays) * 100).toFixed(2)}%`;
 }
 
+function activeProviderApiBadge(providerId: string): {
+  label: string;
+  host: string;
+  short: string;
+} {
+  if (providerId === "ugg") {
+    return { label: "Live U.GG (stats2.u.gg)", host: "stats2.u.gg", short: "U.GG" };
+  }
+  if (providerId === "lolalytics") {
+    return {
+      label: "Live LoLalytics (a1.lolalytics.com)",
+      host: "a1.lolalytics.com",
+      short: "LoLalytics",
+    };
+  }
+  return { label: "Live OP.GG API", host: "lol-api-champion.op.gg", short: "OP.GG" };
+}
+
 export function ChampionBuildView({
   champion,
   role,
@@ -144,9 +162,16 @@ export function ChampionBuildView({
   onBack,
 }: ChampionBuildViewProps) {
   const { resolved } = useTheme();
+  const [prevProviderId, setPrevProviderId] = useState(activeProviderId);
   const [subTab, setSubTab] = useState<BuildSubTab>(
     activeProviderId === "ugg" || activeProviderId === "lolalytics" ? "providers" : "build",
   );
+  if (prevProviderId !== activeProviderId) {
+    setPrevProviderId(activeProviderId);
+    setSubTab(
+      activeProviderId === "ugg" || activeProviderId === "lolalytics" ? "providers" : "build",
+    );
+  }
   const [showMoreModes, setShowMoreModes] = useState(false);
   const [bundleState, setBundleState] = useState<{
     key: string;
@@ -237,10 +262,13 @@ export function ChampionBuildView({
   }, [champion, mode, role, tierFilter, region, ddVersion, patch, reqKey]);
 
   const compareKey = `${champion}:${patch}:${role}:${tierFilter}:${refreshNonce}`;
+  const shouldFetchUgg = subTab === "providers" || activeProviderId === "ugg";
+  const shouldFetchLola = subTab === "providers" || activeProviderId === "lolalytics";
+  const shouldFetchMeraki = subTab === "providers";
   useEffect(() => {
-    if (subTab !== "providers") return;
+    if (!shouldFetchUgg && !shouldFetchLola && !shouldFetchMeraki) return;
     let cancelled = false;
-    if (uggState.key !== compareKey) {
+    if (shouldFetchUgg && uggState.key !== compareKey) {
       fetchUggChampionBuild(champion, patch, role, bundle?.championId, ddVersion)
         .then((data) => {
           if (!cancelled) setUggState({ key: compareKey, data, error: null });
@@ -255,7 +283,7 @@ export function ChampionBuildView({
           }
         });
     }
-    if (lolaState.key !== compareKey) {
+    if (shouldFetchLola && lolaState.key !== compareKey) {
       fetchLolalyticsChampionBuild(champion, role, tierFilter, patch)
         .then((data) => {
           if (!cancelled) setLolaState({ key: compareKey, data, error: null });
@@ -270,7 +298,7 @@ export function ChampionBuildView({
           }
         });
     }
-    if (merakiState.key !== champion) {
+    if (shouldFetchMeraki && merakiState.key !== champion) {
       fetchMerakiChampionKit(champion)
         .then((data) => {
           if (!cancelled) setMerakiState({ key: champion, data, error: null });
@@ -292,7 +320,9 @@ export function ChampionBuildView({
       cancelled = true;
     };
   }, [
-    subTab,
+    shouldFetchUgg,
+    shouldFetchLola,
+    shouldFetchMeraki,
     champion,
     patch,
     role,
@@ -525,7 +555,7 @@ export function ChampionBuildView({
             <Select value={tierFilter} onValueChange={onChangeTierFilter}>
               <SelectTrigger
                 size="sm"
-                aria-label="Filter OP.GG rank tier"
+                aria-label="Filter rank tier"
                 className="h-8 min-w-[140px] border-baron-border bg-baron-surface text-[11.5px] font-semibold text-baron-ink"
               >
                 <SelectValue />
@@ -542,6 +572,10 @@ export function ChampionBuildView({
               </SelectContent>
             </Select>
           )}
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-baron-emerald/30 bg-baron-emerald/10 px-2.5 py-1 text-[11px] font-semibold text-baron-emerald">
+            <span className="h-1.5 w-1.5 rounded-full bg-baron-emerald" />
+            {activeProviderApiBadge(activeProviderId).label}
+          </span>
           <span className="rounded-md border border-baron-border bg-baron-surface px-2.5 py-1 text-[11px] font-semibold text-baron-ink-secondary">
             {region} · Patch {bundle?.patch || patch}
           </span>
@@ -664,59 +698,131 @@ export function ChampionBuildView({
             </div>
           </div>
 
-          {/* Right KPI Strip */}
-          {desktop && (
-            <div className="flex items-center gap-5 rounded-xl border border-baron-border bg-baron-inset/85 px-4 py-2.5 tabular-nums backdrop-blur-sm">
-              {isArena && heroPlay > 0 ? (
-                <>
-                  <div>
-                    <div className="text-[10px] text-baron-ink-muted">Avg. Place</div>
-                    <div className="text-[15px] font-extrabold text-baron-ink">
-                      {((avgStats?.total_place ?? 0) / heroPlay).toFixed(2)}
-                    </div>
+          {/* Right KPI Strip — reflects the active API provider */}
+          {activeProviderId === "ugg" ? (
+            uggState.key === compareKey && uggState.data ? (
+              <div className="flex items-center gap-5 rounded-xl border border-baron-emerald/35 bg-baron-inset/85 px-4 py-2.5 tabular-nums backdrop-blur-sm">
+                <div>
+                  <div className="text-[10px] text-baron-emerald font-semibold">U.GG Win rate</div>
+                  <div className="text-[15px] font-extrabold text-baron-victory">
+                    {uggState.data.roleWinRate > 0
+                      ? `${uggState.data.roleWinRate.toFixed(2)}%`
+                      : "—"}
                   </div>
-                  <div>
-                    <div className="text-[10px] text-baron-ink-muted">1st Rate</div>
-                    <div className="text-[15px] font-extrabold text-baron-emerald">
-                      {(((avgStats?.first_place ?? 0) / heroPlay) * 100).toFixed(2)}%
-                    </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-baron-ink-muted">Tier</div>
+                  <div className="text-[15px] font-extrabold text-baron-ink">
+                    {uggState.data.tierLabel}
                   </div>
-                  <div>
-                    <div className="text-[10px] text-baron-ink-muted">Top 2 Rate</div>
-                    <div className="text-[15px] font-extrabold text-baron-victory">
-                      {heroWinRate.toFixed(2)}%
-                    </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-baron-ink-muted">Priority</div>
+                  <div className="text-[15px] font-extrabold text-baron-ink-secondary">
+                    {uggState.data.skillPriority || "—"}
                   </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <div className="text-[10px] text-baron-ink-muted">Win rate</div>
-                    <div className="text-[15px] font-extrabold text-baron-victory">
-                      {heroWinRate > 0 ? `${heroWinRate.toFixed(2)}%` : "—"}
-                    </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-baron-ink-muted">Games</div>
+                  <div className="text-[15px] font-extrabold text-baron-ink">
+                    {uggState.data.roleGames > 0 ? uggState.data.roleGames.toLocaleString() : "—"}
                   </div>
-                  <div>
-                    <div className="text-[10px] text-baron-ink-muted">Pick rate</div>
-                    <div className="text-[15px] font-extrabold text-baron-ink">
-                      {heroPickRate > 0 ? `${heroPickRate.toFixed(2)}%` : "—"}
-                    </div>
+                </div>
+              </div>
+            ) : uggState.key !== compareKey ? (
+              <div className="rounded-xl border border-baron-border bg-baron-inset/85 px-4 py-2.5 text-[11.5px] font-medium text-baron-ink-muted">
+                Fetching U.GG (stats2.u.gg)...
+              </div>
+            ) : null
+          ) : activeProviderId === "lolalytics" ? (
+            lolaState.key === compareKey && lolaState.data ? (
+              <div className="flex items-center gap-5 rounded-xl border border-baron-accent/40 bg-baron-inset/85 px-4 py-2.5 tabular-nums backdrop-blur-sm">
+                <div>
+                  <div className="text-[10px] text-baron-accent-soft font-semibold">
+                    LoLalytics WR
                   </div>
-                  <div>
-                    <div className="text-[10px] text-baron-ink-muted">Ban rate</div>
-                    <div className="text-[15px] font-extrabold text-baron-ink-secondary">
-                      {heroBanRate > 0 ? `${heroBanRate.toFixed(2)}%` : "—"}
-                    </div>
+                  <div className="text-[15px] font-extrabold text-baron-victory">
+                    {lolaState.data.winRate > 0 ? `${lolaState.data.winRate.toFixed(2)}%` : "—"}
                   </div>
-                  <div>
-                    <div className="text-[10px] text-baron-ink-muted">Games</div>
-                    <div className="text-[15px] font-extrabold text-baron-ink">
-                      {heroPlay > 0 ? heroPlay.toLocaleString() : "—"}
-                    </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-baron-ink-muted">Pick rate</div>
+                  <div className="text-[15px] font-extrabold text-baron-ink">
+                    {lolaState.data.pickRate > 0 ? `${lolaState.data.pickRate.toFixed(2)}%` : "—"}
                   </div>
-                </>
-              )}
-            </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-baron-ink-muted">Ban rate</div>
+                  <div className="text-[15px] font-extrabold text-baron-ink-secondary">
+                    {lolaState.data.banRate > 0 ? `${lolaState.data.banRate.toFixed(2)}%` : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-baron-ink-muted">Games</div>
+                  <div className="text-[15px] font-extrabold text-baron-ink">
+                    {lolaState.data.games > 0 ? lolaState.data.games.toLocaleString() : "—"}
+                  </div>
+                </div>
+              </div>
+            ) : lolaState.key !== compareKey ? (
+              <div className="rounded-xl border border-baron-border bg-baron-inset/85 px-4 py-2.5 text-[11.5px] font-medium text-baron-ink-muted">
+                Fetching LoLalytics (a1.lolalytics.com)...
+              </div>
+            ) : null
+          ) : (
+            desktop && (
+              <div className="flex items-center gap-5 rounded-xl border border-baron-border bg-baron-inset/85 px-4 py-2.5 tabular-nums backdrop-blur-sm">
+                {isArena && heroPlay > 0 ? (
+                  <>
+                    <div>
+                      <div className="text-[10px] text-baron-ink-muted">Avg. Place</div>
+                      <div className="text-[15px] font-extrabold text-baron-ink">
+                        {((avgStats?.total_place ?? 0) / heroPlay).toFixed(2)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-baron-ink-muted">1st Rate</div>
+                      <div className="text-[15px] font-extrabold text-baron-emerald">
+                        {(((avgStats?.first_place ?? 0) / heroPlay) * 100).toFixed(2)}%
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-baron-ink-muted">Top 2 Rate</div>
+                      <div className="text-[15px] font-extrabold text-baron-victory">
+                        {heroWinRate.toFixed(2)}%
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <div className="text-[10px] text-baron-ink-muted">Win rate</div>
+                      <div className="text-[15px] font-extrabold text-baron-victory">
+                        {heroWinRate > 0 ? `${heroWinRate.toFixed(2)}%` : "—"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-baron-ink-muted">Pick rate</div>
+                      <div className="text-[15px] font-extrabold text-baron-ink">
+                        {heroPickRate > 0 ? `${heroPickRate.toFixed(2)}%` : "—"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-baron-ink-muted">Ban rate</div>
+                      <div className="text-[15px] font-extrabold text-baron-ink-secondary">
+                        {heroBanRate > 0 ? `${heroBanRate.toFixed(2)}%` : "—"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-baron-ink-muted">Games</div>
+                      <div className="text-[15px] font-extrabold text-baron-ink">
+                        {heroPlay > 0 ? heroPlay.toLocaleString() : "—"}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )
           )}
         </div>
 
@@ -744,10 +850,18 @@ export function ChampionBuildView({
         <div className="flex items-center gap-1 overflow-x-auto">
           {(
             [
-              { id: "build", label: "Build" },
+              { id: "build", label: activeProviderId === "opgg" ? "Build" : "OP.GG Build" },
               { id: "counters", label: "Counters & Matchups" },
               { id: "synergies", label: "Synergies & Late Items" },
-              { id: "providers", label: "Compare: U.GG, LoLalytics & Meraki" },
+              {
+                id: "providers",
+                label:
+                  activeProviderId === "ugg"
+                    ? "U.GG Build & Compare"
+                    : activeProviderId === "lolalytics"
+                      ? "LoLalytics Build & Compare"
+                      : "Compare: U.GG, LoLalytics & Meraki",
+              },
               { id: "skins", label: "Skins & Patch Trends" },
             ] as { id: BuildSubTab; label: string }[]
           ).map((t) => (
@@ -831,7 +945,7 @@ export function ChampionBuildView({
 
       {/* Main Content */}
       <div className="p-5">
-        {isLoading && (
+        {isLoading && subTab !== "providers" && (
           <div role="status" className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_0.95fr]">
             <div className="space-y-4">
               <Skeleton className="h-72 w-full rounded-xl bg-baron-surface" />
@@ -844,7 +958,7 @@ export function ChampionBuildView({
           </div>
         )}
 
-        {!isLoading && error && (
+        {!isLoading && error && subTab !== "providers" && (
           <div role="alert" className="rounded-xl border border-baron-border bg-baron-surface p-6">
             <div className="flex items-start gap-3">
               <AlertCircle className="mt-0.5 h-5 w-5 text-baron-gold" />
@@ -858,7 +972,7 @@ export function ChampionBuildView({
           </div>
         )}
 
-        {!isLoading && !error && mode === "brawl" && (
+        {!isLoading && !error && subTab !== "providers" && mode === "brawl" && (
           <div className="rounded-xl border border-baron-border bg-baron-surface p-6">
             <div className="flex items-start gap-3">
               <Info className="mt-0.5 h-5 w-5 text-baron-accent-soft" />
@@ -1944,7 +2058,7 @@ export function ChampionBuildView({
         )}
 
         {/* SUBTAB: COMPARE PROVIDERS (LIVE U.GG + LOLALYTICS + MERAKI CDN) */}
-        {!isLoading && !error && subTab === "providers" && (
+        {subTab === "providers" && (
           <div className="space-y-4">
             {providerImportMsg && (
               <div className="rounded-lg border border-baron-emerald/35 bg-baron-emerald/10 px-3.5 py-2 text-[12px] font-medium text-baron-emerald">
@@ -1962,9 +2076,16 @@ export function ChampionBuildView({
                 }`}
               >
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-[13.5px] font-bold text-baron-ink">
-                    U.GG Live Overview Build ({role})
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-[13.5px] font-bold text-baron-ink">
+                      U.GG Live Overview Build ({role})
+                    </h2>
+                    {activeProviderId === "ugg" && (
+                      <span className="rounded bg-baron-accent/20 px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-baron-accent-soft">
+                        Active API
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className="rounded bg-baron-emerald/15 px-2 py-0.5 text-[10px] font-bold text-baron-emerald">
                       stats2.u.gg JSON
@@ -2164,14 +2285,21 @@ export function ChampionBuildView({
               <section
                 className={`rounded-xl border bg-baron-surface p-4 ${
                   activeProviderId === "lolalytics"
-                    ? "border-baron-accent/60 shadow-[inset_0_1px_0_rgba(242,149,96,0.2)]"
+                    ? "lg:order-first border-baron-accent/60 shadow-[inset_0_1px_0_rgba(242,149,96,0.2)]"
                     : "border-baron-border"
                 }`}
               >
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-[13.5px] font-bold text-baron-ink">
-                    LoLalytics Live Build ({role})
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-[13.5px] font-bold text-baron-ink">
+                      LoLalytics Live Build ({role})
+                    </h2>
+                    {activeProviderId === "lolalytics" && (
+                      <span className="rounded bg-baron-accent/20 px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wider text-baron-accent-soft">
+                        Active API
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className="rounded bg-baron-accent/15 px-2 py-0.5 text-[10px] font-bold text-baron-accent-soft">
                       a1.lolalytics.com JSON

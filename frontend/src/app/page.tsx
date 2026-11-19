@@ -382,6 +382,8 @@ export default function BaronAppPage() {
               <DashboardView
                 ddVersion={ddVersion}
                 patch={patch}
+                activeProviderId={activeProviderId}
+                activeProviderLabel={activeProvider?.label ?? "OP.GG"}
                 refreshNonce={refreshNonce}
                 onNavigate={navigateTo}
                 lcuPlayer={lcuPlayer}
@@ -447,6 +449,9 @@ export default function BaronAppPage() {
             {route === "champselect" && (
               <ChampSelectView
                 ddVersion={ddVersion}
+                patch={patch}
+                activeProviderId={activeProviderId}
+                activeProviderLabel={activeProvider?.label ?? "OP.GG"}
                 lcuConnected={lcuConnected}
                 lcuPlayer={lcuPlayer}
               />

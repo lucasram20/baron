@@ -675,9 +675,17 @@ const LEADERBOARD_CHAMPS = [
   "Darius",
 ] as const;
 
+function providerHostSummary(providerId: string, providerLabel: string): string {
+  if (providerId === "ugg") return `${providerLabel} (stats2.u.gg)`;
+  if (providerId === "lolalytics") return `${providerLabel} (a1.lolalytics.com)`;
+  return `${providerLabel} MCP`;
+}
+
 export function DashboardView({
   ddVersion,
   patch,
+  activeProviderId = "opgg",
+  activeProviderLabel = "OP.GG",
   refreshNonce = 0,
   onNavigate,
   lcuPlayer = null,
@@ -695,6 +703,8 @@ export function DashboardView({
 }: {
   ddVersion: string;
   patch: string;
+  activeProviderId?: string;
+  activeProviderLabel?: string;
   refreshNonce?: number;
   onNavigate: (route: BaronRoute) => void;
   lcuPlayer?: LcuPlayerContext | null;
@@ -989,9 +999,10 @@ export function DashboardView({
             type="submit"
             size="sm"
             disabled={!riotIdInput.includes("#") || Boolean(summonerLoading)}
+            title="Summoner lookup & 15-region ladders are fetched live via OP.GG MCP"
             className="h-8 bg-baron-accent px-3.5 text-[12px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] hover:brightness-110"
           >
-            {summonerLoading ? "Fetching OP.GG..." : "Search OP.GG"}
+            {summonerLoading ? "Fetching..." : "Search Summoner"}
           </Button>
 
           {lcuPlayer?.connected && !isViewingLcuAccount && onSwitchToMyLcuAccount && (
@@ -1010,15 +1021,15 @@ export function DashboardView({
         <div className="flex items-center gap-3 text-[11.5px] text-baron-ink-muted">
           <span>
             {lcuPlayer?.connected
-              ? `LCU Synced (${lcuPlayer.gameName}#${lcuPlayer.tagLine}) · Patch ${patch}`
-              : `Live OP.GG MCP · Patch ${patch}`}
+              ? `LCU Synced (${lcuPlayer.gameName}#${lcuPlayer.tagLine}) · Meta: ${providerHostSummary(activeProviderId, activeProviderLabel)} · Patch ${patch}`
+              : `Live ${providerHostSummary(activeProviderId, activeProviderLabel)} · Patch ${patch}`}
           </span>
           <button
             type="button"
             onClick={() => onNavigate("tierlist")}
             className="font-semibold text-baron-accent-soft hover:underline"
           >
-            Open Live Tierlist →
+            Open Live {activeProviderLabel} Tierlist →
           </button>
         </div>
       </form>
@@ -1083,9 +1094,10 @@ export function DashboardView({
                   </span>
                 </div>
                 <p className="mt-1 text-[12px] text-baron-ink-secondary">
-                  Launch League to auto-sync your Riot ID &amp; 1-click OP.GG runes, search any{" "}
-                  <strong className="text-baron-ink">Name#TAG</strong> above, or click any regional
-                  Master+ player below to inspect their profile and match history.
+                  Launch League to auto-sync your Riot ID &amp; 1-click {activeProviderLabel}{" "}
+                  runes, search any <strong className="text-baron-ink">Name#TAG</strong> above, or
+                  click any regional Master+ player below to inspect their live profile and match
+                  history.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -1634,7 +1646,7 @@ export function DashboardView({
                   onClick={() => onNavigate("tierlist")}
                   className="text-[12px] font-semibold text-baron-accent-soft hover:underline"
                 >
-                  Live OP.GG →
+                  Live {activeProviderLabel} →
                 </button>
               </div>
               <div className="divide-y divide-baron-border/75">
@@ -2103,8 +2115,8 @@ export function DataStudioView({
           Data Studio &amp; Provider Runtime
         </h1>
         <p className="mt-1 text-[12.5px] text-baron-ink-muted">
-          Configure appearance, inspect verified OP.GG MCP sources, and review local-first storage
-          &amp; Riot Fair Play boundaries.
+          Configure appearance, switch between live OP.GG, U.GG, LoLalytics &amp; Meraki CDN data
+          providers, and review local-first storage &amp; Riot Fair Play boundaries.
         </p>
       </header>
 

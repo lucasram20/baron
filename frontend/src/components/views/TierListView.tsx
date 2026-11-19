@@ -203,7 +203,13 @@ export function TierListView({
               </h1>
               <span className="inline-flex items-center gap-1 rounded-md border border-baron-accent/30 bg-baron-accent/12 px-2 py-0.5 text-[10.5px] font-bold text-baron-accent-soft">
                 <Layers className="h-3 w-3" />
-                Live {activeProviderLabel} · Patch {patch}
+                Live {activeProviderLabel} (
+                {activeProviderId === "ugg"
+                  ? "stats2.u.gg"
+                  : activeProviderId === "lolalytics"
+                    ? "a1.lolalytics.com"
+                    : "OP.GG API"}
+                ) · Patch {patch}
                 {activeProviderId === "lolalytics" && period ? ` · ${period}` : ""}
               </span>
             </div>
@@ -466,8 +472,10 @@ export function TierListView({
                           </>
                         ) : isTierOnly ? (
                           <td className="px-4 py-2.5 text-right text-[11px] text-baron-ink-muted">
-                            OP.GG Live Rank ·{" "}
-                            {mode === "aram_mayhem" ? "Click for Mayhem Build" : "Tier Rank Only"}
+                            {activeProviderLabel} Live Rank ·{" "}
+                            {effectiveMode === "aram_mayhem"
+                              ? "Click for Mayhem Build"
+                              : "Tier Rank Only"}
                           </td>
                         ) : (
                           <>

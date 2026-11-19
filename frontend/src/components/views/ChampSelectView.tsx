@@ -23,16 +23,22 @@ import {
   champSquareUrl,
   fetchChampionIdNameMap,
   itemIconUrl,
+  LATEST_PATCH,
   spellIdUrl,
 } from "@/lib/ddragon";
 import {
   asList,
+  fetchLolalyticsChampionBuild,
   fetchOpggChampionAnalysis,
-  fetchProviderTierList,
+  fetchUggChampionBuild,
+  fetchUnifiedProviderTierList,
   importOpggRunesToLcu,
   type LcuPlayerContext,
+  type LolalyticsBuildResponse,
   type OpggChampionAnalysis,
+  type OpggRuneOption,
   type TierRole,
+  type UggBuildResponse,
 } from "@/lib/tauri";
 
 const ROLES: { id: TierRole; label: string }[] = [
@@ -42,6 +48,135 @@ const ROLES: { id: TierRole; label: string }[] = [
   { id: "Bottom", label: "Bot" },
   { id: "Utility", label: "Support" },
 ];
+
+function providerSourceSummary(
+  providerId: string,
+  providerLabel: string,
+): { badge: string; desc: string } {
+  if (providerId === "ugg") {
+    return { badge: "Live U.GG · stats2.u.gg", desc: "U.GG (stats2.u.gg JSON)" };
+  }
+  if (providerId === "lolalytics") {
+    return {
+      badge: "Live LoLalytics · a1.lolalytics.com",
+      desc: "LoLalytics (a1.lolalytics.com JSON)",
+    };
+  }
+  return { badge: `Live ${providerLabel} MCP`, desc: `${providerLabel} MCP` };
+}
+
+function uggBuildToDraftAnalysis(
+  champion: string,
+  role: TierRole,
+  ugg: UggBuildResponse,
+): OpggChampionAnalysis {
+  const runes: OpggRuneOption[] =
+    ugg.primaryStyle > 0 && ugg.subStyle > 0 && ugg.runes.length >= 6
+      ? [
+          {
+            id: 1,
+            primary_page_id: ugg.primaryStyle,
+            primary_page_name: "",
+            primary_rune_ids: ugg.runes.slice(0, 4),
+            primary_rune_names: [],
+            secondary_page_id: ugg.subStyle,
+            secondary_page_name: "",
+            secondary_rune_ids: ugg.runes.slice(4, 6),
+            secondary_rune_names: [],
+            stat_mod_ids: ugg.statShards.slice(0, 3),
+            play: ugg.games,
+            win: ugg.wins,
+            pick_rate: ugg.roleGames > 0 ? ugg.games / ugg.roleGames : 0,
+          },
+        ]
+      : [];
+
+  return {
+    champion,
+    position: role,
+    data: {
+      runes,
+      summoner_spells:
+        ugg.spells.length > 0
+          ? [{ ids: ugg.spells, play: ugg.games, win: ugg.wins, pick_rate: 0 }]
+          : [],
+      starter_items:
+        ugg.starterItems.length > 0
+          ? [{ ids: ugg.starterItems, ids_names: [], play: ugg.games, win: ugg.wins, pick_rate: 0 }]
+          : [],
+      core_items:
+        ugg.coreItems.length > 0
+          ? [{ ids: ugg.coreItems, ids_names: [], play: ugg.games, win: ugg.wins, pick_rate: 0 }]
+          : [],
+      weak_counters: (ugg.worstAgainst ?? []).map((c) => ({
+        champion_id: c.championId,
+        champion_name: c.championName,
+        play: c.games,
+        win: c.wins,
+        my_win_rate: c.winRate > 1 ? c.winRate / 100 : c.winRate,
+      })),
+    },
+  };
+}
+
+function lolalyticsBuildToDraftAnalysis(
+  champion: string,
+  role: TierRole,
+  lola: LolalyticsBuildResponse,
+): OpggChampionAnalysis {
+  const runes: OpggRuneOption[] = [];
+  const pushRune = (
+    r: LolalyticsBuildResponse["mostCommonRunes"],
+    id: number,
+  ) => {
+    if (!r || r.primaryStyle <= 0 || r.subStyle <= 0) return;
+    runes.push({
+      id,
+      primary_page_id: r.primaryStyle,
+      primary_page_name: "",
+      primary_rune_ids: r.primaryPerks.slice(0, 4),
+      primary_rune_names: [],
+      secondary_page_id: r.subStyle,
+      secondary_page_name: "",
+      secondary_rune_ids: r.secondaryPerks.slice(0, 2),
+      secondary_rune_names: [],
+      stat_mod_ids: r.statShards.slice(0, 3),
+      play: r.games,
+      win: Math.round((r.winRate / 100) * r.games),
+      pick_rate: lola.games > 0 ? r.games / lola.games : 0,
+    });
+  };
+  pushRune(lola.mostCommonRunes, 1);
+  if (
+    lola.highestWrRunes &&
+    JSON.stringify(lola.highestWrRunes.primaryPerks) !==
+      JSON.stringify(lola.mostCommonRunes?.primaryPerks)
+  ) {
+    pushRune(lola.highestWrRunes, 2);
+  }
+
+  return {
+    champion,
+    position: role,
+    data: {
+      runes,
+      core_items: lola.corePaths.map((p) => ({
+        ids: p.itemIds,
+        ids_names: [],
+        play: p.games,
+        win: p.wins,
+        pick_rate: lola.games > 0 ? p.games / lola.games : 0,
+      })),
+      weak_counters: lola.weakAgainst.map((c) => ({
+        champion_id: c.championId,
+        champion_name: c.championName,
+        play: c.games,
+        win: Math.round((c.winRate / 100) * c.games),
+        my_win_rate: c.winRate > 1 ? c.winRate / 100 : c.winRate,
+      })),
+    },
+  };
+}
 
 function mapLcuPosToRole(pos: string): TierRole {
   switch (pos.trim().toLowerCase()) {
@@ -62,14 +197,21 @@ function mapLcuPosToRole(pos: string): TierRole {
 
 export function ChampSelectView({
   ddVersion,
+  patch = LATEST_PATCH,
+  activeProviderId = "opgg",
+  activeProviderLabel = "OP.GG",
   lcuConnected = false,
   lcuPlayer = null,
 }: {
   ddVersion: string;
+  patch?: string;
+  activeProviderId?: string;
+  activeProviderLabel?: string;
   lcuConnected?: boolean;
   lcuPlayer?: LcuPlayerContext | null;
 }) {
   const { resolved } = useTheme();
+  const sourceInfo = providerSourceSummary(activeProviderId, activeProviderLabel);
   const [championInput, setChampionInput] = useState("");
   const [manualSelection, setManualSelection] = useState<{
     champion: string;
@@ -105,10 +247,10 @@ export function ChampSelectView({
   useEffect(() => {
     if (lcuPickedChamp || manualSelection) return;
     let cancelled = false;
-    fetchProviderTierList("opgg", role)
+    fetchUnifiedProviderTierList(activeProviderId, "ranked", role, "emerald_plus", ddVersion, patch)
       .then((rows) => {
-        if (!cancelled && rows[0]?.champion_name) {
-          setMetaTopChampion(rows[0].champion_name);
+        if (!cancelled && rows[0]?.championName) {
+          setMetaTopChampion(rows[0].championName);
         }
       })
       .catch(() => {
@@ -117,17 +259,28 @@ export function ChampSelectView({
     return () => {
       cancelled = true;
     };
-  }, [lcuPickedChamp, manualSelection, role]);
+  }, [activeProviderId, ddVersion, lcuPickedChamp, manualSelection, patch, role]);
 
   const activeChampion = manualSelection?.champion ?? lcuPickedChamp ?? metaTopChampion;
   const effectiveRole = manualSelection?.role ?? lcuPickedRole ?? role;
-  const reqKey = activeChampion ? `${activeChampion}:${effectiveRole}` : "";
+  const reqKey = activeChampion ? `${activeProviderId}:${activeChampion}:${effectiveRole}:${patch}` : "";
   const isLoading = Boolean(reqKey) && state.key !== reqKey;
 
   useEffect(() => {
     if (!activeChampion) return;
     let cancelled = false;
-    fetchOpggChampionAnalysis(activeChampion, effectiveRole)
+    const loader: Promise<OpggChampionAnalysis> =
+      activeProviderId === "ugg"
+        ? fetchUggChampionBuild(activeChampion, patch, effectiveRole, undefined, ddVersion).then(
+            (ugg) => uggBuildToDraftAnalysis(activeChampion, effectiveRole, ugg),
+          )
+        : activeProviderId === "lolalytics"
+          ? fetchLolalyticsChampionBuild(activeChampion, effectiveRole, "emerald_plus", patch).then(
+              (lola) => lolalyticsBuildToDraftAnalysis(activeChampion, effectiveRole, lola),
+            )
+          : fetchOpggChampionAnalysis(activeChampion, effectiveRole);
+
+    loader
       .then((data) => {
         if (!cancelled) {
           setState({ key: reqKey, data, error: null });
@@ -139,14 +292,17 @@ export function ChampSelectView({
           setState({
             key: reqKey,
             data: null,
-            error: err instanceof Error ? err.message : "Failed to load OP.GG draft analysis.",
+            error:
+              err instanceof Error
+                ? err.message
+                : `Failed to load ${activeProviderLabel} draft analysis.`,
           });
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [activeChampion, effectiveRole, reqKey]);
+  }, [activeChampion, activeProviderId, activeProviderLabel, ddVersion, effectiveRole, patch, reqKey]);
 
   const analysis = state.key === reqKey && reqKey ? state.data : null;
   const error = state.key === reqKey && reqKey ? state.error : null;
@@ -167,7 +323,7 @@ export function ChampSelectView({
     if (all9.length < 9 || topRune.primary_page_id <= 0 || topRune.secondary_page_id <= 0) {
       setRuneStatus({
         ok: false,
-        text: "Incomplete OP.GG rune set returned for this champion.",
+        text: `Incomplete ${activeProviderLabel} rune set returned for this champion.`,
       });
       return false;
     }
@@ -188,7 +344,7 @@ export function ChampSelectView({
         text:
           err instanceof Error
             ? err.message
-            : "League Client is offline. Start League of Legends to import OP.GG runes.",
+            : `League Client is offline. Start League of Legends to import ${activeProviderLabel} runes.`,
       });
       return false;
     } finally {
@@ -250,6 +406,10 @@ export function ChampSelectView({
                   <Sparkles className="h-3 w-3" />
                   Champ Select
                 </span>
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-baron-emerald/30 bg-baron-emerald/10 px-2 py-0.5 text-[10.5px] font-bold text-baron-emerald">
+                  <span className="h-1.5 w-1.5 rounded-full bg-baron-emerald" />
+                  {sourceInfo.badge}
+                </span>
                 <span
                   className={`rounded-md px-2 py-0.5 text-[10.5px] font-semibold ${
                     lcuPickedChamp
@@ -263,12 +423,12 @@ export function ChampSelectView({
                     ? "Auto-Detected from LCU Lobby"
                     : lcuConnected
                       ? "LCU Connected (Waiting for Draft Pick)"
-                      : "LCU Offline (Manual OP.GG Prep)"}
+                      : `LCU Offline (Manual ${activeProviderLabel} Prep)`}
                 </span>
               </div>
               <p className="mt-1 text-[12px] text-baron-ink-muted">
-                Live runes, builds, and counters fetched directly from OP.GG MCP. Ranked lobby
-                anonymity is always respected.
+                Live runes, builds, and counters fetched directly from {sourceInfo.desc} (Patch{" "}
+                {patch}). Ranked lobby anonymity is always respected.
               </p>
             </div>
           </div>
@@ -288,7 +448,7 @@ export function ChampSelectView({
                 <>
                   <Download className="h-3.5 w-3.5" />
                   {importingRunes
-                    ? "Importing OP.GG Runes..."
+                    ? `Importing ${activeProviderLabel} Runes...`
                     : activeChampion
                       ? `Import Runes (Baron: ${activeChampion})`
                       : "Load Champion First"}
@@ -355,7 +515,7 @@ export function ChampSelectView({
             size="sm"
             className="h-8 border-baron-border bg-baron-elevated px-3 text-[12px] hover:border-baron-border-strong"
           >
-            Load OP.GG Prep
+            Load {activeProviderLabel} Prep
           </Button>
           {manualSelection && lcuPickedChamp && (
             <Button
@@ -373,8 +533,8 @@ export function ChampSelectView({
 
       {!activeChampion && !error && (
         <div className="m-5 rounded-xl border border-baron-border bg-baron-surface p-6 text-[13px] text-baron-ink-secondary">
-          Enter any champion above or enter League Client Champion Select to load live OP.GG MCP
-          runes and build paths.
+          Enter any champion above or enter League Client Champion Select to load live{" "}
+          {sourceInfo.desc} runes and build paths.
         </div>
       )}
 
@@ -501,30 +661,36 @@ export function ChampSelectView({
               <span>Counter Watch</span>
             </div>
             <div className="mt-3 space-y-2">
-              {weakCounters.slice(0, 5).map((c) => {
-                const rawWr = c.my_win_rate ?? (c.play ? c.win / c.play : 0.5);
-                const wrPct = rawWr <= 1 ? rawWr * 100 : rawWr;
-                return (
-                  <div
-                    key={c.champion_name}
-                    className="flex items-center justify-between rounded-lg border border-baron-border bg-baron-inset px-3 py-1.5"
-                  >
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={champSquareUrl(c.champion_name, ddVersion)}
-                        alt={c.champion_name}
-                        className="h-6 w-6 rounded object-cover"
-                      />
-                      <span className="text-[12px] font-semibold text-baron-ink">
-                        {c.champion_name}
+              {weakCounters.length === 0 ? (
+                <div className="rounded-lg border border-baron-border bg-baron-inset px-3 py-3 text-[11.5px] text-baron-ink-muted">
+                  No lane counter samples returned by {activeProviderLabel} for this role.
+                </div>
+              ) : (
+                weakCounters.slice(0, 5).map((c) => {
+                  const rawWr = c.my_win_rate ?? (c.play ? c.win / c.play : 0.5);
+                  const wrPct = rawWr <= 1 ? rawWr * 100 : rawWr;
+                  return (
+                    <div
+                      key={c.champion_name}
+                      className="flex items-center justify-between rounded-lg border border-baron-border bg-baron-inset px-3 py-1.5"
+                    >
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={champSquareUrl(c.champion_name, ddVersion)}
+                          alt={c.champion_name}
+                          className="h-6 w-6 rounded object-cover"
+                        />
+                        <span className="text-[12px] font-semibold text-baron-ink">
+                          {c.champion_name}
+                        </span>
+                      </div>
+                      <span className="text-[11.5px] font-bold text-baron-defeat tnum">
+                        {wrPct.toFixed(1)}% WR
                       </span>
                     </div>
-                    <span className="text-[11.5px] font-bold text-baron-defeat tnum">
-                      {wrPct.toFixed(1)}% WR
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

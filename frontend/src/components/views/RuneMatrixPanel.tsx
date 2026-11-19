@@ -89,7 +89,7 @@ export function RuneMatrixPanel({
   if (!activePage) {
     return (
       <div className="rounded-xl border border-baron-border bg-baron-surface p-5 text-[12.5px] text-baron-ink-muted">
-        OP.GG did not publish rune trees for {championName} in this mode.
+        No rune trees were published for {championName} in this mode.
       </div>
     );
   }
