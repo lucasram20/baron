@@ -20,61 +20,96 @@
 
 ## Why Baron?
 
-Baron aims to bring League of Legends draft assistance, spectating, post-game timelines, meta tier lists, and collection tracking together in a free, ad-free, local-first desktop companion.
+Baron brings League of Legends draft assistance, live tier lists & multi-mode builds, all-region player & champion leaderboards, summoner match history, post-game scoreboards, esports & skin collections together in a **100% free, ad-free, local-first desktop companion**.
 
-It uses a **Tauri v2** shell with the OS native WebView (Edge WebView2 on Windows, WKWebView on macOS), a TypeScript **Next.js 16** static-export frontend, and a Rust backend—without a bundled Chromium or Node.js runtime.
+It uses a **Tauri v2** desktop shell with the OS native system WebView (**Edge WebView2** on Windows, **WKWebView** on macOS), a TypeScript **Next.js 16** (`React 19`) frontend powered by the **Node.js / JavaScript `node_modules` ecosystem** (installed and built via **Bun** into static `frontend/out/` assets), and a **100% native Rust backend**—so there is **no bundled Chromium / Electron browser binary** bloating the app.
 
-## Current status
+## Live Features & Current Capabilities (`v0.1.0-dev.15`)
 
-Baron is an early development release. Many views still contain sample data and should not be treated as live account or match data.
-
-- **Tier list:** The desktop app requests current lane rankings from the official [OP.GG MCP server](https://github.com/opgginc/opgg-mcp), with attribution. The feed does not expose patch, rank, region, or period filters. The live top-lane backend request was verified in hosted CI; the complete desktop UI has not yet been verified end to end.
-- **Other providers:** U.GG, DPM.LOL, LoLalytics, MetaSRC, and Meraki are disabled until verified integrations are available. Automatic failover and provider build data are not implemented.
-- **Champ Select, Post-game, Spectate, Leaderboards, and Collections:** The interfaces and supporting models are under development and may show sample data. Rune-page payload construction does not imply automatic client injection is working.
-- **Appearance:** Cool-Black Dark, Cool-Slate Light, and System Default themes, plus a global `Ctrl+K` command palette.
+- **Automated Live Patch Discovery (`16.23+`):** Automatically discovers the latest live Riot Data Dragon version (`versions.json`) and OP.GG Desktop API patch history (`/api/global/champions/ranked/versions`) at startup and on refresh—no manual codebase updates required when a new League patch drops.
+- **10-Mode Live OP.GG Tier Lists & Champion Builds:**
+  - Live rankings and builds across **Ranked Solo/Duo**, **Ranked Flex**, **ARAM**, **ARAM: Mayhem**, **Classic**, **Arena**, **URF**, **Brawl**, **Nexus Blitz**, and **Doom Bots** (with automatic unversioned fallback for rotating modes).
+  - Full **Rune Matrix** (`CommunityDragon` perk icons + 1-click LCU rune injection as `Baron: <ChampionName>`), starter/boots/core/4th–6th item paths, skill order & masteries, champion kit tooltips (`P/Q/W/E/R`), **Live OP.GG Matchup Guide** (strategy tips, lane & solo-kill advantage, vs-opponent items/runes/spells/skills), duo synergies, and skin popularity rankings.
+- **Separated All-15-Regions Leaderboards (Ranked Players & Champion Master+):**
+  - Both **Dashboard** and **Leaderboards** display **15 cleanly separated regional cards** (`KR`, `EUW`, `NA`, `EUNE`, `VN`, `BR`, `SEA`, `TW`, `JP`, `TR`, `LAN`, `LAS`, `OCE`, `RU`, `ME`) with instant switching between **Ranked Player Leaderboards** (Challenger, Grandmaster & Master Solo/Duo players sorted by Tier & LP) and **Champion Master+ Specialist Leaderboards**, plus full single-server drill-down tables.
+- **Live Summoner Profile, LCU Auto-Sync & 10-Player Post-Game Scoreboard:**
+  - Zero-login local **League Client (`baron-lcu`)** detection or instant `Name#TAG` lookup across all 15 regions via OP.GG MCP (`lol_get_summoner_profile`, `lol_list_summoner_matches`, `lol_get_summoner_game_detail`), interactive LP history curve, champion pool, and full 10-player Post-Game scoreboard with Baron Score (`0–100`) and `MVP` / `ACE` badges.
+- **Esports, Skin Sales & Multi-Provider Comparison:**
+  - Live LoL Esports match results (`lol_esports_list_schedules`), Live RP Skin Sales (`lol_list_discounted_skins`) + LCU Skin Vault, and side-by-side **U.GG Build** & **Meraki Analytics Kit** comparison with transparent provider runtime diagnostics.
+- **Appearance & Theme Sync:**
+  - **Dark Warm** (Smoked Espresso-Charcoal & Terracotta-Copper), **Warm Light** (Travertine Linen & Warm Parchment), and **Match OS Theme** (live Windows/macOS theme detection & sync via Tauri v2), plus a global `Ctrl+K` command palette.
 
 ## Tech Stack
 
 | Layer | Technology | Role in Baron |
 | :--- | :--- | :--- |
-| **Desktop Host & IPC** | [Tauri v2](https://v2.tauri.app/) (`baron-app` in `src-tauri/`) | Native OS WebView, static bundle embedding (`custom-protocol`), Tauri IPC |
-| **Frontend Framework** | Next.js `16.4.6` (`output: 'export'`, React 19, TypeScript) | Static UI compiled to `frontend/out/` |
-| **Styling & Components** | Tailwind CSS `4.3.5`, `@shadcn`, `@react-bits`, `@aceternity`, `@magicui` | Shared theme tokens and components |
-| **Package & Lint Tooling** | Bun + VoidZero Oxlint | Dependency management and frontend linting |
-| **Local Client & Game API** | Local `lockfile` and Live Client data support | League client integration (`baron-lcu`) |
-| **Riot & Meta Data** | Data Dragon, CommunityDragon, OP.GG MCP | Assets and tier-list data (`baron-riot`) |
-| **Local Persistence** | `rusqlite` (`bundled`) | SQLite schema and repository (`baron-db`) |
+| **Desktop Host & IPC** | [Tauri v2](https://v2.tauri.app/) (`baron-app` in `src-tauri/`) | Native OS WebView (`WebView2` / `WKWebView` — **no bundled Chromium**), static bundle embedding, Tauri IPC |
+| **Frontend Framework** | Next.js `16.4.6` (`output: 'export'`, React 19, TypeScript) + Node.js `node_modules` ecosystem | UI components & views compiled to static `frontend/out/` assets |
+| **Styling & Components** | Tailwind CSS `4.3.5`, `@shadcn`, `@react-bits`, `@aceternity`, `@magicui`, `lucide-react` | Dark Warm & Warm Light theme tokens, tooltips, and interactive components |
+| **Package & Lint Tooling** | Bun + VoidZero Oxlint (`1.93.0+`) | Fast `node_modules` dependency management, test runner, and zero-warning linting |
+| **Local Client & Game API** | `irelia` (`0.11.2+`), local `lockfile`, and Live Client Data API (`127.0.0.1:2999`) | Zero-key League Client detection, auto-runes, and live game integration (`baron-lcu`) |
+| **Riot & Meta Data** | Data Dragon, CommunityDragon, OP.GG MCP & Desktop API, U.GG & Meraki CDN | Automated patch metadata, assets, 10-mode builds, and 15-region leaderboards (`baron-riot`) |
+| **Local Persistence** | `rusqlite` (`0.32+`, `bundled`) | Local SQLite schema and cache repository in `baron.db` (`baron-db`) |
 
 ## Architecture & Workspace Structure
 
 ```mermaid
 flowchart LR
-    UI["frontend/ (Next.js static export + Tailwind)"] <-->|"Tauri invoke()"| Host["src-tauri/ (Tauri v2)"]
-    Host --> Core["baron-core (models and analytics)"]
-    Host --> DB["baron-db (SQLite repository)"]
-    Host --> LCU["baron-lcu (client integration)"]
-    Host --> Riot["baron-riot (OP.GG MCP and CDN URLs)"]
+    UI["frontend/ (Next.js 16 + React 19 + Tailwind 4 + node_modules via Bun)"] <-->|"Tauri v2 IPC invoke()"| Host["src-tauri/ (Tauri v2 Native OS WebView)"]
+    Host --> Core["baron-core (Baron Score 0-100, MVP/ACE & Timeline Math)"]
+    Host --> DB["baron-db (SQLite baron.db Repository)"]
+    Host --> LCU["baron-lcu (Zero-Key LCU Lockfile, Auto-Runes & Live Client 2999)"]
+    Host --> Riot["baron-riot (OP.GG MCP & 10-Mode Desktop API, DDragon/CDragon, U.GG & Meraki)"]
 ```
 
 ```text
 baron/
-├── Cargo.toml                  # Rust workspace
-├── components.json             # Shared UI registry config
-├── AGENTS.md                   # Engineering rules & CI/CD policy
-├── CLAUDE.md -> AGENTS.md      # Symlinked agent instructions
-├── LICENSE                     # MIT License
-├── assets/logo/                # Baron mascot and Windows icon
-├── installer/baron.nsi         # NSIS Windows installer
-├── frontend/                   # Next.js + Tailwind + Bun + Oxlint
-├── src-tauri/                  # Tauri v2 desktop host
+├── .github/workflows/
+│   ├── ci.yml                      # Frontend (Bun + Oxlint + Next.js) & Rust (fmt, clippy, test) CI
+│   ├── pre-release.yml             # Automated Windows NSIS/zip & macOS universal dev pre-releases
+│   └── release.yml                 # Stable semver release packaging
+├── Cargo.toml                      # Rust workspace manifest
+├── components.json                 # Shared @shadcn / @react-bits / @aceternity / @magicui registry config
+├── AGENTS.md                       # Engineering rules, design tokens & CI/CD policy
+├── CLAUDE.md -> AGENTS.md          # Symlinked agent instructions
+├── DESIGN.md                       # Dark Warm & Warm Light design system specification
+├── PRODUCT.md                      # Product vision & competitive positioning
+├── LICENSE                         # MIT License
+├── assets/logo/
+│   ├── baron_logo.png              # Transparent Baron mascot logo (RGBA)
+│   └── baron.ico                   # Multi-size Windows application & installer icon
+├── installer/
+│   └── baron.nsi                   # NSIS Windows installer (auto-detects & upgrades prior installs)
+├── frontend/                       # Next.js 16.4.6 + React 19 + Tailwind CSS 4.3.5 + Node.js modules (Bun + Oxlint)
+│   ├── package.json & bun.lock     # Frontend dependencies & scripts
+│   ├── .oxlintrc.json              # VoidZero Oxlint zero-warning rules
+│   ├── public/                     # Static favicon.ico & baron_logo.png
+│   ├── src/
+│   │   ├── app/                    # Next.js App Router (globals.css, layout.tsx, page.tsx)
+│   │   ├── components/
+│   │   │   ├── ErrorBoundary.tsx   # Inline view error recovery boundary
+│   │   │   ├── icons/              # League lane, rank crest, shard & sidebar SVG icons
+│   │   │   ├── shell/              # Left grouped Sidebar.tsx & TopCommandBar.tsx
+│   │   │   ├── ui/                 # Theme-synced primitives (tooltip, animated-tabs, command, table, etc.)
+│   │   │   └── views/              # Dashboard, TierList, ChampionBuild, RuneMatrix, ChampSelect,
+│   │   │                           # PostGame, Spectate, Collection & ProviderDiagnostics views
+│   │   └── lib/                    # Tauri IPC bridge (tauri.ts), Data Dragon URLs (ddragon.ts), theme sync (theme.tsx)
+│   └── tests/                      # Bun unit tests (provider-availability.test.js)
+├── src-tauri/                      # Tauri v2 desktop host crate (baron-app)
+│   ├── tauri.conf.json             # Window, bundle, NSIS & native WebView configuration
+│   ├── capabilities/default.json   # Tauri v2 ACL capabilities
+│   ├── icons/                      # Bundled taskbar, window & tray icons
+│   └── src/                        # Tauri commands, OS theme sync & native window lifecycle (lib.rs, main.rs)
 ├── crates/
-│   ├── baron-core/             # Domain models and analytics
-│   ├── baron-db/               # SQLite schema and repository
-│   ├── baron-lcu/              # League client support
-│   └── baron-riot/             # Provider and CDN support
+│   ├── baron-core/                 # Domain models, Baron Score (0-100) + MVP/ACE engine & Match-V5 timeline math
+│   ├── baron-db/                   # SQLite schema migrations & local cache repository (baron.db)
+│   ├── baron-lcu/                  # LCU lockfile/REST, 1-click rune injection, Live Client (2999) & Skin Vault
+│   └── baron-riot/                 # Live patch discovery, 10-mode OP.GG Desktop API (opgg_modes.rs),
+│       │                           # 15-region OP.GG MCP client & TOON parser (providers/opgg/),
+│       └── src/providers/          # U.GG builds (ugg.rs) & Meraki Analytics champion kits (meraki.rs)
 └── docs/
-    ├── changelogs/changelogs.md
-    └── spec/                   # Product & technical specifications
+    ├── changelogs/changelogs.md    # Consolidated release & pre-release changelog
+    └── spec/                       # Architecture, PRD, API data sources & UI/UX specifications
 ```
 
 ## Development & Verification
