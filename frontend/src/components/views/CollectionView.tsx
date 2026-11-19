@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Search } from "lucide-react";
+import GlareHover from "@/components/GlareHover";
 import SpotlightCard from "@/components/SpotlightCard";
 import { AnimatedTabs } from "@/components/ui/animated-tabs";
+import { Input } from "@/components/ui/input";
 import { NumberTicker } from "@/components/ui/number-ticker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { champLoadingUrl, champSquareUrl, LATEST_DDRAGON } from "@/lib/ddragon";
@@ -90,17 +92,17 @@ export function CollectionView({
 
   return (
     <div className="min-h-full">
-      <header className="border-b border-baron-border bg-baron-surface px-5 py-4">
+      <header className="border-b border-baron-border bg-baron-surface px-5 py-4 shadow-[inset_0_1px_0_var(--baron-top-sheen)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-[18px] font-extrabold tracking-[-0.02em] text-baron-ink">
                 Collections &amp; Shop Discounts
               </h1>
-              <span className="rounded bg-baron-emerald/15 px-2 py-0.5 text-[10.5px] font-semibold text-baron-emerald">
+              <span className="rounded-md border border-baron-emerald/30 bg-baron-emerald/12 px-2 py-0.5 text-[10.5px] font-semibold text-baron-emerald">
                 Live · OP.GG Shop Sales
               </span>
-              <span className="rounded bg-baron-elevated px-2 py-0.5 text-[10.5px] font-semibold text-baron-ink-secondary">
+              <span className="rounded-md bg-baron-elevated px-2 py-0.5 text-[10.5px] font-semibold text-baron-ink-secondary">
                 {lcuConnected ? "LCU Inventory Synced" : "LCU Offline (Vault requires Client)"}
               </span>
             </div>
@@ -136,14 +138,17 @@ export function CollectionView({
               { id: "owned", label: `My LCU Vault (${ownedSkins.length})` },
             ]}
           />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter skins..."
-            aria-label="Filter skins"
-            className="h-8 w-64 rounded-md border border-baron-border bg-baron-inset px-3 text-[12px] text-baron-ink placeholder:text-baron-ink-muted focus:border-baron-accent focus:outline-none"
-          />
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-baron-ink-muted" />
+            <Input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filter skins..."
+              aria-label="Filter skins"
+              className="h-8 w-64 border-baron-border bg-baron-inset pr-3 pl-8 text-[12px] text-baron-ink placeholder:text-baron-ink-muted"
+            />
+          </div>
         </div>
       </header>
 
@@ -163,7 +168,7 @@ export function CollectionView({
           {salesState.loaded && salesState.error && (
             <div
               role="alert"
-              className="m-5 rounded-xl border border-baron-border bg-baron-surface p-5"
+              className="baron-surface-card m-5 rounded-xl border border-baron-border bg-baron-surface p-5"
             >
               <div className="flex items-start gap-2.5 text-[13px] text-baron-ink">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-baron-gold" />
@@ -178,7 +183,7 @@ export function CollectionView({
           {salesState.loaded && !salesState.error && (
             <div className="p-5">
               {filteredSales.length === 0 ? (
-                <div className="rounded-xl border border-baron-border bg-baron-surface px-5 py-10 text-center text-[13px] text-baron-ink-muted">
+                <div className="baron-surface-card rounded-xl border border-baron-border bg-baron-surface px-5 py-10 text-center text-[13px] text-baron-ink-muted">
                   No live discounted skins match &ldquo;{query}&rdquo;.
                 </div>
               ) : (
@@ -191,37 +196,50 @@ export function CollectionView({
                         key={skin.skin_id}
                         theme={resolved}
                         intensity={0.09}
-                        borderGlow={0.45}
+                        borderGlow={0.48}
                         style={{ borderRadius: "10px" }}
-                        className="group overflow-hidden rounded-[10px] border border-baron-border bg-baron-surface"
+                        className="group overflow-hidden rounded-[10px] border border-baron-border bg-baron-surface p-0"
                       >
-                        <div className="relative aspect-[3/4] w-full overflow-hidden bg-baron-elevated">
-                          <img
-                            src={champLoadingUrl(skin.champion_name, skinNum)}
-                            alt={skin.skin_name}
-                            loading="lazy"
-                            className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.03]"
-                          />
-                          <div
-                            aria-hidden="true"
-                            className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent"
-                          />
-                          <div className="absolute top-2 right-2">
-                            <span className="rounded bg-baron-emerald/90 px-1.5 py-0.5 text-[10px] font-bold text-white tnum">
-                              -{discountPct}%
-                            </span>
-                          </div>
-                          <div className="absolute bottom-2 left-2.5 flex items-center gap-1.5">
+                        <GlareHover
+                          width="100%"
+                          height="auto"
+                          borderRadius="0px"
+                          glareColor="#ffe8cc"
+                          glareOpacity={0.22}
+                          glareSize={38}
+                          variant="sheen"
+                          transitionDuration={550}
+                          rimGlint={false}
+                          className="block w-full border-0"
+                        >
+                          <div className="relative aspect-[3/4] w-full overflow-hidden bg-baron-elevated">
                             <img
-                              src={champSquareUrl(skin.champion_name, ddVersion)}
-                              alt={skin.champion_name}
-                              className="h-5 w-5 rounded border border-white/25 object-cover"
+                              src={champLoadingUrl(skin.champion_name, skinNum)}
+                              alt={skin.skin_name}
+                              loading="lazy"
+                              className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.03]"
                             />
-                            <span className="text-[11px] font-semibold text-white/90">
-                              {skin.champion_name}
-                            </span>
+                            <div
+                              aria-hidden="true"
+                              className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent"
+                            />
+                            <div className="absolute top-2 right-2">
+                              <span className="rounded bg-baron-emerald/90 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-xs tnum">
+                                -{discountPct}%
+                              </span>
+                            </div>
+                            <div className="absolute bottom-2 left-2.5 flex items-center gap-1.5">
+                              <img
+                                src={champSquareUrl(skin.champion_name, ddVersion)}
+                                alt={skin.champion_name}
+                                className="h-5 w-5 rounded border border-white/25 object-cover"
+                              />
+                              <span className="text-[11px] font-semibold text-white/95">
+                                {skin.champion_name}
+                              </span>
+                            </div>
                           </div>
-                        </div>
+                        </GlareHover>
 
                         <div className="p-2.5">
                           <div className="truncate text-[12.5px] font-bold text-baron-ink">
@@ -247,7 +265,7 @@ export function CollectionView({
       {tab === "owned" && (
         <div className="p-5">
           {!lcuConnected ? (
-            <div className="rounded-xl border border-baron-border bg-baron-surface p-6 text-[13px] text-baron-ink-secondary">
+            <div className="baron-surface-card rounded-xl border border-baron-border bg-baron-surface p-6 text-[13px] text-baron-ink-secondary">
               Launch <strong className="text-baron-ink">League of Legends</strong> so Baron can read
               your personal unlocked skin collection directly from LCU (no account login required).
             </div>
@@ -258,11 +276,11 @@ export function CollectionView({
               ))}
             </div>
           ) : ownedState.error ? (
-            <div className="rounded-xl border border-baron-border bg-baron-surface p-5 text-[12.5px] text-baron-ink-secondary">
+            <div className="baron-surface-card rounded-xl border border-baron-border bg-baron-surface p-5 text-[12.5px] text-baron-ink-secondary">
               {ownedState.error}
             </div>
           ) : filteredOwned.length === 0 ? (
-            <div className="rounded-xl border border-baron-border bg-baron-surface px-5 py-10 text-center text-[13px] text-baron-ink-muted">
+            <div className="baron-surface-card rounded-xl border border-baron-border bg-baron-surface px-5 py-10 text-center text-[13px] text-baron-ink-muted">
               No unlocked skins match &ldquo;{query}&rdquo;.
             </div>
           ) : (
@@ -274,32 +292,45 @@ export function CollectionView({
                     key={skin.skin_id}
                     theme={resolved}
                     intensity={0.09}
-                    borderGlow={0.45}
+                    borderGlow={0.48}
                     style={{ borderRadius: "10px" }}
-                    className="group overflow-hidden rounded-[10px] border border-baron-border bg-baron-surface"
+                    className="group overflow-hidden rounded-[10px] border border-baron-border bg-baron-surface p-0"
                   >
-                    <div className="relative aspect-[3/4] w-full overflow-hidden bg-baron-elevated">
-                      <img
-                        src={champLoadingUrl(skin.champion_name, skinNum)}
-                        alt={skin.name}
-                        loading="lazy"
-                        className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.03]"
-                      />
-                      <div
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent"
-                      />
-                      <div className="absolute bottom-2 left-2.5 flex items-center gap-1.5">
+                    <GlareHover
+                      width="100%"
+                      height="auto"
+                      borderRadius="0px"
+                      glareColor="#ffe8cc"
+                      glareOpacity={0.22}
+                      glareSize={38}
+                      variant="sheen"
+                      transitionDuration={550}
+                      rimGlint={false}
+                      className="block w-full border-0"
+                    >
+                      <div className="relative aspect-[3/4] w-full overflow-hidden bg-baron-elevated">
                         <img
-                          src={champSquareUrl(skin.champion_name, ddVersion)}
-                          alt={skin.champion_name}
-                          className="h-5 w-5 rounded border border-white/25 object-cover"
+                          src={champLoadingUrl(skin.champion_name, skinNum)}
+                          alt={skin.name}
+                          loading="lazy"
+                          className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.03]"
                         />
-                        <span className="text-[11px] font-semibold text-white/90">
-                          {skin.champion_name}
-                        </span>
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent"
+                        />
+                        <div className="absolute bottom-2 left-2.5 flex items-center gap-1.5">
+                          <img
+                            src={champSquareUrl(skin.champion_name, ddVersion)}
+                            alt={skin.champion_name}
+                            className="h-5 w-5 rounded border border-white/25 object-cover"
+                          />
+                          <span className="text-[11px] font-semibold text-white/95">
+                            {skin.champion_name}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    </GlareHover>
                     <div className="p-2.5">
                       <div className="truncate text-[12.5px] font-bold text-baron-ink">
                         {skin.name}

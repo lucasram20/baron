@@ -1,7 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { User } from "lucide-react";
+import { ProximityNavList } from "@/components/LineSidebar";
 import {
   SidebarChampSelectIcon,
   SidebarCollectionsIcon,
@@ -50,31 +52,31 @@ interface NavItem {
 }
 
 const CORE_NAV: NavItem[] = [
-  { route: "dashboard", label: "Dashboard", icon: <SidebarDashboardIcon className="h-[16px] w-[16px]" /> },
-  { route: "tierlist", label: "Tierlist & Builds", icon: <SidebarTierlistIcon className="h-[16px] w-[16px]" /> },
-  { route: "leaderboards", label: "Leaderboards", icon: <SidebarLeaderboardIcon className="h-[16px] w-[16px]" /> },
+  { route: "dashboard", label: "Dashboard", icon: <SidebarDashboardIcon className="h-[15.5px] w-[15.5px]" /> },
+  { route: "tierlist", label: "Tierlist & Builds", icon: <SidebarTierlistIcon className="h-[15.5px] w-[15.5px]" /> },
+  { route: "leaderboards", label: "Leaderboards", icon: <SidebarLeaderboardIcon className="h-[15.5px] w-[15.5px]" /> },
 ];
 
 const APP_NAV: NavItem[] = [
-  { route: "spectate", label: "Spectate", icon: <SidebarSpectateIcon className="h-[16px] w-[16px]" /> },
-  { route: "collections", label: "Collections", icon: <SidebarCollectionsIcon className="h-[16px] w-[16px]" /> },
+  { route: "spectate", label: "Spectate", icon: <SidebarSpectateIcon className="h-[15.5px] w-[15.5px]" /> },
+  { route: "collections", label: "Collections", icon: <SidebarCollectionsIcon className="h-[15.5px] w-[15.5px]" /> },
 ];
 
 const INSIGHTS_NAV: NavItem[] = [
-  { route: "datastudio", label: "Data Studio", icon: <SidebarDataStudioIcon className="h-[16px] w-[16px]" /> },
+  { route: "datastudio", label: "Data Studio", icon: <SidebarDataStudioIcon className="h-[15.5px] w-[15.5px]" /> },
 ];
 
 const INGAME_NAV: NavItem[] = [
   {
     route: "champselect",
     label: "Champ Select",
-    icon: <SidebarChampSelectIcon className="h-[16px] w-[16px]" />,
+    icon: <SidebarChampSelectIcon className="h-[15.5px] w-[15.5px]" />,
     isInGame: true,
   },
   {
     route: "postgame",
     label: "Post-game",
-    icon: <SidebarPostGameIcon className="h-[16px] w-[16px]" />,
+    icon: <SidebarPostGameIcon className="h-[15.5px] w-[15.5px]" />,
     isInGame: true,
   },
 ];
@@ -85,6 +87,7 @@ function NavSection({
   activeRoute,
   onSelectRoute,
   collapsed,
+  reducedMotion,
   topSpacing = false,
 }: {
   title: string;
@@ -92,14 +95,15 @@ function NavSection({
   activeRoute: BaronRoute;
   onSelectRoute: (route: BaronRoute) => void;
   collapsed: boolean;
+  reducedMotion: boolean;
   topSpacing?: boolean;
 }) {
   return (
-    <div className={topSpacing ? "mt-3.5" : undefined}>
+    <div className={topSpacing ? "mt-4" : undefined}>
       {collapsed ? (
-        <div className="mx-auto my-2 h-px w-4 bg-baron-border" aria-hidden="true" />
+        <div className="mx-auto my-2 h-px w-4 bg-baron-border/80" aria-hidden="true" />
       ) : (
-        <div className="mb-1 px-2.5 text-[10px] font-bold tracking-[0.09em] text-baron-ink-muted uppercase">
+        <div className="mb-1.5 px-2.5 text-[11px] font-bold tracking-[0.08em] text-baron-ink-muted uppercase">
           {title}
         </div>
       )}
@@ -112,34 +116,61 @@ function NavSection({
             <button
               key={item.route}
               type="button"
+              data-proximity-item
               onClick={() => onSelectRoute(item.route)}
               aria-label={item.label}
               aria-current={isActive ? "page" : undefined}
               className={`group relative flex w-full items-center ${
                 collapsed ? "justify-center px-0 py-2" : "gap-2.5 px-2.5 py-[7px]"
-              } rounded-[7px] text-left text-[13px] transition-colors ${
+              } rounded-[8px] text-left text-[12.5px] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-baron-accent ${
                 isActive
-                  ? "bg-baron-surface font-semibold text-baron-ink shadow-[inset_0_0_0_1px_var(--baron-border)]"
+                  ? "font-semibold text-baron-ink"
                   : item.isInGame
-                    ? "font-medium text-baron-accent-soft hover:bg-baron-hover/65 hover:text-baron-ink"
-                    : "font-medium text-baron-ink-secondary hover:bg-baron-hover/65 hover:text-baron-ink"
+                    ? "font-medium text-baron-accent-soft hover:bg-baron-hover/55 hover:text-baron-ink"
+                    : "font-medium text-baron-ink-secondary hover:bg-baron-hover/55 hover:text-baron-ink"
               }`}
             >
-              <span
-                aria-hidden="true"
-                className={`absolute top-1.5 bottom-1.5 left-0 w-[2.5px] rounded-r-full transition-all duration-150 ${
-                  isActive
-                    ? "bg-baron-accent opacity-100"
-                    : "bg-baron-border-strong opacity-0 group-hover:opacity-70"
-                }`}
-              />
+              {isActive && (
+                <motion.span
+                  layoutId="baron-sidebar-active-bg"
+                  transition={
+                    reducedMotion
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 520, damping: 40, mass: 0.55 }
+                  }
+                  className="pointer-events-none absolute inset-0 rounded-[8px] bg-baron-surface shadow-[inset_0_1px_0_var(--baron-top-sheen),inset_0_0_0_1px_var(--baron-border)]"
+                />
+              )}
+
+              {/* Left proximity edge bar (@react-bits/LineSidebar driven by --effect) */}
+              {isActive ? (
+                <motion.span
+                  layoutId="baron-sidebar-active-rail"
+                  aria-hidden="true"
+                  transition={
+                    reducedMotion
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 520, damping: 40, mass: 0.55 }
+                  }
+                  className={`pointer-events-none absolute top-1.5 bottom-1.5 left-0 z-10 w-[2.5px] rounded-r-full ${
+                    item.isInGame ? "bg-baron-gold" : "bg-baron-accent"
+                  }`}
+                />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-2 bottom-2 left-0 z-10 w-[2px] origin-center rounded-r-full bg-baron-accent/70 [opacity:calc(var(--effect,0)*0.75)] [transform:scaleY(calc(0.4+var(--effect,0)*0.6))]"
+                />
+              )}
 
               <span
-                className={`shrink-0 transition-colors ${
+                className={`relative z-10 shrink-0 transition-colors ${
                   isActive
-                    ? "text-baron-accent-soft"
+                    ? item.isInGame
+                      ? "text-baron-gold"
+                      : "text-baron-accent-soft"
                     : item.isInGame
-                      ? "text-baron-accent-soft"
+                      ? "text-baron-accent-soft/90"
                       : "text-baron-ink-muted group-hover:text-baron-ink-secondary"
                 }`}
               >
@@ -147,7 +178,7 @@ function NavSection({
               </span>
 
               {!collapsed && (
-                <span className="min-w-0 flex-1 truncate transition-transform duration-150 group-hover:translate-x-[2px]">
+                <span className="relative z-10 min-w-0 flex-1 truncate [transform:translateX(calc(var(--effect,0)*3px))]">
                   {item.label}
                 </span>
               )}
@@ -155,8 +186,8 @@ function NavSection({
               {item.isInGame && !collapsed && (
                 <span
                   aria-hidden="true"
-                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                    isActive ? "bg-baron-emerald" : "bg-baron-accent-soft/75"
+                  className={`relative z-10 h-1.5 w-1.5 shrink-0 rounded-full ${
+                    isActive ? "bg-baron-emerald" : "bg-baron-gold/75"
                   }`}
                 />
               )}
@@ -168,13 +199,13 @@ function NavSection({
           }
 
           return (
-            <Tooltip key={item.route} delayDuration={120}>
+            <Tooltip key={item.route} delayDuration={100}>
               <TooltipTrigger asChild>{button}</TooltipTrigger>
               <TooltipContent
                 side="right"
                 sideOffset={8}
                 showArrow={false}
-                className="border border-baron-border-strong bg-baron-elevated px-2.5 py-1 text-[11.5px] font-medium text-baron-ink shadow-lg"
+                className="baron-popover-surface border border-baron-border-strong bg-baron-elevated px-2.5 py-1 text-[11.5px] font-medium text-baron-ink"
               >
                 {item.label}
               </TooltipContent>
@@ -194,51 +225,59 @@ export function Sidebar({
   lcuConnected = false,
   onProfileClick,
 }: SidebarProps) {
+  const reducedMotion = Boolean(useReducedMotion());
+
   return (
     <TooltipProvider>
       <aside
         aria-label="Primary navigation"
-        className={`flex h-full shrink-0 flex-col bg-baron-chrome transition-[width] duration-200 ease-out select-none ${
+        className={`flex h-full shrink-0 flex-col bg-baron-chrome transition-[width] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] select-none ${
           collapsed ? "w-[58px]" : "w-[204px]"
         }`}
       >
         <nav className="flex-1 overflow-y-auto px-2 pt-2.5 pb-2">
-          <NavSection
-            title="Baron Core"
-            items={CORE_NAV}
-            activeRoute={activeRoute}
-            onSelectRoute={onSelectRoute}
-            collapsed={collapsed}
-          />
-          <NavSection
-            title="Baron App"
-            items={APP_NAV}
-            activeRoute={activeRoute}
-            onSelectRoute={onSelectRoute}
-            collapsed={collapsed}
-            topSpacing
-          />
-          <NavSection
-            title="Insights"
-            items={INSIGHTS_NAV}
-            activeRoute={activeRoute}
-            onSelectRoute={onSelectRoute}
-            collapsed={collapsed}
-            topSpacing
-          />
-          <NavSection
-            title="In Game"
-            items={INGAME_NAV}
-            activeRoute={activeRoute}
-            onSelectRoute={onSelectRoute}
-            collapsed={collapsed}
-            topSpacing
-          />
+          <ProximityNavList disabled={collapsed} proximityRadius={92} smoothing={78}>
+            <NavSection
+              title="Baron Core"
+              items={CORE_NAV}
+              activeRoute={activeRoute}
+              onSelectRoute={onSelectRoute}
+              collapsed={collapsed}
+              reducedMotion={reducedMotion}
+            />
+            <NavSection
+              title="Baron App"
+              items={APP_NAV}
+              activeRoute={activeRoute}
+              onSelectRoute={onSelectRoute}
+              collapsed={collapsed}
+              reducedMotion={reducedMotion}
+              topSpacing
+            />
+            <NavSection
+              title="Insights"
+              items={INSIGHTS_NAV}
+              activeRoute={activeRoute}
+              onSelectRoute={onSelectRoute}
+              collapsed={collapsed}
+              reducedMotion={reducedMotion}
+              topSpacing
+            />
+            <NavSection
+              title="In Game"
+              items={INGAME_NAV}
+              activeRoute={activeRoute}
+              onSelectRoute={onSelectRoute}
+              collapsed={collapsed}
+              reducedMotion={reducedMotion}
+              topSpacing
+            />
+          </ProximityNavList>
         </nav>
 
         {/* Bottom Active Summoner or Search Trigger */}
-        <div className="border-t border-baron-border p-2">
-          <Tooltip delayDuration={120}>
+        <div className="border-t border-baron-border/75 p-2">
+          <Tooltip delayDuration={100}>
             <TooltipTrigger asChild>
               <button
                 type="button"
@@ -251,7 +290,7 @@ export function Sidebar({
                 }}
                 className={`flex w-full items-center ${
                   collapsed ? "justify-center p-1" : "gap-2.5 px-2 py-1.5"
-                } rounded-lg transition-colors hover:bg-baron-surface`}
+                } rounded-lg border border-transparent transition-all duration-150 hover:border-baron-border hover:bg-baron-surface hover:shadow-[inset_0_1px_0_var(--baron-top-sheen)]`}
                 aria-label={
                   activeSummoner
                     ? `Open dashboard for ${activeSummoner.gameName}#${activeSummoner.tagLine}`
@@ -265,13 +304,19 @@ export function Sidebar({
                       alt={activeSummoner.gameName}
                       className="h-8 w-8 rounded-md border border-baron-border-strong object-cover"
                     />
-                    <span className="absolute -top-1 -left-1 rounded bg-baron-accent px-1 py-[1px] text-[8px] leading-none font-bold text-white uppercase">
+                    <span className="absolute -top-1 -left-1 rounded bg-baron-accent px-1 py-[1px] text-[8px] leading-none font-bold text-white uppercase shadow-xs">
                       {activeSummoner.region}
                     </span>
                   </div>
                 ) : (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-baron-border bg-baron-surface text-baron-ink-muted">
+                  <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-baron-border bg-baron-surface text-baron-ink-muted">
                     <User className="h-4 w-4" />
+                    <span
+                      aria-hidden="true"
+                      className={`absolute -right-0.5 -bottom-0.5 h-2 w-2 rounded-full ring-2 ring-baron-chrome ${
+                        lcuConnected ? "bg-baron-emerald" : "bg-baron-gold/80"
+                      }`}
+                    />
                   </div>
                 )}
 
@@ -305,7 +350,7 @@ export function Sidebar({
                 side="right"
                 sideOffset={8}
                 showArrow={false}
-                className="border border-baron-border-strong bg-baron-elevated px-2.5 py-1 text-[11.5px] font-medium text-baron-ink shadow-lg"
+                className="baron-popover-surface border border-baron-border-strong bg-baron-elevated px-2.5 py-1 text-[11.5px] font-medium text-baron-ink"
               >
                 {activeSummoner
                   ? `${activeSummoner.gameName} #${activeSummoner.tagLine}`

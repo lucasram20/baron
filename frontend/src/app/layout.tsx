@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   title: "Baron",
   description:
     "Baron — 100% free, ad-free, local-first League of Legends companion & deep analytics desktop app",
+  icons: {
+    icon: "/baron_logo.png",
+    shortcut: "/favicon.ico",
+    apple: "/baron_logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

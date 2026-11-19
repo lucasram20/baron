@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Sidebar, type BaronRoute, type SidebarSummonerSummary } from "@/components/shell/Sidebar";
 import { TopCommandBar } from "@/components/shell/TopCommandBar";
+import { BlurFade } from "@/components/ui/blur-fade";
 import { ChampSelectView } from "@/components/views/ChampSelectView";
 import { CollectionView } from "@/components/views/CollectionView";
 import { PostGameView } from "@/components/views/PostGameView";
@@ -364,80 +365,90 @@ export default function BaronAppPage() {
           }}
         />
 
-        <main className="min-w-0 flex-1 overflow-y-auto rounded-tl-[14px] border-t border-l border-baron-border bg-baron-inset">
-          {route === "dashboard" && (
-            <DashboardView
-              ddVersion={ddVersion}
-              patch={patch}
-              onNavigate={navigateTo}
-              lcuPlayer={lcuPlayer}
-              isViewingLcuAccount={isViewingLcuAccount}
-              onSwitchToMyLcuAccount={handleSwitchToMyLcuAccount}
-              summonerData={summonerData}
-              summonerLoading={summonerLoading}
-              summonerError={summonerError}
-              activeRegion={lcuPlayer?.opggRegion ?? summonerRegion}
-              regions={supportedRegions}
-              onLookupSummoner={handleLookupSummoner}
-              onOpenMatch={handleOpenMatch}
-              onOpenBuild={(champion, role) => {
-                setBuildTarget({ champion, role });
-                navigateTo("tierlist");
-              }}
-            />
-          )}
-          {route === "tierlist" && (
-            <TierListView
-              key={buildTarget ? `${buildTarget.champion}:${buildTarget.role}` : "tierlist-root"}
-              activeProviderId={activeProviderId}
-              activeProviderLabel={activeProvider?.label ?? "OP.GG"}
-              refreshNonce={refreshNonce}
-              searchFilter={searchQuery}
-              initialSelectedChampion={buildTarget}
-              patch={patch}
-              ddVersion={ddVersion}
-              defaultRegion={lcuPlayer?.opggRegion ?? "NA"}
-            />
-          )}
-          {route === "leaderboards" && (
-            <LeaderboardsView
-              ddVersion={ddVersion}
-              regions={supportedRegions}
-              defaultRegion={lcuPlayer?.opggRegion ?? "KR"}
-              onLookupSummoner={handleLookupSummoner}
-            />
-          )}
-          {route === "spectate" && (
-            <SpectateView ddVersion={ddVersion} lcuConnected={lcuConnected} />
-          )}
-          {route === "collections" && (
-            <CollectionView ddVersion={ddVersion} lcuConnected={lcuConnected} />
-          )}
-          {route === "datastudio" && (
-            <DataStudioView
-              patch={patch}
-              period={period}
-              providers={providers}
-              activeProviderId={activeProviderId}
-              onSelectProvider={setActiveProviderId}
-            />
-          )}
-          {route === "champselect" && (
-            <ChampSelectView
-              ddVersion={ddVersion}
-              lcuConnected={lcuConnected}
-              lcuPlayer={lcuPlayer}
-            />
-          )}
-          {route === "postgame" && (
-            <PostGameView
-              ddVersion={ddVersion}
-              gameDetail={gameDetail}
-              loading={gameLoading}
-              error={gameError}
-              onNavigate={navigateTo}
-            />
-          )}
+        <main className="baron-inset-shell min-w-0 flex-1 overflow-y-auto rounded-tl-[14px] border-t border-l border-baron-border bg-baron-inset">
+          <BlurFade
+            key={route}
+            duration={0.18}
+            delay={0}
+            offset={4}
+            blur="3px"
+            direction="up"
+            className="min-h-full"
+          >
+            {route === "dashboard" && (
+              <DashboardView
+                ddVersion={ddVersion}
+                patch={patch}
+                onNavigate={navigateTo}
+                lcuPlayer={lcuPlayer}
+                isViewingLcuAccount={isViewingLcuAccount}
+                onSwitchToMyLcuAccount={handleSwitchToMyLcuAccount}
+                summonerData={summonerData}
+                summonerLoading={summonerLoading}
+                summonerError={summonerError}
+                activeRegion={lcuPlayer?.opggRegion ?? summonerRegion}
+                regions={supportedRegions}
+                onLookupSummoner={handleLookupSummoner}
+                onOpenMatch={handleOpenMatch}
+                onOpenBuild={(champion, role) => {
+                  setBuildTarget({ champion, role });
+                  navigateTo("tierlist");
+                }}
+              />
+            )}
+            {route === "tierlist" && (
+              <TierListView
+                key={buildTarget ? `${buildTarget.champion}:${buildTarget.role}` : "tierlist-root"}
+                activeProviderId={activeProviderId}
+                activeProviderLabel={activeProvider?.label ?? "OP.GG"}
+                refreshNonce={refreshNonce}
+                searchFilter={searchQuery}
+                initialSelectedChampion={buildTarget}
+                patch={patch}
+                ddVersion={ddVersion}
+                defaultRegion={lcuPlayer?.opggRegion ?? "NA"}
+              />
+            )}
+            {route === "leaderboards" && (
+              <LeaderboardsView
+                ddVersion={ddVersion}
+                regions={supportedRegions}
+                defaultRegion={lcuPlayer?.opggRegion ?? "KR"}
+                onLookupSummoner={handleLookupSummoner}
+              />
+            )}
+            {route === "spectate" && (
+              <SpectateView ddVersion={ddVersion} lcuConnected={lcuConnected} />
+            )}
+            {route === "collections" && (
+              <CollectionView ddVersion={ddVersion} lcuConnected={lcuConnected} />
+            )}
+            {route === "datastudio" && (
+              <DataStudioView
+                patch={patch}
+                period={period}
+                providers={providers}
+                activeProviderId={activeProviderId}
+                onSelectProvider={setActiveProviderId}
+              />
+            )}
+            {route === "champselect" && (
+              <ChampSelectView
+                ddVersion={ddVersion}
+                lcuConnected={lcuConnected}
+                lcuPlayer={lcuPlayer}
+              />
+            )}
+            {route === "postgame" && (
+              <PostGameView
+                ddVersion={ddVersion}
+                gameDetail={gameDetail}
+                loading={gameLoading}
+                error={gameError}
+                onNavigate={navigateTo}
+              />
+            )}
+          </BlurFade>
         </main>
       </div>
     </div>

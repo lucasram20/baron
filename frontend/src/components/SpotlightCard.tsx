@@ -39,16 +39,16 @@ const THEMES: Record<'dark' | 'light', Palette> = {
   dark: {
     surface: 'var(--baron-surface)',
     border: 'var(--baron-border)',
-    shadow: '0 24px 48px -24px rgba(0, 0, 0, 0.45)',
-    light: '#818cf8',
-    fill: 0.75,
+    shadow: '0 24px 48px -24px rgba(0, 0, 0, 0.5)',
+    light: '#f29560',
+    fill: 0.72,
     edge: 0.85
   },
   light: {
     surface: 'var(--baron-surface)',
     border: 'var(--baron-border)',
-    shadow: '0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 32px -20px rgba(15, 23, 42, 0.14)',
-    light: '#4f46e5',
+    shadow: '0 1px 2px rgba(45, 31, 18, 0.05), 0 14px 32px -20px rgba(45, 31, 18, 0.15)',
+    light: '#b84a1e',
     fill: 0.22,
     edge: 0.55
   }

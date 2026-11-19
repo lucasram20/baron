@@ -3,9 +3,21 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, Check, Download, Sparkles, Swords } from "lucide-react";
 import { LaneIcon } from "@/components/icons/LolIcons";
+import SpotlightCard from "@/components/SpotlightCard";
+import { BorderBeam } from "@/components/ui/border-beam";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatefulButton } from "@/components/ui/stateful-button";
 import { RuneMatrixPanel } from "@/components/views/RuneMatrixPanel";
+import { useTheme } from "@/lib/theme";
 import {
   champSplashUrl,
   champSquareUrl,
@@ -57,6 +69,7 @@ export function ChampSelectView({
   lcuConnected?: boolean;
   lcuPlayer?: LcuPlayerContext | null;
 }) {
+  const { resolved } = useTheme();
   const [championInput, setChampionInput] = useState("");
   const [manualSelection, setManualSelection] = useState<{
     champion: string;
@@ -144,8 +157,8 @@ export function ChampSelectView({
   const topSpells = asList(analysis?.data.summoner_spells)[0];
   const weakCounters = asList(analysis?.data.weak_counters);
 
-  const handleImportRunes = async () => {
-    if (!activeChampion || !topRune || importingRunes) return;
+  const handleImportRunes = async (): Promise<boolean> => {
+    if (!activeChampion || !topRune || importingRunes) return false;
     const all9 = [
       ...(topRune.primary_rune_ids ?? []).slice(0, 4),
       ...(topRune.secondary_rune_ids ?? []).slice(0, 2),
@@ -156,7 +169,7 @@ export function ChampSelectView({
         ok: false,
         text: "Incomplete OP.GG rune set returned for this champion.",
       });
-      return;
+      return false;
     }
     setImportingRunes(true);
     setRuneStatus(null);
@@ -168,6 +181,7 @@ export function ChampSelectView({
         all9.slice(0, 9),
       );
       setRuneStatus({ ok: true, text: res.message });
+      return true;
     } catch (err: unknown) {
       setRuneStatus({
         ok: false,
@@ -176,6 +190,7 @@ export function ChampSelectView({
             ? err.message
             : "League Client is offline. Start League of Legends to import OP.GG runes.",
       });
+      return false;
     } finally {
       setImportingRunes(false);
     }
@@ -183,12 +198,28 @@ export function ChampSelectView({
 
   return (
     <div className="min-h-full">
-      {/* Header */}
-      <header className="relative overflow-hidden border-b border-baron-border bg-baron-surface px-5 py-4">
+      {/* Header (@react-bits/SpotlightCard + subtle @magicui/border-beam) */}
+      <SpotlightCard
+        theme={resolved}
+        intensity={0.075}
+        borderGlow={0.45}
+        style={{ borderRadius: 0 }}
+        className="relative overflow-hidden rounded-none border-x-0 border-t-0 border-b border-baron-border bg-baron-surface px-5 py-4"
+      >
+        {activeChampion && (
+          <BorderBeam
+            size={140}
+            duration={12}
+            colorFrom="#d46233"
+            colorTo="#eab349"
+            borderWidth={1}
+            className="opacity-45"
+          />
+        )}
         {activeChampion && (
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 right-0 w-[40%] bg-cover bg-center opacity-[0.18]"
+            className="pointer-events-none absolute inset-y-0 right-0 w-[42%] bg-cover bg-center opacity-[0.18]"
             style={{
               backgroundImage: `url('${champSplashUrl(activeChampion, 0)}')`,
               maskImage: "linear-gradient(to left, rgba(0,0,0,0.85) 20%, transparent 95%)",
@@ -203,7 +234,7 @@ export function ChampSelectView({
               <img
                 src={champSquareUrl(activeChampion, ddVersion)}
                 alt={activeChampion}
-                className="h-12 w-12 rounded-xl border-2 border-baron-accent object-cover"
+                className="h-12 w-12 rounded-xl border-2 border-baron-accent object-cover shadow-md"
               />
             ) : (
               <div className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-baron-border bg-baron-elevated">
@@ -212,15 +243,15 @@ export function ChampSelectView({
             )}
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded bg-baron-accent/15 px-2 py-0.5 text-[10.5px] font-bold text-baron-accent-soft">
-                  <Sparkles className="h-3 w-3" />
-                  CHAMP SELECT PREP
-                </span>
                 <h1 className="text-[18px] font-extrabold tracking-[-0.02em] text-baron-ink">
                   {activeChampion ?? "Draft Companion"}
                 </h1>
+                <span className="inline-flex items-center gap-1 rounded-md border border-baron-accent/30 bg-baron-accent/12 px-2 py-0.5 text-[10.5px] font-bold text-baron-accent-soft">
+                  <Sparkles className="h-3 w-3" />
+                  Champ Select
+                </span>
                 <span
-                  className={`rounded px-2 py-0.5 text-[10.5px] font-semibold ${
+                  className={`rounded-md px-2 py-0.5 text-[10.5px] font-semibold ${
                     lcuPickedChamp
                       ? "bg-baron-emerald/15 text-baron-emerald"
                       : lcuConnected
@@ -243,21 +274,19 @@ export function ChampSelectView({
           </div>
 
           <div className="flex flex-col items-end gap-1.5">
-            <Button
-              type="button"
-              size="sm"
+            <StatefulButton
               disabled={!topRune || importingRunes || !activeChampion}
               onClick={handleImportRunes}
-              className="h-8 bg-baron-accent px-3.5 text-[12px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              className="h-8 px-3.5 text-[12px] font-semibold"
             >
               {runeStatus?.ok ? (
                 <>
-                  <Check className="mr-1.5 h-3.5 w-3.5" />
+                  <Check className="h-3.5 w-3.5" />
                   {runeStatus.text}
                 </>
               ) : (
                 <>
-                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  <Download className="h-3.5 w-3.5" />
                   {importingRunes
                     ? "Importing OP.GG Runes..."
                     : activeChampion
@@ -265,7 +294,7 @@ export function ChampSelectView({
                       : "Load Champion First"}
                 </>
               )}
-            </Button>
+            </StatefulButton>
             {runeStatus && !runeStatus.ok && (
               <span className="max-w-xs text-right text-[10.5px] font-medium text-baron-gold">
                 {runeStatus.text}
@@ -274,7 +303,7 @@ export function ChampSelectView({
           </div>
         </div>
 
-        {/* Champion & Role Picker */}
+        {/* Champion & Role Picker (@shadcn Input & Select) */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -284,37 +313,47 @@ export function ChampSelectView({
           }}
           className="relative z-10 mt-3.5 flex flex-wrap items-center gap-2"
         >
-          <input
+          <Input
             type="text"
             value={championInput}
             onChange={(e) => setChampionInput(e.target.value)}
             placeholder="Champion name..."
             aria-label="Draft champion name"
-            className="h-8 w-44 rounded-md border border-baron-border bg-baron-inset px-3 text-[12px] text-baron-ink focus:border-baron-accent focus:outline-none"
+            className="h-8 w-44 border-baron-border bg-baron-inset px-3 text-[12px] text-baron-ink"
           />
-          <select
+          <Select
             value={effectiveRole}
-            onChange={(e) => {
-              const nextRole = e.target.value as TierRole;
+            onValueChange={(val) => {
+              const nextRole = val as TierRole;
               setRole(nextRole);
               if (manualSelection) {
                 setManualSelection({ champion: manualSelection.champion, role: nextRole });
               }
             }}
-            aria-label="Select draft lane"
-            className="h-8 rounded-md border border-baron-border bg-baron-inset px-2.5 text-[12px] font-semibold text-baron-ink"
           >
-            {ROLES.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              size="sm"
+              aria-label="Select draft lane"
+              className="h-8 min-w-[106px] border-baron-border bg-baron-inset text-[12px] font-semibold text-baron-ink"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent
+              position="popper"
+              className="baron-popover-surface border-baron-border-strong bg-baron-surface"
+            >
+              {ROLES.map((r) => (
+                <SelectItem key={r.id} value={r.id} className="text-[12px]">
+                  {r.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             type="submit"
             variant="outline"
             size="sm"
-            className="h-8 border-baron-border bg-baron-elevated px-3 text-[12px]"
+            className="h-8 border-baron-border bg-baron-elevated px-3 text-[12px] hover:border-baron-border-strong"
           >
             Load OP.GG Prep
           </Button>
@@ -330,7 +369,7 @@ export function ChampSelectView({
             </Button>
           )}
         </form>
-      </header>
+      </SpotlightCard>
 
       {!activeChampion && !error && (
         <div className="m-5 rounded-xl border border-baron-border bg-baron-surface p-6 text-[13px] text-baron-ink-secondary">

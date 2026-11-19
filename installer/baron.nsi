@@ -2,6 +2,7 @@
 Unicode True
 
 !include "MUI2.nsh"
+!include "LogicLib.nsh"
 
 !ifndef VERSION
   !define VERSION "0.1.0-dev"
@@ -13,6 +14,7 @@ Unicode True
 
 !define APP_NAME "Baron"
 !define EXE_NAME "Baron.exe"
+!define APP_IDENTIFIER "com.baron.companion"
 !define UNINSTALL_REG_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Baron"
 
 Name "${APP_NAME}"
@@ -40,10 +42,117 @@ RequestExecutionLevel user
 
 !insertmacro MUI_LANGUAGE "English"
 
+; Strip leading and trailing double quotes from a path string on the stack
+Function StripQuotes
+  Exch $R0
+  Push $R1
+  Push $R2
+
+  StrCpy $R1 $R0 1
+  ${If} $R1 == '"'
+    StrCpy $R0 $R0 "" 1
+  ${EndIf}
+
+  StrLen $R2 $R0
+  ${If} $R2 > 0
+    IntOp $R2 $R2 - 1
+    StrCpy $R1 $R0 1 $R2
+    ${If} $R1 == '"'
+      StrCpy $R0 $R0 $R2
+    ${EndIf}
+  ${EndIf}
+
+  Pop $R2
+  Pop $R1
+  Exch $R0
+FunctionEnd
+
+; Detect any previous Baron installation, uninstall it cleanly, and clear old app/WebView2 data
+Function UninstallPreviousIfPresent
+  Push $R0
+  Push $R1
+  Push $R2
+
+  ; Close any running Baron instance before inspecting or removing files
+  ExecWait 'cmd /c taskkill /F /IM "${EXE_NAME}" /IM "baron-app.exe" >nul 2>&1'
+  Sleep 450
+
+  StrCpy $R2 "0"
+  ReadRegStr $R0 HKCU "${UNINSTALL_REG_KEY}" "UninstallString"
+  ReadRegStr $R1 HKCU "${UNINSTALL_REG_KEY}" "InstallLocation"
+
+  ${If} $R0 != ""
+    Push $R0
+    Call StripQuotes
+    Pop $R0
+    StrCpy $R2 "1"
+  ${EndIf}
+
+  ${If} $R1 == ""
+    ${If} ${FileExists} "$INSTDIR\Uninstall.exe"
+      StrCpy $R0 "$INSTDIR\Uninstall.exe"
+      StrCpy $R1 "$INSTDIR"
+      StrCpy $R2 "1"
+    ${ElseIf} ${FileExists} "$INSTDIR\${EXE_NAME}"
+      StrCpy $R1 "$INSTDIR"
+      StrCpy $R2 "1"
+    ${EndIf}
+  ${Else}
+    StrCpy $R2 "1"
+  ${EndIf}
+
+  ${If} $R2 == "1"
+    DetailPrint "Previous ${APP_NAME} installation detected. Uninstalling old version and clearing data..."
+
+    ${If} $R0 != ""
+    ${AndIf} ${FileExists} "$R0"
+      ${If} $R1 != ""
+        ; _?= makes the NSIS uninstaller execute synchronously without self-copying to TEMP
+        ExecWait '"$R0" /S _?=$R1'
+      ${Else}
+        ExecWait '"$R0" /S _?=$INSTDIR'
+      ${EndIf}
+      Delete "$R0"
+      Sleep 300
+    ${EndIf}
+
+    ; Ensure old installation folder artifacts and shortcuts are removed
+    ${If} $R1 != ""
+      Delete "$R1\${EXE_NAME}"
+      Delete "$R1\baron-app.exe"
+      Delete "$R1\baron.ico"
+      Delete "$R1\README.md"
+      Delete "$R1\LICENSE"
+      Delete "$R1\Uninstall.exe"
+      ${If} $R1 != $INSTDIR
+        RMDir "$R1"
+      ${EndIf}
+    ${EndIf}
+
+    Delete "$DESKTOP\${APP_NAME}.lnk"
+    Delete "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk"
+    Delete "$SMPROGRAMS\${APP_NAME}\Uninstall ${APP_NAME}.lnk"
+    RMDir "$SMPROGRAMS\${APP_NAME}"
+
+    ; Purge old Tauri WebView2 cache and local/roaming Baron application data
+    RMDir /r "$LOCALAPPDATA\${APP_IDENTIFIER}"
+    RMDir /r "$APPDATA\${APP_IDENTIFIER}"
+    RMDir /r "$LOCALAPPDATA\${APP_NAME}"
+    RMDir /r "$APPDATA\${APP_NAME}"
+
+    DeleteRegKey HKCU "${UNINSTALL_REG_KEY}"
+    System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
+    DetailPrint "Previous ${APP_NAME} installation and cached data removed."
+  ${EndIf}
+
+  Pop $R2
+  Pop $R1
+  Pop $R0
+FunctionEnd
+
 Section "${APP_NAME}" SecMain
-  ; Close any running tray instance before replacing Baron.exe
-  ExecWait 'cmd /c taskkill /F /IM "${EXE_NAME}" >nul 2>&1'
-  Sleep 350
+  ; Detect and cleanly remove any previous Baron version & cached data first
+  Call UninstallPreviousIfPresent
 
   SetOutPath "$INSTDIR"
   File "..\dist\${EXE_NAME}"
@@ -77,8 +186,8 @@ Section "${APP_NAME}" SecMain
 SectionEnd
 
 Section "Uninstall"
-  ExecWait 'cmd /c taskkill /F /IM "${EXE_NAME}" >nul 2>&1'
-  Sleep 350
+  ExecWait 'cmd /c taskkill /F /IM "${EXE_NAME}" /IM "baron-app.exe" >nul 2>&1'
+  Sleep 450
 
   Delete "$DESKTOP\${APP_NAME}.lnk"
   Delete "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk"
@@ -86,11 +195,18 @@ Section "Uninstall"
   RMDir "$SMPROGRAMS\${APP_NAME}"
 
   Delete "$INSTDIR\${EXE_NAME}"
+  Delete "$INSTDIR\baron-app.exe"
   Delete "$INSTDIR\baron.ico"
   Delete "$INSTDIR\README.md"
   Delete "$INSTDIR\LICENSE"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
+
+  ; Remove local/roaming Baron application data and WebView2 cache
+  RMDir /r "$LOCALAPPDATA\${APP_IDENTIFIER}"
+  RMDir /r "$APPDATA\${APP_IDENTIFIER}"
+  RMDir /r "$LOCALAPPDATA\${APP_NAME}"
+  RMDir /r "$APPDATA\${APP_NAME}"
 
   DeleteRegKey HKCU "${UNINSTALL_REG_KEY}"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'

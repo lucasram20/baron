@@ -3,6 +3,16 @@
 import { useEffect, useState } from "react";
 import { AlertCircle, ChevronDown, ChevronRight, Layers, Search } from "lucide-react";
 import { LaneIcon } from "@/components/icons/LolIcons";
+import { AnimatedTabs } from "@/components/ui/animated-tabs";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChampionBuildView } from "@/components/views/ChampionBuildView";
 import { champSquareUrl, LATEST_DDRAGON } from "@/lib/ddragon";
@@ -26,10 +36,10 @@ const LANE_TABS: { id: TierRole; label: string }[] = [
 function tierBadgeStyle(tier: string): string {
   const t = tier.trim().toUpperCase();
   if (t === "OP" || t === "S+" || t === "0") {
-    return "border-baron-gold/40 bg-baron-gold/15 text-baron-gold";
+    return "border-baron-gold/40 bg-baron-gold/15 text-baron-gold shadow-[inset_0_1px_0_rgba(245,158,11,0.2)]";
   }
   if (t === "1" || t === "S") {
-    return "border-baron-accent/40 bg-baron-accent/20 text-baron-accent-soft";
+    return "border-baron-accent/40 bg-baron-accent/18 text-baron-accent-soft shadow-[inset_0_1px_0_rgba(242,149,96,0.24)]";
   }
   if (t === "2" || t === "A") {
     return "border-baron-victory/35 bg-baron-victory/15 text-baron-victory";
@@ -147,21 +157,23 @@ export function TierListView({
 
   const isArena = mode === "arena";
   const isTierOnly = mode === "aram_mayhem" || mode === "brawl";
+  const primaryModes = OPGG_GAME_MODES.filter((m) => m.primaryBar);
+  const secondaryModes = OPGG_GAME_MODES.filter((m) => !m.primaryBar);
 
   return (
     <div className="min-h-full">
       {/* Header */}
-      <header className="border-b border-baron-border bg-baron-surface px-5 py-4">
+      <header className="border-b border-baron-border bg-baron-surface px-5 py-4 shadow-[inset_0_1px_0_var(--baron-top-sheen)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded bg-baron-accent/15 px-2 py-0.5 text-[10.5px] font-bold text-baron-accent-soft">
-                <Layers className="h-3 w-3" />
-                LIVE OP.GG DATA
-              </span>
+            <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-[18px] font-extrabold tracking-[-0.02em] text-baron-ink">
                 Tierlist &amp; Champion Builds · {activeModeDef.label}
               </h1>
+              <span className="inline-flex items-center gap-1 rounded-md border border-baron-accent/30 bg-baron-accent/12 px-2 py-0.5 text-[10.5px] font-bold text-baron-accent-soft">
+                <Layers className="h-3 w-3" />
+                Live OP.GG
+              </span>
             </div>
             <p className="mt-1 text-[12px] text-baron-ink-muted">
               Click any champion for OP.GG Desktop builds, 3-column rune matrix, abilities, mode
@@ -171,116 +183,115 @@ export function TierListView({
 
           <div className="flex flex-wrap items-center gap-2">
             {activeModeDef.hasTierFilter && (
-              <select
-                value={tierFilter}
-                onChange={(e) => setTierFilter(e.target.value)}
-                aria-label="Filter OP.GG rank tier"
-                className="h-8 rounded-md border border-baron-border bg-baron-inset px-2.5 text-[12px] font-semibold text-baron-ink"
-              >
-                {OPGG_TIER_FILTERS.map((tf) => (
-                  <option key={tf.id} value={tf.id}>
-                    {tf.label}
-                  </option>
-                ))}
-              </select>
+              <Select value={tierFilter} onValueChange={setTierFilter}>
+                <SelectTrigger
+                  size="sm"
+                  aria-label="Filter OP.GG rank tier"
+                  className="h-8 min-w-[146px] border-baron-border bg-baron-inset text-[12px] font-semibold text-baron-ink"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  position="popper"
+                  className="baron-popover-surface border-baron-border-strong bg-baron-surface"
+                >
+                  {OPGG_TIER_FILTERS.map((tf) => (
+                    <SelectItem key={tf.id} value={tf.id} className="text-[12px]">
+                      {tf.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
 
             <div className="relative">
-              <Search className="pointer-events-none absolute top-2 left-2.5 h-3.5 w-3.5 text-baron-ink-muted" />
-              <input
+              <Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-baron-ink-muted" />
+              <Input
                 type="text"
                 value={localFilter}
                 onChange={(e) => setLocalFilter(e.target.value)}
                 placeholder="Filter champion..."
                 aria-label="Filter champions in tier list"
-                className="h-8 w-44 rounded-md border border-baron-border bg-baron-inset pr-2.5 pl-8 text-[12px] text-baron-ink placeholder:text-baron-ink-muted focus:border-baron-accent focus:outline-none"
+                className="h-8 w-48 border-baron-border bg-baron-inset pr-2.5 pl-8 text-[12px] text-baron-ink placeholder:text-baron-ink-muted"
               />
             </div>
           </div>
         </div>
 
-        {/* OP.GG Game Modes Bar */}
-        <div className="relative mt-3.5 flex flex-wrap items-center gap-1 border-t border-baron-border pt-3">
-          {OPGG_GAME_MODES.filter((m) => m.primaryBar).map((m) => {
-            const active = mode === m.id;
-            return (
+        {/* OP.GG Game Modes Bar (@aceternity AnimatedTabs + @shadcn Popover) */}
+        <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t border-baron-border/80 pt-3">
+          <AnimatedTabs
+            layoutId="tierlist-game-modes"
+            ariaLabel="Select League game mode"
+            value={activeModeDef.primaryBar ? mode : ("__secondary__" as OpggGameMode)}
+            onChange={(next) => {
+              setMode(next);
+              setShowMoreModes(false);
+            }}
+            items={primaryModes.map((m) => ({
+              id: m.id,
+              label: m.label,
+              badge: m.badge ?? undefined,
+            }))}
+          />
+
+          <Popover open={showMoreModes} onOpenChange={setShowMoreModes}>
+            <PopoverTrigger asChild>
               <button
-                key={m.id}
                 type="button"
-                onClick={() => {
-                  setMode(m.id);
-                  setShowMoreModes(false);
-                }}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                  active
-                    ? "bg-baron-elevated text-baron-ink ring-1 ring-baron-accent/55"
-                    : "text-baron-ink-secondary hover:bg-baron-inset hover:text-baron-ink"
+                aria-expanded={showMoreModes}
+                className={`flex h-[30px] items-center gap-1 rounded-lg border px-2.5 text-[12px] font-semibold transition-colors ${
+                  !activeModeDef.primaryBar
+                    ? "border-baron-accent/60 bg-baron-accent/15 text-baron-ink"
+                    : "border-baron-border bg-baron-elevated/70 text-baron-ink-secondary hover:border-baron-border-strong hover:text-baron-ink"
                 }`}
               >
-                <span>{m.label}</span>
-                {m.badge && (
-                  <span className="rounded bg-baron-gold px-1 text-[9px] font-extrabold text-black">
-                    {m.badge}
-                  </span>
-                )}
+                <span>{!activeModeDef.primaryBar ? activeModeDef.label : "More modes"}</span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform duration-150 ${
+                    showMoreModes ? "rotate-180" : ""
+                  }`}
+                />
               </button>
-            );
-          })}
-
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowMoreModes((prev) => !prev)}
-              className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                !activeModeDef.primaryBar
-                  ? "bg-baron-elevated text-baron-ink ring-1 ring-baron-accent/55"
-                  : "text-baron-ink-secondary hover:bg-baron-inset hover:text-baron-ink"
-              }`}
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              sideOffset={6}
+              className="baron-popover-surface w-52 rounded-xl border-baron-border-strong bg-baron-surface/95 p-1.5 backdrop-blur-md"
             >
-              <span>{!activeModeDef.primaryBar ? activeModeDef.label : "Show more"}</span>
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-
-            {showMoreModes && (
-              <div className="absolute top-10 left-0 z-40 w-52 rounded-xl border border-baron-border-strong bg-baron-surface p-1.5 shadow-2xl">
-                {OPGG_GAME_MODES.filter((m) => !m.primaryBar).map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => {
-                      setMode(m.id);
-                      setShowMoreModes(false);
-                    }}
-                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px] font-medium transition-colors ${
-                      mode === m.id
-                        ? "bg-baron-accent/20 text-baron-ink font-semibold"
-                        : "text-baron-ink-secondary hover:bg-baron-elevated hover:text-baron-ink"
-                    }`}
-                  >
-                    <span>{m.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {activeModeDef.hasRoles && (
-            <div className="ml-auto flex items-center gap-1 rounded-lg border border-baron-border bg-baron-inset p-0.5">
-              {LANE_TABS.map((t) => (
+              {secondaryModes.map((m) => (
                 <button
-                  key={t.id}
+                  key={m.id}
                   type="button"
-                  onClick={() => setRole(t.id)}
-                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
-                    role === t.id
-                      ? "bg-baron-accent text-white"
-                      : "text-baron-ink-secondary hover:text-baron-ink"
+                  onClick={() => {
+                    setMode(m.id);
+                    setShowMoreModes(false);
+                  }}
+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px] font-medium transition-colors ${
+                    mode === m.id
+                      ? "bg-baron-accent/18 font-semibold text-baron-ink"
+                      : "text-baron-ink-secondary hover:bg-baron-elevated hover:text-baron-ink"
                   }`}
                 >
-                  <LaneIcon role={t.id} className="h-3.5 w-3.5" />
-                  <span>{t.label}</span>
+                  <span>{m.label}</span>
                 </button>
               ))}
+            </PopoverContent>
+          </Popover>
+
+          {activeModeDef.hasRoles && (
+            <div className="ml-auto">
+              <AnimatedTabs
+                layoutId="tierlist-lane-tabs"
+                ariaLabel="Filter by lane role"
+                value={role}
+                onChange={setRole}
+                items={LANE_TABS.map((t) => ({
+                  id: t.id,
+                  label: t.label,
+                  icon: <LaneIcon role={t.id} className="h-3.5 w-3.5" />,
+                }))}
+              />
             </div>
           )}
         </div>
@@ -297,7 +308,10 @@ export function TierListView({
         )}
 
         {!isLoading && error && (
-          <div role="alert" className="rounded-xl border border-baron-border bg-baron-surface p-6">
+          <div
+            role="alert"
+            className="baron-surface-card rounded-xl border border-baron-border bg-baron-surface p-6"
+          >
             <div className="flex items-start gap-3">
               <AlertCircle className="mt-0.5 h-5 w-5 text-baron-gold" />
               <div>
@@ -311,17 +325,17 @@ export function TierListView({
         )}
 
         {!isLoading && !error && filteredRows.length === 0 && (
-          <div className="rounded-xl border border-baron-border bg-baron-surface p-6 text-[13px] text-baron-ink-muted">
+          <div className="baron-surface-card rounded-xl border border-baron-border bg-baron-surface p-6 text-[13px] text-baron-ink-muted">
             No champions match this filter for {activeModeDef.label}.
           </div>
         )}
 
         {!isLoading && !error && filteredRows.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-baron-border bg-baron-surface">
+          <div className="baron-surface-card overflow-hidden rounded-xl border border-baron-border bg-baron-surface">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left text-[12.5px]">
                 <thead>
-                  <tr className="border-b border-baron-border bg-baron-inset/80 text-[10.5px] font-bold uppercase tracking-wider text-baron-ink-muted">
+                  <tr className="border-b border-baron-border bg-baron-inset/80 text-[10.5px] font-bold tracking-wider text-baron-ink-muted uppercase">
                     <th className="w-14 px-4 py-2.5">Rank</th>
                     <th className="px-4 py-2.5">Champion</th>
                     <th className="w-20 px-4 py-2.5 text-center">Tier</th>
@@ -347,93 +361,107 @@ export function TierListView({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-baron-border/70 tabular-nums">
-                  {filteredRows.map((entry, idx) => (
-                    <tr
-                      key={`${entry.mode}-${entry.championId}-${entry.role}-${idx}`}
-                      onClick={() => setSelectedChamp(entry.championName)}
-                      className="cursor-pointer transition-colors hover:bg-baron-elevated/60"
-                    >
-                      <td className="px-4 py-2.5 font-bold text-baron-ink-muted">
-                        #{entry.rank > 0 && entry.rank < 999 ? entry.rank : idx + 1}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={champSquareUrl(entry.championKey || entry.championName, ddVersion)}
-                            alt={entry.championName}
-                            className="h-8 w-8 rounded-lg border border-baron-border object-cover"
-                          />
-                          <div>
-                            <div className="font-bold text-baron-ink">{entry.championName}</div>
-                            {activeModeDef.hasRoles && entry.role !== "Unknown" && (
-                              <div className="text-[10.5px] text-baron-ink-muted">
-                                {entry.role}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        <span
-                          className={`inline-flex min-w-7 items-center justify-center rounded border px-1.5 py-0.5 text-[11px] font-extrabold ${tierBadgeStyle(entry.tier)}`}
-                        >
-                          {tierDisplayLabel(entry.tier)}
-                        </span>
-                      </td>
-
-                      {isArena ? (
-                        <>
-                          <td className="px-4 py-2.5 text-right font-bold text-baron-ink">
-                            {entry.avgPlace !== null ? entry.avgPlace.toFixed(2) : "—"}
-                          </td>
-                          <td className="px-4 py-2.5 text-right font-bold text-baron-emerald">
-                            {entry.firstRate !== null ? `${entry.firstRate.toFixed(2)}%` : "—"}
-                          </td>
-                          <td className="px-4 py-2.5 text-right font-bold text-baron-victory">
-                            {entry.top2Rate !== null ? `${entry.top2Rate.toFixed(2)}%` : "—"}
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-baron-ink-secondary">
-                            {entry.pickRate > 0 ? `${entry.pickRate.toFixed(2)}%` : "—"}
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-baron-ink-muted">
-                            {entry.banRate > 0 ? `${entry.banRate.toFixed(2)}%` : "—"}
-                          </td>
-                        </>
-                      ) : isTierOnly ? (
-                        <td className="px-4 py-2.5 text-right text-[11px] text-baron-ink-muted">
-                          OP.GG Live Rank ·{" "}
-                          {mode === "aram_mayhem" ? "Click for Mayhem Build" : "Tier Rank Only"}
-                        </td>
-                      ) : (
-                        <>
-                          <td
-                            className={`px-4 py-2.5 text-right font-bold ${
-                              entry.winRate >= 51.5
-                                ? "text-baron-victory"
-                                : entry.winRate > 0 && entry.winRate < 48.5
-                                  ? "text-baron-defeat"
-                                  : "text-baron-ink"
-                            }`}
+                  {filteredRows.map((entry, idx) => {
+                    const displayRank =
+                      entry.rank > 0 && entry.rank < 999 ? entry.rank : idx + 1;
+                    return (
+                      <tr
+                        key={`${entry.mode}-${entry.championId}-${entry.role}-${idx}`}
+                        onClick={() => setSelectedChamp(entry.championName)}
+                        className="group cursor-pointer transition-colors duration-150 hover:bg-baron-hover/55"
+                      >
+                        <td className="px-4 py-2.5 font-bold">
+                          <span
+                            className={
+                              displayRank === 1
+                                ? "text-baron-gold"
+                                : displayRank <= 3
+                                  ? "text-baron-cyan"
+                                  : "text-baron-ink-muted"
+                            }
                           >
-                            {entry.winRate > 0 ? `${entry.winRate.toFixed(2)}%` : "—"}
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-baron-ink-secondary">
-                            {entry.pickRate > 0 ? `${entry.pickRate.toFixed(2)}%` : "—"}
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-baron-ink-muted">
-                            {entry.banRate > 0 ? `${entry.banRate.toFixed(2)}%` : "—"}
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-baron-ink-secondary">
-                            {entry.play > 0 ? entry.play.toLocaleString() : "—"}
-                          </td>
-                        </>
-                      )}
+                            #{displayRank}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={champSquareUrl(entry.championKey || entry.championName, ddVersion)}
+                              alt={entry.championName}
+                              className="h-8 w-8 rounded-lg border border-baron-border-strong/70 object-cover transition-transform duration-150 group-hover:scale-105"
+                            />
+                            <div>
+                              <div className="font-bold text-baron-ink">{entry.championName}</div>
+                              {activeModeDef.hasRoles && entry.role !== "Unknown" && (
+                                <div className="text-[10.5px] text-baron-ink-muted">
+                                  {entry.role}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          <span
+                            className={`inline-flex min-w-7 items-center justify-center rounded border px-1.5 py-0.5 text-[11px] font-extrabold ${tierBadgeStyle(entry.tier)}`}
+                          >
+                            {tierDisplayLabel(entry.tier)}
+                          </span>
+                        </td>
 
-                      <td className="px-3 py-2.5 text-right">
-                        <ChevronRight className="h-4 w-4 text-baron-ink-muted" />
-                      </td>
-                    </tr>
-                  ))}
+                        {isArena ? (
+                          <>
+                            <td className="px-4 py-2.5 text-right font-bold text-baron-ink">
+                              {entry.avgPlace !== null ? entry.avgPlace.toFixed(2) : "—"}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-bold text-baron-emerald">
+                              {entry.firstRate !== null ? `${entry.firstRate.toFixed(2)}%` : "—"}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-bold text-baron-victory">
+                              {entry.top2Rate !== null ? `${entry.top2Rate.toFixed(2)}%` : "—"}
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-baron-ink-secondary">
+                              {entry.pickRate > 0 ? `${entry.pickRate.toFixed(2)}%` : "—"}
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-baron-ink-muted">
+                              {entry.banRate > 0 ? `${entry.banRate.toFixed(2)}%` : "—"}
+                            </td>
+                          </>
+                        ) : isTierOnly ? (
+                          <td className="px-4 py-2.5 text-right text-[11px] text-baron-ink-muted">
+                            OP.GG Live Rank ·{" "}
+                            {mode === "aram_mayhem" ? "Click for Mayhem Build" : "Tier Rank Only"}
+                          </td>
+                        ) : (
+                          <>
+                            <td
+                              className={`px-4 py-2.5 text-right font-bold ${
+                                entry.winRate >= 51.5
+                                  ? "text-baron-victory"
+                                  : entry.winRate > 0 && entry.winRate < 48.5
+                                    ? "text-baron-defeat"
+                                    : "text-baron-ink"
+                              }`}
+                            >
+                              {entry.winRate > 0 ? `${entry.winRate.toFixed(2)}%` : "—"}
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-baron-ink-secondary">
+                              {entry.pickRate > 0 ? `${entry.pickRate.toFixed(2)}%` : "—"}
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-baron-ink-muted">
+                              {entry.banRate > 0 ? `${entry.banRate.toFixed(2)}%` : "—"}
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-baron-ink-secondary">
+                              {entry.play > 0 ? entry.play.toLocaleString() : "—"}
+                            </td>
+                          </>
+                        )}
+
+                        <td className="px-3 py-2.5 text-right">
+                          <ChevronRight className="h-4 w-4 text-baron-ink-muted transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-baron-accent-soft" />
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

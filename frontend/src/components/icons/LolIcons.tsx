@@ -57,14 +57,14 @@ export function RankCrest({
   const up = tier.toUpperCase();
   const colors =
     up.includes("CHALLENGER")
-      ? { primary: "#38BDF8", secondary: "#F59E0B", core: "#E0F2FE" }
+      ? { primary: "#E8BE74", secondary: "#D46233", core: "#FFF3D6" }
       : up.includes("GRANDMASTER")
-        ? { primary: "#F43F5E", secondary: "#FB7185", core: "#FFE4E6" }
+        ? { primary: "#E85D63", secondary: "#F29560", core: "#FFE4E6" }
         : up.includes("MASTER")
-          ? { primary: "#A855F7", secondary: "#C084FC", core: "#F3E8FF" }
+          ? { primary: "#D489E6", secondary: "#EAB349", core: "#F8ECFC" }
           : up.includes("DIAMOND") || up.startsWith("D")
-            ? { primary: "#60A5FA", secondary: "#38BDF8", core: "#EFF6FF" }
-            : { primary: "#10B981", secondary: "#34D399", core: "#ECFDF5" };
+            ? { primary: "#5EC2B3", secondary: "#E8BE74", core: "#E8FBF8" }
+            : { primary: "#4EC48B", secondary: "#3EB593", core: "#EBFDF4" };
 
   return (
     <svg viewBox="0 0 28 28" fill="none" className={cn("h-6 w-6 shrink-0", className)}>

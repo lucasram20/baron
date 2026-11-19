@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import {
   AlertCircle,
   ArrowRight,
@@ -16,8 +17,20 @@ import type { BaronRoute } from "@/components/shell/Sidebar";
 import { LaneIcon, RankCrest } from "@/components/icons/LolIcons";
 import SpotlightCard from "@/components/SpotlightCard";
 import { AnimatedTabs } from "@/components/ui/animated-tabs";
+import { BorderBeam } from "@/components/ui/border-beam";
 import { Button } from "@/components/ui/button";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { Input } from "@/components/ui/input";
+import { MagicCard } from "@/components/ui/magic-card";
+import { NumberTicker } from "@/components/ui/number-ticker";
 import { ScoreRing } from "@/components/ui/score-ring";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -144,6 +157,7 @@ export function DashboardView({
       val: pt.elo_point ?? pt.tier_info?.lp ?? 0,
       label: `${pt.tier_info?.tier ?? ""} ${pt.tier_info?.lp ?? 0} LP`.trim(),
     }));
+  const activeLpIdx = Math.min(lpIdx, Math.max(0, lpPoints.length - 1));
 
   const heroChamp =
     summoner?.most_champions?.champion_stats?.[0]?.champion_name ??
@@ -172,39 +186,46 @@ export function DashboardView({
       {/* Live Riot ID Lookup & Active LCU Account Bar */}
       <form
         onSubmit={handleSubmitSearch}
-        className="flex flex-wrap items-center justify-between gap-3 border-b border-baron-border bg-baron-surface px-5 py-3"
+        className="flex flex-wrap items-center justify-between gap-3 border-b border-baron-border bg-baron-surface px-5 py-3 shadow-[inset_0_1px_0_var(--baron-top-sheen)]"
       >
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-baron-ink-muted" />
-            <input
+            <Input
               type="text"
               value={riotIdInput}
               onChange={(e) => setRiotIdInput(e.target.value)}
               placeholder="Search Riot ID (Name#TAG)"
               aria-label="Enter Riot ID to search OP.GG"
-              className="h-8 w-64 rounded-md border border-baron-border bg-baron-inset pr-3 pl-8 text-[12px] text-baron-ink placeholder:text-baron-ink-muted focus:border-baron-accent focus:outline-none sm:w-72"
+              className="h-8 w-64 border-baron-border bg-baron-inset pr-3 pl-8 text-[12px] text-baron-ink placeholder:text-baron-ink-muted sm:w-72"
             />
           </div>
 
-          <select
-            value={regionInput}
-            onChange={(e) => setRegionInput(e.target.value)}
-            aria-label="Select summoner region"
-            className="h-8 rounded-md border border-baron-border bg-baron-inset px-2.5 text-[12px] font-semibold text-baron-ink focus:border-baron-accent focus:outline-none"
-          >
-            {regionOptions.map((r) => (
-              <option key={r.code} value={r.code}>
-                {r.label}
-              </option>
-            ))}
-          </select>
+          <Select value={regionInput} onValueChange={setRegionInput}>
+            <SelectTrigger
+              size="sm"
+              aria-label="Select summoner region"
+              className="h-8 min-w-[108px] border-baron-border bg-baron-inset text-[12px] font-semibold text-baron-ink"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent
+              position="popper"
+              className="baron-popover-surface border-baron-border-strong bg-baron-surface"
+            >
+              {regionOptions.map((r) => (
+                <SelectItem key={r.code} value={r.code} className="text-[12px]">
+                  {r.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <Button
             type="submit"
             size="sm"
             disabled={!riotIdInput.includes("#") || Boolean(summonerLoading)}
-            className="h-8 bg-baron-accent px-3.5 text-[12px] font-semibold text-white hover:opacity-90"
+            className="h-8 bg-baron-accent px-3.5 text-[12px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] hover:brightness-110"
           >
             {summonerLoading ? "Fetching OP.GG..." : "Search OP.GG"}
           </Button>
@@ -249,7 +270,10 @@ export function DashboardView({
       )}
 
       {!summonerLoading && summonerError && !displayName && (
-        <div role="alert" className="m-5 rounded-xl border border-baron-border bg-baron-surface p-5">
+        <div
+          role="alert"
+          className="baron-surface-card m-5 rounded-xl border border-baron-border bg-baron-surface p-5"
+        >
           <div className="flex items-start gap-3">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-baron-gold" />
             <div>
@@ -262,38 +286,62 @@ export function DashboardView({
         </div>
       )}
 
-      {/* Honest LCU-First Empty State when League Client is Offline and No Search Active */}
+      {/* Honest LCU-First Launchpad with @aceternity/glowing-effect & subtle @magicui/border-beam */}
       {!summonerLoading && !summonerError && !displayName && (
         <div className="p-5">
-          <div className="rounded-xl border border-baron-border bg-baron-surface p-6">
-            <h1 className="text-[17px] font-extrabold tracking-[-0.02em] text-baron-ink">
-              Waiting for League of Legends Client
-            </h1>
-            <p className="mt-1.5 max-w-2xl text-[12.5px] leading-relaxed text-baron-ink-secondary">
-              Baron requires no account login. Launch{" "}
-              <strong className="text-baron-ink">League of Legends</strong> to automatically detect
-              your active Riot ID, live Solo/Flex standing, Champ Select draft builds, and 1-click
-              OP.GG rune imports — or search any Riot ID (<strong className="text-baron-ink">Name#TAG</strong>) above or via{" "}
-              <strong className="text-baron-ink">Ctrl+K</strong>.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => onNavigate("tierlist")}
-                className="h-8 bg-baron-accent px-3.5 text-[12px] font-semibold text-white"
-              >
-                Explore OP.GG Tierlist &amp; Builds
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => onNavigate("leaderboards")}
-                className="h-8 border-baron-border bg-baron-elevated px-3.5 text-[12px] text-baron-ink"
-              >
-                View OP.GG Champion Leaderboards
-              </Button>
+          <div className="baron-surface-card relative rounded-xl border border-baron-border bg-baron-surface p-6">
+            <GlowingEffect
+              variant="baron"
+              spread={42}
+              proximity={68}
+              inactiveZone={0.18}
+              borderWidth={1}
+              disabled={false}
+            />
+            <BorderBeam
+              size={120}
+              duration={11}
+              colorFrom="#d46233"
+              colorTo="#eab349"
+              borderWidth={1}
+              className="opacity-55"
+            />
+            <div className="relative z-10">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-[18px] font-extrabold tracking-[-0.02em] text-baron-ink">
+                  Waiting for League of Legends Client
+                </h1>
+                <span className="rounded-md border border-baron-border-strong bg-baron-elevated px-2 py-0.5 text-[10.5px] font-semibold text-baron-ink-secondary">
+                  Zero-login LCU auto-sync
+                </span>
+              </div>
+              <p className="mt-2 max-w-2xl text-[12.5px] leading-relaxed text-baron-ink-secondary">
+                Baron requires no account login. Launch{" "}
+                <strong className="text-baron-ink">League of Legends</strong> to automatically detect
+                your active Riot ID, live Solo/Flex standing, Champ Select draft builds, and 1-click
+                OP.GG rune imports — or search any Riot ID (
+                <strong className="text-baron-ink">Name#TAG</strong>) above or via{" "}
+                <strong className="text-baron-ink">Ctrl+K</strong>.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => onNavigate("tierlist")}
+                  className="h-8 bg-baron-accent px-3.5 text-[12px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] hover:brightness-110"
+                >
+                  Explore OP.GG Tierlist &amp; Builds
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onNavigate("leaderboards")}
+                  className="h-8 border-baron-border bg-baron-elevated px-3.5 text-[12px] text-baron-ink hover:border-baron-border-strong"
+                >
+                  View OP.GG Champion Leaderboards
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -304,19 +352,20 @@ export function DashboardView({
         <>
           <SpotlightCard
             theme={resolved}
-            intensity={0.07}
-            borderGlow={0.45}
+            intensity={0.075}
+            borderGlow={0.5}
             style={{ borderRadius: 0 }}
-            className="relative overflow-hidden rounded-none border-x-0 border-t-0 border-b border-baron-border bg-baron-surface"
+            className="relative overflow-hidden rounded-none border-x-0 border-t-0 border-b border-baron-border bg-baron-surface p-0"
           >
             {heroChamp && (
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-y-0 right-0 w-[44%] bg-cover bg-center opacity-[0.18] dark:opacity-[0.22]"
+                className="pointer-events-none absolute inset-y-0 right-0 w-[46%] bg-cover bg-center opacity-[0.18] dark:opacity-[0.23]"
                 style={{
                   backgroundImage: `url('${champSplashUrl(heroChamp, 0)}')`,
-                  maskImage: "linear-gradient(to left, rgba(0,0,0,0.85) 20%, transparent 95%)",
-                  WebkitMaskImage: "linear-gradient(to left, rgba(0,0,0,0.85) 20%, transparent 95%)",
+                  maskImage: "linear-gradient(to left, rgba(0,0,0,0.88) 18%, transparent 94%)",
+                  WebkitMaskImage:
+                    "linear-gradient(to left, rgba(0,0,0,0.88) 18%, transparent 94%)",
                 }}
               />
             )}
@@ -324,15 +373,15 @@ export function DashboardView({
             <div className="relative z-10 grid grid-cols-1 items-center gap-5 px-5 pt-4 pb-3.5 lg:grid-cols-[auto_minmax(240px,1fr)_auto]">
               {/* Identity */}
               <div className="flex items-center gap-3.5">
-                <div className="relative h-[54px] w-[54px] shrink-0">
+                <div className="relative h-[56px] w-[56px] shrink-0">
                   {displayAvatar ? (
                     <img
                       src={displayAvatar}
                       alt={displayName}
-                      className="h-[54px] w-[54px] rounded-[11px] border-2 border-baron-border-strong object-cover shadow-md"
+                      className="h-[56px] w-[56px] rounded-[11px] border-2 border-baron-border-strong object-cover shadow-md"
                     />
                   ) : (
-                    <div className="flex h-[54px] w-[54px] items-center justify-center rounded-[11px] border-2 border-baron-border-strong bg-baron-elevated text-[18px] font-black text-baron-ink">
+                    <div className="flex h-[56px] w-[56px] items-center justify-center rounded-[11px] border-2 border-baron-border-strong bg-baron-elevated text-[18px] font-black text-baron-ink">
                       {displayName.slice(0, 1).toUpperCase()}
                     </div>
                   )}
@@ -353,7 +402,7 @@ export function DashboardView({
                         #{displayTag}
                       </span>
                     )}
-                    <span className="rounded bg-baron-emerald/15 px-1.5 py-0.5 text-[10px] font-bold text-baron-emerald uppercase">
+                    <span className="rounded-md border border-baron-emerald/30 bg-baron-emerald/12 px-1.5 py-0.5 text-[10px] font-bold text-baron-emerald uppercase">
                       {displayRegion} · {isViewingLcuAccount ? "My Riot Account (LCU)" : "Live OP.GG"}
                     </span>
                   </div>
@@ -361,7 +410,8 @@ export function DashboardView({
                     <RankCrest tier={effectiveTier} className="h-3.5 w-3.5" />
                     <span>
                       {effectiveTier}
-                      {effectiveDiv ? ` · ${effectiveDiv}` : ""} · {effectiveLp} LP
+                      {effectiveDiv ? ` · ${effectiveDiv}` : ""} ·{" "}
+                      <NumberTicker value={effectiveLp} className="text-baron-cyan" /> LP
                     </span>
                     {soloStat?.is_hot_streak && (
                       <span className="rounded bg-baron-gold/15 px-1.5 py-0.5 text-[10px] font-bold text-baron-gold">
@@ -372,17 +422,23 @@ export function DashboardView({
                 </div>
               </div>
 
-              {/* Real LP History Curve if available */}
+              {/* Smooth Interactive LP History Area Curve */}
               <div className="min-w-0">
                 {lpPoints.length >= 2 ? (
                   <>
                     <div className="mb-0.5 flex items-center justify-between text-[11px]">
                       <span className="font-semibold text-baron-ink-secondary">LP History</span>
                       <span className="font-bold text-baron-accent-soft tnum">
-                        {lpPoints[lpIdx]?.label ?? lpPoints[lpPoints.length - 1]?.label}
+                        {lpPoints[activeLpIdx]?.label ?? lpPoints[lpPoints.length - 1]?.label}
                       </span>
                     </div>
-                    <svg viewBox="0 0 360 66" className="h-[66px] w-full overflow-visible">
+                    <svg viewBox="0 0 360 68" className="h-[68px] w-full overflow-visible">
+                      <defs>
+                        <linearGradient id="baronLpAreaFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--baron-accent)" stopOpacity="0.3" />
+                          <stop offset="100%" stopColor="var(--baron-accent)" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
                       {(() => {
                         const vals = lpPoints.map((p) => p.val);
                         const minV = Math.min(...vals) - 10;
@@ -398,19 +454,40 @@ export function DashboardView({
                           const mx = (pts[i].x + pts[i + 1].x) / 2;
                           d += ` C ${mx} ${pts[i].y}, ${mx} ${pts[i + 1].y}, ${pts[i + 1].x} ${pts[i + 1].y}`;
                         }
+                        const area = `${d} L ${pts[pts.length - 1].x} 62 L ${pts[0].x} 62 Z`;
+                        const cur = pts[activeLpIdx] ?? pts[pts.length - 1];
                         return (
                           <>
-                            <path d={d} fill="none" stroke="var(--baron-accent)" strokeWidth="2.1" />
+                            <path d={area} fill="url(#baronLpAreaFill)" />
+                            <path
+                              d={d}
+                              fill="none"
+                              stroke="var(--baron-accent)"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                            />
+                            <line
+                              x1={cur.x}
+                              x2={cur.x}
+                              y1={6}
+                              y2={62}
+                              stroke="var(--baron-border-strong)"
+                              strokeDasharray="2 2"
+                            />
                             {pts.map((c) => (
                               <circle
                                 key={c.i}
                                 cx={c.x}
                                 cy={c.y}
-                                r={c.i === lpIdx ? 4.5 : 3}
-                                fill="var(--baron-surface)"
+                                r={c.i === activeLpIdx ? 4.5 : 3}
+                                fill={
+                                  c.i === activeLpIdx
+                                    ? "var(--baron-accent-soft)"
+                                    : "var(--baron-surface)"
+                                }
                                 stroke="var(--baron-accent)"
                                 strokeWidth="2"
-                                className="cursor-pointer"
+                                className="cursor-pointer transition-all"
                                 onMouseEnter={() => setLpIdx(c.i)}
                               />
                             ))}
@@ -431,12 +508,12 @@ export function DashboardView({
                 )}
               </div>
 
-              {/* Standing Ring */}
+              {/* Standing Ring (@magicui/animated-circular-progress-bar via ScoreRing) */}
               <div className="flex items-center justify-end gap-3.5">
                 <ScoreRing score={wrPct} size="lg" label="Solo/Duo Win Rate" />
                 <div className="text-right">
                   <div className="text-[18px] font-extrabold text-baron-victory tnum">
-                    {wrPct}% WR
+                    <NumberTicker value={wrPct} className="text-baron-victory" />% WR
                   </div>
                   <div className="text-[11px] font-semibold text-baron-ink-muted tnum">
                     {wins}W {losses}L ({totalGames}G)
@@ -469,7 +546,7 @@ export function DashboardView({
                 </span>
               </div>
 
-              <div className="divide-y divide-baron-border">
+              <div className="divide-y divide-baron-border/80">
                 {filteredMatches.length === 0 ? (
                   <div className="px-5 py-10 text-center text-[12.5px] text-baron-ink-muted">
                     {summonerLoading
@@ -500,10 +577,19 @@ export function DashboardView({
                         key={m.id}
                         type="button"
                         onClick={() => onOpenMatch?.(m.id, m.created_at)}
-                        className={`grid w-full cursor-pointer grid-cols-[96px_150px_132px_80px_1fr] items-center gap-3 border-l-[3px] px-4 py-2.5 text-left transition-colors hover:bg-baron-surface/80 ${
-                          win ? "border-l-baron-victory" : "border-l-baron-defeat"
+                        className={`group relative grid w-full cursor-pointer grid-cols-[96px_150px_132px_80px_1fr] items-center gap-3 px-4 py-2.5 text-left transition-colors duration-150 hover:bg-baron-hover/45 ${
+                          win
+                            ? "bg-gradient-to-r from-baron-victory/[0.08] via-transparent to-transparent"
+                            : "bg-gradient-to-r from-baron-defeat/[0.08] via-transparent to-transparent"
                         }`}
                       >
+                        <span
+                          aria-hidden="true"
+                          className={`absolute top-2 bottom-2 left-1 w-[2px] rounded-full ${
+                            win ? "bg-baron-victory" : "bg-baron-defeat"
+                          }`}
+                        />
+
                         <div>
                           <div
                             className={`text-[12.5px] font-bold ${
@@ -521,7 +607,7 @@ export function DashboardView({
                           <img
                             src={champSquareUrl(me.champion_name, ddVersion)}
                             alt={me.champion_name}
-                            className="h-9 w-9 shrink-0 rounded-md border border-baron-border-strong object-cover"
+                            className="h-9 w-9 shrink-0 rounded-md border border-baron-border-strong object-cover transition-transform duration-150 group-hover:scale-105"
                           />
                           <div className="min-w-0">
                             <div className="truncate text-[13px] font-bold text-baron-ink">
@@ -557,7 +643,7 @@ export function DashboardView({
                         <div className="flex items-center justify-end gap-3">
                           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-baron-accent-soft">
                             <span>Scoreboard</span>
-                            <ArrowRight className="h-3 w-3" />
+                            <ArrowRight className="h-3 w-3 transition-transform duration-150 group-hover:translate-x-0.5" />
                           </span>
                           <ScoreRing score={opScore} size="sm" label={`OP Score ${opScore}`} />
                         </div>
@@ -569,7 +655,7 @@ export function DashboardView({
             </section>
 
             {/* Right Rail: Champion Pool from OP.GG */}
-            <aside className="border-t border-baron-border xl:border-t-0 xl:border-l">
+            <aside className="border-t border-baron-border bg-baron-surface/25 xl:border-t-0 xl:border-l">
               <div className="flex items-center justify-between border-b border-baron-border px-4 py-2.5">
                 <h2 className="text-[13px] font-bold text-baron-ink">Champion Pool</h2>
                 <button
@@ -580,7 +666,7 @@ export function DashboardView({
                   Live OP.GG →
                 </button>
               </div>
-              <div className="divide-y divide-baron-border">
+              <div className="divide-y divide-baron-border/75">
                 {(summoner?.most_champions?.champion_stats ?? []).slice(0, 7).map((c) => {
                   const g = c.play ?? 0;
                   const cw = c.win ?? 0;
@@ -597,20 +683,18 @@ export function DashboardView({
                       onClick={() =>
                         onOpenBuild?.(cname, mapOpggPosToRole(matches[0]?.participants?.[0]?.position))
                       }
-                      className="grid w-full grid-cols-[30px_minmax(0,1fr)_auto_auto] items-center gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-baron-surface/80"
+                      className="group grid w-full grid-cols-[30px_minmax(0,1fr)_auto_auto] items-center gap-2.5 px-4 py-2.5 text-left transition-colors duration-150 hover:bg-baron-hover/55"
                     >
                       <img
                         src={champSquareUrl(cname, ddVersion)}
                         alt={cname}
-                        className="h-7 w-7 rounded-md border border-baron-border object-cover"
+                        className="h-7 w-7 rounded-md border border-baron-border object-cover transition-transform duration-150 group-hover:scale-105"
                       />
                       <div className="min-w-0">
                         <div className="truncate text-[12.5px] font-semibold text-baron-ink">
                           {cname}
                         </div>
-                        <div className="text-[10.5px] text-baron-ink-muted tnum">
-                          {kda} KDA
-                        </div>
+                        <div className="text-[10.5px] text-baron-ink-muted tnum">{kda} KDA</div>
                       </div>
                       <span className="text-[12px] font-bold text-baron-emerald tnum">{wr}</span>
                       <span className="text-[11px] text-baron-ink-muted tnum">{g}G</span>
@@ -639,6 +723,7 @@ export function LeaderboardsView({
   defaultRegion?: string;
   onLookupSummoner?: (gameName: string, tagLine: string, region: string) => void;
 }) {
+  const reducedMotion = Boolean(useReducedMotion());
   const [region, setRegion] = useState<string>(defaultRegion || "KR");
   const [champion, setChampion] = useState<string>("Ahri");
   const [customChamp, setCustomChamp] = useState("");
@@ -677,13 +762,13 @@ export function LeaderboardsView({
 
   return (
     <div className="min-h-full">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-baron-border bg-baron-surface px-5 py-4">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-baron-border bg-baron-surface px-5 py-4 shadow-[inset_0_1px_0_var(--baron-top-sheen)]">
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-[18px] font-extrabold tracking-[-0.02em] text-baron-ink">
               Champion Master+ Leaderboards
             </h1>
-            <span className="rounded bg-baron-emerald/15 px-2 py-0.5 text-[10.5px] font-semibold text-baron-emerald">
+            <span className="rounded-md border border-baron-emerald/30 bg-baron-emerald/12 px-2 py-0.5 text-[10.5px] font-semibold text-baron-emerald">
               Live · OP.GG MCP
             </span>
           </div>
@@ -694,57 +779,78 @@ export function LeaderboardsView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <select
-            value={region}
-            onChange={(e) => setRegion(e.target.value)}
-            aria-label="Leaderboard region"
-            className="h-8 rounded-md border border-baron-border bg-baron-inset px-2.5 text-[12px] font-semibold text-baron-ink focus:border-baron-accent focus:outline-none"
-          >
-            {regionOptions.map((r) => (
-              <option key={r.code} value={r.code}>
-                {r.label}
-              </option>
-            ))}
-          </select>
+          <Select value={region} onValueChange={setRegion}>
+            <SelectTrigger
+              size="sm"
+              aria-label="Leaderboard region"
+              className="h-8 min-w-[110px] border-baron-border bg-baron-inset text-[12px] font-semibold text-baron-ink"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent
+              position="popper"
+              className="baron-popover-surface border-baron-border-strong bg-baron-surface"
+            >
+              {regionOptions.map((r) => (
+                <SelectItem key={r.code} value={r.code} className="text-[12px]">
+                  {r.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <form
             onSubmit={(e) => {
               e.preventDefault();
               if (customChamp.trim()) setChampion(customChamp.trim());
             }}
-            className="flex items-center gap-1.5"
+            className="relative flex items-center"
           >
-            <input
+            <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-baron-ink-muted" />
+            <Input
               type="search"
               value={customChamp}
               onChange={(e) => setCustomChamp(e.target.value)}
               placeholder={`Champion (${champion})...`}
               aria-label="Filter leaderboard by champion"
-              className="h-8 w-44 rounded-md border border-baron-border bg-baron-inset px-3 text-[12px] text-baron-ink placeholder:text-baron-ink-muted focus:border-baron-accent focus:outline-none"
+              className="h-8 w-44 border-baron-border bg-baron-inset pr-2.5 pl-8 text-[12px] text-baron-ink placeholder:text-baron-ink-muted"
             />
           </form>
         </div>
       </header>
 
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-baron-border bg-baron-surface/50 px-5 py-2">
-        {LEADERBOARD_CHAMPS.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => setChampion(c)}
-            className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11.5px] font-semibold transition-colors ${
-              champion.toLowerCase() === c.toLowerCase()
-                ? "border-baron-accent bg-baron-accent/15 text-baron-ink"
-                : "border-baron-border bg-baron-surface text-baron-ink-secondary hover:text-baron-ink"
-            }`}
-          >
-            <img
-              src={champSquareUrl(c, ddVersion)}
-              alt={c}
-              className="h-4 w-4 rounded-[3px] object-cover"
-            />
-            <span>{c}</span>
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-baron-border bg-baron-surface/45 px-5 py-2">
+        {LEADERBOARD_CHAMPS.map((c) => {
+          const active = champion.toLowerCase() === c.toLowerCase();
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setChampion(c)}
+              className={`relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
+                active ? "text-baron-ink" : "text-baron-ink-secondary hover:text-baron-ink"
+              }`}
+            >
+              {active && (
+                <motion.span
+                  layoutId="leaderboard-champ-pill"
+                  transition={
+                    reducedMotion
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 520, damping: 38, mass: 0.55 }
+                  }
+                  className="absolute inset-0 rounded-md border border-baron-accent/60 bg-baron-accent/15 shadow-[inset_0_1px_0_var(--baron-top-sheen)]"
+                />
+              )}
+              <img
+                src={champSquareUrl(c, ddVersion)}
+                alt={c}
+                className="relative z-10 h-4 w-4 rounded-[3px] object-cover"
+              />
+              <span className="relative z-10">{c}</span>
+            </button>
+          );
+        })}
       </div>
 
       {isLoading && (
@@ -756,10 +862,11 @@ export function LeaderboardsView({
       )}
 
       {!isLoading && error && (
-        <div role="alert" className="m-5 rounded-xl border border-baron-border bg-baron-surface p-5">
-          <div className="text-[13px] font-bold text-baron-ink">
-            OP.GG Leaderboard Unavailable
-          </div>
+        <div
+          role="alert"
+          className="baron-surface-card m-5 rounded-xl border border-baron-border bg-baron-surface p-5"
+        >
+          <div className="text-[13px] font-bold text-baron-ink">OP.GG Leaderboard Unavailable</div>
           <p className="mt-1 text-[12px] text-baron-ink-muted">{error}</p>
         </div>
       )}
@@ -803,17 +910,27 @@ export function LeaderboardsView({
                       onLookupSummoner?.(s.game_name, s.tagline, region);
                     }
                   }}
-                  className="cursor-pointer border-baron-border hover:bg-baron-surface/75"
+                  className="group cursor-pointer border-baron-border/75 transition-colors hover:bg-baron-hover/45"
                 >
-                  <TableCell className="pl-5 font-bold text-baron-ink-muted tnum">
-                    #{row.rank}
+                  <TableCell className="pl-5 font-bold tnum">
+                    <span
+                      className={
+                        row.rank === 1
+                          ? "text-baron-gold"
+                          : row.rank <= 3
+                            ? "text-baron-cyan"
+                            : "text-baron-ink-muted"
+                      }
+                    >
+                      #{row.rank}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2.5">
                       <img
                         src={s?.profile_image_url || champSquareUrl(champion, ddVersion)}
                         alt={s?.game_name ?? "Summoner"}
-                        className="h-8 w-8 rounded-md border border-baron-border object-cover"
+                        className="h-8 w-8 rounded-md border border-baron-border-strong/75 object-cover transition-transform duration-150 group-hover:scale-105"
                       />
                       <div>
                         <span className="font-semibold text-baron-ink">{s?.game_name}</span>{" "}
@@ -849,9 +966,24 @@ const THEME_CARDS: {
   desc: string;
   icon: typeof Sun;
 }[] = [
-  { id: "dark", title: "Obsidian Dark", desc: "Low-glare pro-tool dark surfaces.", icon: Moon },
-  { id: "light", title: "Daylight Slate", desc: "High-legibility crisp light surfaces.", icon: Sun },
-  { id: "system", title: "Match OS Theme", desc: "Follows Windows / macOS appearance.", icon: Monitor },
+  {
+    id: "dark",
+    title: "Dark Warm",
+    desc: "Smoked espresso-charcoal & terracotta-copper.",
+    icon: Moon,
+  },
+  {
+    id: "light",
+    title: "Warm Light",
+    desc: "Travertine linen & warm parchment surfaces.",
+    icon: Sun,
+  },
+  {
+    id: "system",
+    title: "Match OS Theme",
+    desc: "Follows Windows / macOS appearance.",
+    icon: Monitor,
+  },
 ];
 
 export function DataStudioView({
@@ -871,7 +1003,7 @@ export function DataStudioView({
 
   return (
     <div className="min-h-full divide-y divide-baron-border">
-      <header className="bg-baron-surface px-5 py-4">
+      <header className="bg-baron-surface px-5 py-4 shadow-[inset_0_1px_0_var(--baron-top-sheen)]">
         <h1 className="text-[18px] font-extrabold tracking-[-0.02em] text-baron-ink">
           Data Studio &amp; Provider Runtime
         </h1>
@@ -882,39 +1014,56 @@ export function DataStudioView({
       </header>
 
       <section className="px-5 py-4">
-        <div className="mb-3 text-[11px] font-bold tracking-[0.07em] text-baron-ink-muted uppercase">
-          Appearance Theme
-        </div>
+        <h2 className="mb-3 text-[12px] font-bold text-baron-ink">Appearance Theme</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {THEME_CARDS.map((card) => {
             const Icon = card.icon;
             const active = preference === card.id;
             return (
-              <button
+              <div
                 key={card.id}
-                type="button"
-                onClick={() => setPreference(card.id)}
-                aria-pressed={active}
-                className={`flex items-start gap-3 rounded-xl border p-3.5 text-left transition-colors ${
-                  active
-                    ? "border-baron-accent bg-baron-accent/10"
-                    : "border-baron-border bg-baron-surface hover:border-baron-border-strong"
-                }`}
+                className="relative rounded-xl border border-baron-border bg-baron-surface"
               >
-                <div
-                  className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                <GlowingEffect
+                  variant="baron"
+                  spread={36}
+                  proximity={52}
+                  inactiveZone={0.15}
+                  borderWidth={1}
+                  disabled={false}
+                />
+                <button
+                  type="button"
+                  onClick={(e) => setPreference(card.id, e.currentTarget)}
+                  aria-pressed={active}
+                  className={`relative z-10 flex w-full items-start gap-3 rounded-xl p-3.5 text-left transition-colors ${
                     active
-                      ? "bg-baron-accent text-white"
-                      : "bg-baron-elevated text-baron-ink-secondary"
+                      ? "bg-baron-accent/10 shadow-[inset_0_0_0_1px_rgba(242,149,96,0.48)]"
+                      : "hover:bg-baron-hover/35"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div>
-                  <div className="text-[13px] font-bold text-baron-ink">{card.title}</div>
-                  <div className="mt-0.5 text-[11.5px] text-baron-ink-muted">{card.desc}</div>
-                </div>
-              </button>
+                  <div
+                    className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                      active
+                        ? "bg-baron-accent text-white shadow-xs"
+                        : "bg-baron-elevated text-baron-ink-secondary"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 text-[13px] font-bold text-baron-ink">
+                      <span>{card.title}</span>
+                      {active && (
+                        <span className="rounded bg-baron-accent/15 px-1.5 py-0.5 text-[10px] font-bold text-baron-accent-soft">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 text-[11.5px] text-baron-ink-muted">{card.desc}</div>
+                  </div>
+                </button>
+              </div>
             );
           })}
         </div>
@@ -922,15 +1071,13 @@ export function DataStudioView({
 
       <section className="px-5 py-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="text-[11px] font-bold tracking-[0.07em] text-baron-ink-muted uppercase">
-            Meta &amp; Data Providers
-          </div>
+          <h2 className="text-[12px] font-bold text-baron-ink">Meta &amp; Data Providers</h2>
           <span className="text-[11.5px] text-baron-ink-muted">
             Only verified OP.GG MCP endpoints can be selected
           </span>
         </div>
 
-        <div className="divide-y divide-baron-border overflow-hidden rounded-xl border border-baron-border bg-baron-surface">
+        <div className="baron-surface-card divide-y divide-baron-border overflow-hidden rounded-xl border border-baron-border bg-baron-surface">
           {providers.map((p) => {
             const available = isProviderAvailable(p.id);
             const partialLive = p.id === "ugg" || p.id === "merakicdn";
@@ -988,7 +1135,7 @@ export function DataStudioView({
                     onClick={() => onSelectProvider(p.id)}
                     className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11.5px] font-semibold transition-colors ${
                       active
-                        ? "bg-baron-accent text-white"
+                        ? "bg-baron-accent text-white shadow-xs"
                         : "border border-baron-border bg-baron-elevated text-baron-ink hover:border-baron-border-strong"
                     }`}
                   >
@@ -1015,19 +1162,32 @@ export function DataStudioView({
       </section>
 
       <section className="grid grid-cols-1 gap-4 px-5 py-4 md:grid-cols-2">
-        <div className="rounded-xl border border-baron-border bg-baron-surface p-4">
+        <MagicCard
+          className="rounded-xl p-4"
+          gradientFrom="#d46233"
+          gradientTo="#eab349"
+          gradientColor="rgba(212, 98, 51, 0.09)"
+          gradientSize={240}
+        >
           <div className="flex items-center gap-2 text-[12.5px] font-bold text-baron-ink">
             <Database className="h-4 w-4 text-baron-accent-soft" />
             <span>Local Cache &amp; Runtime Window</span>
           </div>
           <p className="mt-1.5 text-[12px] leading-relaxed text-baron-ink-muted">
-            Match summaries and cache persist locally inside <code className="text-baron-ink">baron.db</code>.
-            Selected UI filter window: <strong className="text-baron-ink tnum">{patch}</strong> ·{" "}
+            Match summaries and cache persist locally inside{" "}
+            <code className="text-baron-ink">baron.db</code>. Selected UI filter window:{" "}
+            <strong className="text-baron-ink tnum">{patch}</strong> ·{" "}
             <strong className="text-baron-ink">{period}</strong>.
           </p>
-        </div>
+        </MagicCard>
 
-        <div className="rounded-xl border border-baron-border bg-baron-surface p-4">
+        <MagicCard
+          className="rounded-xl p-4"
+          gradientFrom="#4ec48b"
+          gradientTo="#eab349"
+          gradientColor="rgba(78, 196, 139, 0.08)"
+          gradientSize={240}
+        >
           <div className="flex items-center gap-2 text-[12.5px] font-bold text-baron-ink">
             <ShieldCheck className="h-4 w-4 text-baron-emerald" />
             <span>Riot Games Fair Play Policy</span>
@@ -1036,7 +1196,7 @@ export function DataStudioView({
             Zero automated enemy ult/summoner timers, zero Fog-of-War camp timers, zero Ranked
             lobby anonymity bypasses, and zero in-game input macros.
           </p>
-        </div>
+        </MagicCard>
       </section>
 
       <div className="px-5 pb-6">

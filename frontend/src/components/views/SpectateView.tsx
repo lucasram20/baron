@@ -34,13 +34,13 @@ export function SpectateView({ lcuConnected = false }: { ddVersion?: string; lcu
 
   return (
     <div className="min-h-full">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-baron-border bg-baron-surface px-5 py-4">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-baron-border bg-baron-surface px-5 py-4 shadow-[inset_0_1px_0_var(--baron-top-sheen)]">
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-[18px] font-extrabold tracking-[-0.02em] text-baron-ink">
               Pro Esports &amp; Client Spectate
             </h1>
-            <span className="rounded bg-baron-emerald/15 px-2 py-0.5 text-[10.5px] font-semibold text-baron-emerald">
+            <span className="rounded-md border border-baron-emerald/30 bg-baron-emerald/12 px-2 py-0.5 text-[10.5px] font-semibold text-baron-emerald">
               Live · OP.GG Esports MCP
             </span>
           </div>
@@ -53,7 +53,7 @@ export function SpectateView({ lcuConnected = false }: { ddVersion?: string; lcu
         <span
           className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold ${
             lcuConnected
-              ? "border-baron-emerald/35 bg-baron-emerald/10 text-baron-emerald"
+              ? "border-baron-emerald/35 bg-baron-emerald/12 text-baron-emerald"
               : "border-baron-border bg-baron-elevated text-baron-ink-secondary"
           }`}
         >

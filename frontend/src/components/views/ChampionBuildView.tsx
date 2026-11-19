@@ -14,10 +14,21 @@ import {
   Swords,
 } from "lucide-react";
 import { LaneIcon } from "@/components/icons/LolIcons";
+import SpotlightCard from "@/components/SpotlightCard";
+import { AnimatedTabs } from "@/components/ui/animated-tabs";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { RuneMatrixPanel } from "@/components/views/RuneMatrixPanel";
+import { useTheme } from "@/lib/theme";
 import {
   champSplashUrl,
   champSquareUrl,
@@ -104,6 +115,7 @@ export function ChampionBuildView({
   onSelectChampion,
   onBack,
 }: ChampionBuildViewProps) {
+  const { resolved } = useTheme();
   const [subTab, setSubTab] = useState<BuildSubTab>("build");
   const [showMoreModes, setShowMoreModes] = useState(false);
   const [bundleState, setBundleState] = useState<{
@@ -431,54 +443,49 @@ export function ChampionBuildView({
           </Button>
 
           {activeModeDef.hasRoles && (
-            <div className="flex items-center rounded-lg border border-baron-border bg-baron-surface p-0.5">
-              {LANE_ROLES.map((r) => {
+            <AnimatedTabs
+              layoutId="champ-build-lane-tabs"
+              ariaLabel="Filter champion build by lane"
+              value={role}
+              onChange={onChangeRole}
+              items={LANE_ROLES.map((r) => {
                 const posInfo = desktop?.summary?.positions?.find((p) => p.name === r.opggName);
                 const rate = posInfo?.stats?.role_rate;
-                const active = role === r.id;
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => onChangeRole(r.id)}
-                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
-                      active
-                        ? "bg-baron-accent text-white"
-                        : "text-baron-ink-secondary hover:text-baron-ink"
-                    }`}
-                  >
-                    <LaneIcon role={r.id} className="h-3.5 w-3.5" />
-                    <span>{r.label}</span>
-                    {rate !== undefined && rate > 0.01 && (
-                      <span
-                        className={`text-[10px] tabular-nums ${
-                          active ? "text-white/85" : "text-baron-ink-muted"
-                        }`}
-                      >
-                        {Math.round((rate <= 1 ? rate : rate / 100) * 100)}%
-                      </span>
-                    )}
-                  </button>
-                );
+                return {
+                  id: r.id,
+                  label: r.label,
+                  icon: <LaneIcon role={r.id} className="h-3.5 w-3.5" />,
+                  badge:
+                    rate !== undefined && rate > 0.01
+                      ? `${Math.round((rate <= 1 ? rate : rate / 100) * 100)}%`
+                      : undefined,
+                };
               })}
-            </div>
+            />
           )}
         </div>
 
         <div className="flex items-center gap-2">
           {activeModeDef.hasTierFilter && (
-            <select
-              value={tierFilter}
-              onChange={(e) => onChangeTierFilter(e.target.value)}
-              aria-label="Filter OP.GG rank tier"
-              className="h-7.5 rounded-md border border-baron-border bg-baron-surface px-2.5 text-[11.5px] font-semibold text-baron-ink"
-            >
-              {OPGG_TIER_FILTERS.map((tf) => (
-                <option key={tf.id} value={tf.id}>
-                  {tf.label}
-                </option>
-              ))}
-            </select>
+            <Select value={tierFilter} onValueChange={onChangeTierFilter}>
+              <SelectTrigger
+                size="sm"
+                aria-label="Filter OP.GG rank tier"
+                className="h-8 min-w-[140px] border-baron-border bg-baron-surface text-[11.5px] font-semibold text-baron-ink"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="popper"
+                className="baron-popover-surface border-baron-border-strong bg-baron-surface"
+              >
+                {OPGG_TIER_FILTERS.map((tf) => (
+                  <SelectItem key={tf.id} value={tf.id} className="text-[12px]">
+                    {tf.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
           <span className="rounded-md border border-baron-border bg-baron-surface px-2.5 py-1 text-[11px] font-semibold text-baron-ink-secondary">
             {region} · Patch {patch}
@@ -486,8 +493,14 @@ export function ChampionBuildView({
         </div>
       </div>
 
-      {/* Champion Hero Strip */}
-      <header className="relative overflow-hidden border-b border-baron-border bg-baron-surface px-5 py-4">
+      {/* Champion Hero Strip (@react-bits/SpotlightCard) */}
+      <SpotlightCard
+        theme={resolved}
+        intensity={0.075}
+        borderGlow={0.45}
+        style={{ borderRadius: 0 }}
+        className="relative overflow-hidden rounded-none border-x-0 border-t-0 border-b border-baron-border bg-baron-surface px-5 py-4"
+      >
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-y-0 right-0 w-[44%] bg-cover bg-center opacity-[0.2]"
@@ -668,7 +681,7 @@ export function ChampionBuildView({
             )}
           </div>
         )}
-      </header>
+      </SpotlightCard>
 
       {/* Sub-Navigation Tabs (Build / Counters / Synergies / Compare / Skins & Trends) */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-baron-border bg-baron-surface px-5">
@@ -699,69 +712,65 @@ export function ChampionBuildView({
       </div>
 
       {/* Game Modes Bar (Ranked / ARAM Mayhem / Classic / Arena / Show More) */}
-      <div className="relative flex flex-wrap items-center gap-1 border-b border-baron-border bg-baron-chrome px-5 py-2">
-        {OPGG_GAME_MODES.filter((m) => m.primaryBar).map((m) => {
-          const active = mode === m.id;
-          return (
+      <div className="flex flex-wrap items-center gap-2 border-b border-baron-border bg-baron-chrome px-5 py-2">
+        <AnimatedTabs
+          layoutId="champ-build-game-modes"
+          ariaLabel="Switch champion build game mode"
+          value={activeModeDef.primaryBar ? mode : ("__secondary__" as OpggGameMode)}
+          onChange={(next) => {
+            onChangeMode(next);
+            setShowMoreModes(false);
+          }}
+          items={OPGG_GAME_MODES.filter((m) => m.primaryBar).map((m) => ({
+            id: m.id,
+            label: m.label,
+            badge: m.badge ?? undefined,
+          }))}
+        />
+
+        <Popover open={showMoreModes} onOpenChange={setShowMoreModes}>
+          <PopoverTrigger asChild>
             <button
-              key={m.id}
               type="button"
-              onClick={() => {
-                onChangeMode(m.id);
-                setShowMoreModes(false);
-              }}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                active
-                  ? "bg-baron-elevated text-baron-ink ring-1 ring-baron-accent/50"
-                  : "text-baron-ink-secondary hover:bg-baron-surface hover:text-baron-ink"
+              aria-expanded={showMoreModes}
+              className={`flex h-[30px] items-center gap-1 rounded-lg border px-2.5 text-[12px] font-semibold transition-colors ${
+                !activeModeDef.primaryBar
+                  ? "border-baron-accent/60 bg-baron-accent/15 text-baron-ink"
+                  : "border-baron-border bg-baron-elevated/70 text-baron-ink-secondary hover:border-baron-border-strong hover:text-baron-ink"
               }`}
             >
-              <span>{m.label}</span>
-              {m.badge && (
-                <span className="rounded bg-baron-gold px-1 py-0.2 text-[9px] font-extrabold text-black">
-                  {m.badge}
-                </span>
-              )}
+              <span>{!activeModeDef.primaryBar ? activeModeDef.label : "More modes"}</span>
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform duration-150 ${
+                  showMoreModes ? "rotate-180" : ""
+                }`}
+              />
             </button>
-          );
-        })}
-
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowMoreModes((prev) => !prev)}
-            className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-              !activeModeDef.primaryBar
-                ? "bg-baron-elevated text-baron-ink ring-1 ring-baron-accent/50"
-                : "text-baron-ink-secondary hover:bg-baron-surface hover:text-baron-ink"
-            }`}
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            sideOffset={6}
+            className="baron-popover-surface w-52 rounded-xl border-baron-border-strong bg-baron-surface/95 p-1.5 backdrop-blur-md"
           >
-            <span>{!activeModeDef.primaryBar ? activeModeDef.label : "Show more"}</span>
-            <ChevronDown className="h-3.5 w-3.5" />
-          </button>
-
-          {showMoreModes && (
-            <div className="absolute top-10 left-0 z-40 w-52 rounded-xl border border-baron-border-strong bg-baron-surface p-1.5 shadow-2xl">
-              {OPGG_GAME_MODES.filter((m) => !m.primaryBar).map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => {
-                    onChangeMode(m.id);
-                    setShowMoreModes(false);
-                  }}
-                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px] font-medium transition-colors ${
-                    mode === m.id
-                      ? "bg-baron-accent/20 text-baron-ink font-semibold"
-                      : "text-baron-ink-secondary hover:bg-baron-elevated hover:text-baron-ink"
-                  }`}
-                >
-                  <span>{m.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+            {OPGG_GAME_MODES.filter((m) => !m.primaryBar).map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => {
+                  onChangeMode(m.id);
+                  setShowMoreModes(false);
+                }}
+                className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px] font-medium transition-colors ${
+                  mode === m.id
+                    ? "bg-baron-accent/18 font-semibold text-baron-ink"
+                    : "text-baron-ink-secondary hover:bg-baron-elevated hover:text-baron-ink"
+                }`}
+              >
+                <span>{m.label}</span>
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Main Content */}

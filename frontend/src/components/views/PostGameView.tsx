@@ -7,6 +7,7 @@ import { ObjectiveBadge } from "@/components/icons/LolIcons";
 import SpotlightCard from "@/components/SpotlightCard";
 import { AnimatedTabs } from "@/components/ui/animated-tabs";
 import { Button } from "@/components/ui/button";
+import { NumberTicker } from "@/components/ui/number-ticker";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
@@ -136,10 +137,10 @@ export function PostGameView({
       {/* Match Hero Header */}
       <SpotlightCard
         theme={resolved}
-        intensity={0.07}
+        intensity={0.075}
         borderGlow={0.45}
         style={{ borderRadius: 0 }}
-        className="relative overflow-hidden rounded-none border-x-0 border-t-0 border-b border-baron-border bg-baron-surface"
+        className="relative overflow-hidden rounded-none border-x-0 border-t-0 border-b border-baron-border bg-baron-surface p-0"
       >
         {focus && (
           <div
@@ -236,7 +237,7 @@ export function PostGameView({
           </div>
         </div>
 
-        <div className="relative z-10 grid grid-cols-2 divide-x divide-baron-border border-t border-baron-border sm:grid-cols-5">
+        <div className="relative z-10 grid grid-cols-2 divide-x divide-baron-border border-t border-baron-border bg-baron-inset/35 sm:grid-cols-5">
           <div className="px-4 py-2.5">
             <div className="text-[15px] font-bold text-baron-ink tnum">
               {focusK}/{focusD}/{focusA}
@@ -263,7 +264,10 @@ export function PostGameView({
           </div>
           <div className="px-4 py-2.5">
             <div className="text-[15px] font-bold text-baron-ink tnum">
-              {focus?.stats?.vision_wards_bought_in_game ?? 0}
+              <NumberTicker
+                value={focus?.stats?.vision_wards_bought_in_game ?? 0}
+                className="text-baron-ink"
+              />
             </div>
             <div className="text-[11px] text-baron-ink-muted">Control wards</div>
           </div>

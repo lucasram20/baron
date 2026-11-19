@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Check, Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { StatefulButton } from "@/components/ui/stateful-button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   fetchRuneTreesMap,
@@ -108,8 +109,8 @@ export function RuneMatrixPanel({
     secondarySingleMap.set(r.id, r);
   }
 
-  const handleImport = async () => {
-    if (importing) return;
+  const handleImport = async (): Promise<boolean> => {
+    if (importing) return false;
     const all9 = [
       ...(activePage.primary_rune_ids ?? []).slice(0, 4),
       ...(activePage.secondary_rune_ids ?? []).slice(0, 2),
@@ -125,7 +126,7 @@ export function RuneMatrixPanel({
         ok: false,
         text: "Incomplete rune configuration for LCU import.",
       });
-      return;
+      return false;
     }
 
     setImporting(true);
@@ -138,6 +139,7 @@ export function RuneMatrixPanel({
         all9.slice(0, 9),
       );
       setImportStatus({ key: pageScopeKey, ok: true, text: res.message });
+      return true;
     } catch (err: unknown) {
       setImportStatus({
         key: pageScopeKey,
@@ -147,13 +149,23 @@ export function RuneMatrixPanel({
             ? err.message
             : "League Client offline. Launch LoL to inject this rune page.",
       });
+      return false;
     } finally {
       setImporting(false);
     }
   };
 
   return (
-    <section className="overflow-hidden rounded-xl border border-baron-border bg-baron-surface">
+    <section className="baron-surface-card relative rounded-xl border border-baron-border bg-baron-surface">
+      <GlowingEffect
+        variant="baron"
+        spread={36}
+        proximity={54}
+        inactiveZone={0.25}
+        borderWidth={1}
+        disabled={false}
+      />
+      <div className="relative z-10 overflow-hidden rounded-[inherit]">
       {/* Page Selector Strip (up to 2 pages like OP.GG) */}
       <div className="grid grid-cols-1 border-b border-baron-border sm:grid-cols-2">
         {topPages.map((page, idx) => {
@@ -238,7 +250,7 @@ export function RuneMatrixPanel({
                                 isKeystoneRow ? "h-9 w-9" : "h-8 w-8"
                               } ${
                                 selected
-                                  ? "ring-2 ring-baron-accent shadow-[0_0_12px_rgba(99,102,241,0.45)] opacity-100"
+                                  ? "ring-2 ring-baron-accent shadow-[0_4px_10px_-4px_rgba(0,0,0,0.5)] opacity-100"
                                   : "opacity-30 grayscale-[75%]"
                               }`}
                             >
@@ -289,7 +301,7 @@ export function RuneMatrixPanel({
                           <div
                             className={`h-8 w-8 rounded-full transition-all ${
                               selected
-                                ? "ring-2 ring-baron-accent shadow-[0_0_10px_rgba(99,102,241,0.4)] opacity-100"
+                                ? "ring-2 ring-baron-accent shadow-[0_4px_10px_-4px_rgba(0,0,0,0.5)] opacity-100"
                                 : "opacity-30 grayscale-[75%]"
                             }`}
                           >
@@ -364,36 +376,35 @@ export function RuneMatrixPanel({
         </div>
       </div>
 
-      {/* Full-width Import Rune Bar */}
+      {/* Full-width Import Rune Bar (@aceternity/stateful-button) */}
       <div className="border-t border-baron-border bg-baron-inset/60 px-4 py-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Button
-            type="button"
-            size="sm"
+          <StatefulButton
             disabled={importing}
             onClick={handleImport}
-            className="h-8 flex-1 bg-baron-accent text-[12px] font-bold text-white hover:opacity-90"
+            className="h-8 flex-1 text-[12px] font-bold"
           >
             {activeImportStatus?.ok ? (
               <>
-                <Check className="mr-1.5 h-3.5 w-3.5" />
+                <Check className="h-3.5 w-3.5" />
                 {activeImportStatus.text}
               </>
             ) : (
               <>
-                <Download className="mr-1.5 h-3.5 w-3.5" />
+                <Download className="h-3.5 w-3.5" />
                 {importing
                   ? "Injecting Runes to League Client..."
                   : `Import Runes (Baron: ${championName})`}
               </>
             )}
-          </Button>
+          </StatefulButton>
           {activeImportStatus && !activeImportStatus.ok && (
             <span className="text-[11px] font-medium text-baron-gold">
               {activeImportStatus.text}
             </span>
           )}
         </div>
+      </div>
       </div>
     </section>
   );
