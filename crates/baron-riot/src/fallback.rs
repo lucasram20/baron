@@ -516,7 +516,7 @@ fn collect_ranked_players_for_region(region: &str, champs: &[&str]) -> serde_jso
     }
 
     let mut ranked: Vec<(u64, serde_json::Value)> = by_key.into_values().collect();
-    ranked.sort_by(|a, b| b.0.cmp(&a.0));
+    ranked.sort_by_key(|a| std::cmp::Reverse(a.0));
     let players: Vec<serde_json::Value> = ranked
         .into_iter()
         .enumerate()
