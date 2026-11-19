@@ -35,7 +35,18 @@ fn opgg_position(role: Role) -> &'static str {
     }
 }
 
-/// OP.GG direct JSON versions endpoint (`{"data":["16.22","16.21"]}`).
+fn opgg_mcp_position(role: Role) -> &'static str {
+    match role {
+        Role::Top => "top",
+        Role::Jungle => "jungle",
+        Role::Middle => "mid",
+        Role::Bottom => "adc",
+        Role::Utility => "support",
+        Role::Unknown => "mid",
+    }
+}
+
+/// OP.GG direct JSON versions endpoint (`{"data":["16.23","16.22"]}`).
 pub fn opgg_versions_endpoint_url() -> &'static str {
     "https://lol-api-champion.op.gg/api/global/champions/ranked/versions"
 }
@@ -117,13 +128,14 @@ pub fn fetch_opgg_champion_analysis(
     champion: &str,
     role: Role,
 ) -> Result<serde_json::Value, String> {
+    let slug = crate::opgg_modes::opgg_mcp_champion_slug(champion);
     crate::providers::opgg::call_opgg_tool_json(
         OPGG_MCP_URL,
         "lol_get_champion_analysis",
         serde_json::json!({
-            "game_mode": "RANKED",
-            "champion": champion.trim(),
-            "position": opgg_position(role),
+            "game_mode": "ranked",
+            "champion": slug,
+            "position": opgg_mcp_position(role),
             "lang": "en_US",
             "client_app": "baron/0.1"
         }),
@@ -164,7 +176,7 @@ pub fn fetch_opgg_summoner_matches(
             "tag_line": tag_line.trim(),
             "region": region.trim().to_ascii_uppercase(),
             "lang": "en_US",
-            "limit": limit.clamp(1, 10),
+            "limit": limit.clamp(5, 20),
             "client_app": "baron/0.1"
         }),
     )
@@ -195,20 +207,108 @@ pub fn fetch_opgg_game_detail(
     )
 }
 
-/// Fetch Master+ / Challenger leaderboard for a region & champion from OP.GG MCP.
+/// Fetch Master+ / Challenger champion specialist leaderboard for a region & champion from OP.GG MCP.
 pub fn fetch_opgg_champion_leaderboard(
     region: &str,
     champion: &str,
 ) -> Result<serde_json::Value, String> {
+    let slug = crate::opgg_modes::opgg_mcp_champion_slug(champion);
     crate::providers::opgg::call_opgg_tool_json(
         OPGG_MCP_URL,
         "lol_list_champion_leaderboard",
         serde_json::json!({
             "region": region.trim().to_ascii_uppercase(),
-            "champion": champion.trim(),
+            "champion": slug,
+            "desired_output_fields": [
+                "champion",
+                "region",
+                "leaderboard[].rank",
+                "leaderboard[].summoner.{game_name,tagline,level,profile_image_url}",
+                "leaderboard[].summoner.league_stats[].{game_type,win,lose}",
+                "leaderboard[].summoner.league_stats[].tier_info.{tier,division,lp}",
+                "leaderboard[].most_champion_stat.{play,win,lose,kill,death,assist,op_score}"
+            ],
             "client_app": "baron/0.1"
         }),
     )
+}
+
+/// Fetch Master+ champion specialist leaderboards across multiple server regions in parallel batches.
+pub fn fetch_opgg_multi_region_leaderboard(
+    champion: &str,
+    regions: &[String],
+) -> Result<serde_json::Value, String> {
+    let target_regions: Vec<String> = if regions.is_empty() {
+        [
+            "KR", "EUW", "NA", "EUNE", "VN", "BR", "SEA", "TW", "JP", "TR", "LAN", "LAS", "OCE",
+            "RU", "ME",
+        ]
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect()
+    } else {
+        regions
+            .iter()
+            .map(|r| r.trim().to_ascii_uppercase())
+            .filter(|r| !r.is_empty())
+            .take(15)
+            .collect()
+    };
+
+    let champ_owned = champion.trim().to_string();
+    let mut results: Vec<serde_json::Value> = Vec::with_capacity(target_regions.len());
+
+    // Run in parallel batches of 5 to stay fast while avoiding OP.GG MCP burst throttling.
+    for batch in target_regions.chunks(5) {
+        let batch_results: Vec<serde_json::Value> = std::thread::scope(|s| {
+            let handles: Vec<_> = batch
+                .iter()
+                .map(|reg| {
+                    let reg_clone = reg.clone();
+                    let champ_ref = champ_owned.as_str();
+                    s.spawn(
+                        move || match fetch_opgg_champion_leaderboard(&reg_clone, champ_ref) {
+                            Ok(val) => {
+                                let rows = val
+                                    .get("leaderboard")
+                                    .cloned()
+                                    .unwrap_or_else(|| serde_json::json!([]));
+                                serde_json::json!({
+                                    "region": reg_clone,
+                                    "leaderboard": rows,
+                                    "error": serde_json::Value::Null
+                                })
+                            }
+                            Err(err) => serde_json::json!({
+                                "region": reg_clone,
+                                "leaderboard": [],
+                                "error": err
+                            }),
+                        },
+                    )
+                })
+                .collect();
+
+            handles
+                .into_iter()
+                .map(|h| {
+                    h.join().unwrap_or_else(|_| {
+                        serde_json::json!({
+                            "region": "UNKNOWN",
+                            "leaderboard": [],
+                            "error": "Region leaderboard thread panicked"
+                        })
+                    })
+                })
+                .collect()
+        });
+        results.extend(batch_results);
+    }
+
+    Ok(serde_json::json!({
+        "champion": champ_owned,
+        "regions": results
+    }))
 }
 
 /// Fetch current LoL skin sales from OP.GG MCP.
@@ -246,9 +346,9 @@ pub fn fetch_opgg_matchup_guide(
         OPGG_MCP_URL,
         "lol_get_lane_matchup_guide",
         serde_json::json!({
-            "position": opgg_position(role),
-            "my_champion": champion.trim(),
-            "opponent_champion": opponent.trim(),
+            "position": opgg_mcp_position(role),
+            "my_champion": crate::opgg_modes::opgg_mcp_champion_slug(champion),
+            "opponent_champion": crate::opgg_modes::opgg_mcp_champion_slug(opponent),
             "lang": "en_US",
             "client_app": "baron/0.1"
         }),
@@ -257,14 +357,29 @@ pub fn fetch_opgg_matchup_guide(
 
 pub use crate::providers::opgg::OpggRegionOption;
 
+static REGIONS_CACHE: std::sync::OnceLock<std::sync::Mutex<Option<Vec<OpggRegionOption>>>> =
+    std::sync::OnceLock::new();
+
+/// Clears cached OP.GG supported regions so Refresh re-queries live region metadata.
+pub fn clear_opgg_regions_cache() {
+    if let Some(lock) = REGIONS_CACHE.get() {
+        let mut guard = lock.lock().unwrap_or_else(|e| e.into_inner());
+        *guard = None;
+    }
+}
+
 /// Fetches all League server regions supported by OP.GG MCP dynamically and caches them.
 pub fn fetch_opgg_supported_regions() -> Result<Vec<OpggRegionOption>, String> {
-    static CACHE: std::sync::OnceLock<Vec<OpggRegionOption>> = std::sync::OnceLock::new();
-    if let Some(cached) = CACHE.get() {
-        return Ok(cached.clone());
+    let lock = REGIONS_CACHE.get_or_init(|| std::sync::Mutex::new(None));
+    {
+        let guard = lock.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(cached) = guard.as_ref().filter(|r| !r.is_empty()) {
+            return Ok(cached.clone());
+        }
     }
     let regions = crate::providers::opgg::fetch_supported_regions_from(OPGG_MCP_URL)?;
-    let _ = CACHE.set(regions.clone());
+    let mut guard = lock.lock().unwrap_or_else(|e| e.into_inner());
+    *guard = Some(regions.clone());
     Ok(regions)
 }
 

@@ -214,9 +214,18 @@ export function CollectionView({
                         >
                           <div className="relative aspect-[3/4] w-full overflow-hidden bg-baron-elevated">
                             <img
-                              src={champLoadingUrl(skin.champion_name, skinNum)}
+                              src={champLoadingUrl(skin.champion_key || skin.champion_name, skinNum)}
                               alt={skin.skin_name}
                               loading="lazy"
+                              onError={(e) => {
+                                const fallback = champLoadingUrl(
+                                  skin.champion_key || skin.champion_name,
+                                  0,
+                                );
+                                if (e.currentTarget.src !== fallback) {
+                                  e.currentTarget.src = fallback;
+                                }
+                              }}
                               className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.03]"
                             />
                             <div
@@ -230,7 +239,10 @@ export function CollectionView({
                             </div>
                             <div className="absolute bottom-2 left-2.5 flex items-center gap-1.5">
                               <img
-                                src={champSquareUrl(skin.champion_name, ddVersion)}
+                                src={champSquareUrl(
+                                  skin.champion_key || skin.champion_name,
+                                  ddVersion,
+                                )}
                                 alt={skin.champion_name}
                                 className="h-5 w-5 rounded border border-white/25 object-cover"
                               />
@@ -313,6 +325,12 @@ export function CollectionView({
                           src={champLoadingUrl(skin.champion_name, skinNum)}
                           alt={skin.name}
                           loading="lazy"
+                          onError={(e) => {
+                            const fallback = champLoadingUrl(skin.champion_name, 0);
+                            if (e.currentTarget.src !== fallback) {
+                              e.currentTarget.src = fallback;
+                            }
+                          }}
                           className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.03]"
                         />
                         <div

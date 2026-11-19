@@ -69,6 +69,7 @@ interface ChampionBuildViewProps {
   patch: string;
   ddVersion: string;
   region: string;
+  refreshNonce?: number;
   onChangeRole: (role: TierRole) => void;
   onChangeMode: (mode: OpggGameMode) => void;
   onChangeTierFilter: (tier: string) => void;
@@ -109,6 +110,7 @@ export function ChampionBuildView({
   patch,
   ddVersion,
   region,
+  refreshNonce = 0,
   onChangeRole,
   onChangeMode,
   onChangeTierFilter,
@@ -148,7 +150,7 @@ export function ChampionBuildView({
   }>({ key: "", data: null, error: null });
 
   const activeModeDef = OPGG_GAME_MODES.find((m) => m.id === mode) ?? OPGG_GAME_MODES[0];
-  const reqKey = `${champion}:${mode}:${role}:${tierFilter}:${region}`;
+  const reqKey = `${champion}:${mode}:${role}:${tierFilter}:${region}:${patch}:${refreshNonce}`;
   const isLoading = bundleState.key !== reqKey;
   const bundle = bundleState.key === reqKey ? bundleState.data : null;
   const error = bundleState.key === reqKey ? bundleState.error : null;
@@ -178,7 +180,7 @@ export function ChampionBuildView({
 
   useEffect(() => {
     let cancelled = false;
-    fetchOpggChampionBundle(champion, mode, role, tierFilter, region, ddVersion)
+    fetchOpggChampionBundle(champion, mode, role, tierFilter, region, ddVersion, patch)
       .then((data) => {
         if (!cancelled) {
           setBundleState({ key: reqKey, data, error: null });
@@ -196,9 +198,9 @@ export function ChampionBuildView({
     return () => {
       cancelled = true;
     };
-  }, [champion, mode, role, tierFilter, region, ddVersion, reqKey]);
+  }, [champion, mode, role, tierFilter, region, ddVersion, patch, reqKey]);
 
-  const compareKey = `${champion}:${patch}:${role}`;
+  const compareKey = `${champion}:${patch}:${role}:${refreshNonce}`;
   useEffect(() => {
     if (subTab !== "providers") return;
     let cancelled = false;

@@ -457,15 +457,23 @@ export function PostGameView({
 
                           <TableCell className="w-[82px]">
                             <div className="grid w-[64px] grid-cols-3 gap-[2px]">
-                              {(p.items ?? []).slice(0, 6).map((itemId, idx) => (
-                                <img
-                                  key={`${itemId}-${idx}`}
-                                  src={itemIconUrl(itemId, ddVersion)}
-                                  alt={p.items_names?.[idx] ?? `Item ${itemId}`}
-                                  title={p.items_names?.[idx]}
-                                  className="h-5 w-5 rounded-[3px] border border-baron-border object-cover"
-                                />
-                              ))}
+                              {(p.items ?? []).slice(0, 6).map((itemId, idx) =>
+                                itemId > 0 ? (
+                                  <img
+                                    key={`${itemId}-${idx}`}
+                                    src={itemIconUrl(itemId, ddVersion)}
+                                    alt={p.items_names?.[idx] ?? `Item ${itemId}`}
+                                    title={p.items_names?.[idx]}
+                                    className="h-5 w-5 rounded-[3px] border border-baron-border object-cover"
+                                  />
+                                ) : (
+                                  <span
+                                    key={`empty-${idx}`}
+                                    aria-hidden="true"
+                                    className="h-5 w-5 rounded-[3px] border border-baron-border/50 bg-baron-inset/70"
+                                  />
+                                ),
+                              )}
                             </div>
                           </TableCell>
 

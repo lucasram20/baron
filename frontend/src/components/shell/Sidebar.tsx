@@ -54,7 +54,7 @@ interface NavItem {
 const CORE_NAV: NavItem[] = [
   { route: "dashboard", label: "Dashboard", icon: <SidebarDashboardIcon className="h-[15.5px] w-[15.5px]" /> },
   { route: "tierlist", label: "Tierlist & Builds", icon: <SidebarTierlistIcon className="h-[15.5px] w-[15.5px]" /> },
-  { route: "leaderboards", label: "Leaderboards", icon: <SidebarLeaderboardIcon className="h-[15.5px] w-[15.5px]" /> },
+  { route: "leaderboards", label: "Champion Master+", icon: <SidebarLeaderboardIcon className="h-[15.5px] w-[15.5px]" /> },
 ];
 
 const APP_NAV: NavItem[] = [

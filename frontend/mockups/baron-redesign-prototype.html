@@ -916,7 +916,7 @@
         <!-- Patch & Period Popover (@shadcn/popover) -->
         <div class="dropdown-anchor">
           <button id="patchTrigger" class="chip-control" aria-expanded="false" onclick="toggleMenu('patch', event)" title="Patch & period filter">
-            <span id="patchLabel">Patch 16.22</span>
+            <span id="patchLabel">Patch 16.23</span>
             <span id="periodLabel" style="color:var(--ink-muted);font-weight:500;">· 7d</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
           </button>
@@ -987,9 +987,9 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M12 20V4M20 20v-7"/></svg>
               <span class="sb-hide nav-text">Tierlist &amp; Builds</span>
             </button>
-            <button class="nav-btn" data-prox data-nav="leaderboards" title="Leaderboards" onclick="setView('tierlist')">
+            <button class="nav-btn" data-prox data-nav="leaderboards" title="Champion Master+" onclick="setView('tierlist')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 8 4.5 4L12 5l4.5 7L21 8l-2 11H5L3 8Z"/></svg>
-              <span class="sb-hide nav-text">Leaderboards</span>
+              <span class="sb-hide nav-text">Champion Master+</span>
             </button>
           </div>
 
@@ -1027,7 +1027,7 @@
           </button>
 
           <button class="profile-card" title="Hide on bush #KR1 · Challenger" onclick="setView('dashboard')">
-            <img src="https://ddragon.leagueoflegends.com/cdn/16.22.1/img/champion/Ahri.png" alt="Ahri" class="profile-avatar" />
+            <img src="https://ddragon.leagueoflegends.com/cdn/16.23.1/img/champion/Ahri.png" alt="Ahri" class="profile-avatar" />
             <div class="sb-hide" style="min-width:0;flex:1;">
               <div style="font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Hide on bush</div>
               <div style="font-size:11px;font-weight:600;color:var(--champagne);">KR1 · CHALLENGER</div>
@@ -1079,7 +1079,7 @@
   </div>
 
   <script>
-    const DD = "16.22.1";
+    const DD = "16.23.1";
     const champSq = (c) => `https://ddragon.leagueoflegends.com/cdn/${DD}/img/champion/${c}.png`;
     const champLoad = (c, n = 0) => `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${c}_${n}.jpg`;
     const itemUrl = (id) => `https://ddragon.leagueoflegends.com/cdn/${DD}/img/item/${id}.png`;
@@ -1089,7 +1089,7 @@
       collapsed: false,
       view: "dashboard",
       themeMode: "dark", // "dark" | "light" | "system"
-      patch: "16.22",
+      patch: "16.23",
       period: "7 days",
       activeProvider: "opgg",
       menuOpen: null,
@@ -1104,11 +1104,11 @@
 
     const PROVIDERS = [
       { id: "opgg", label: "OP.GG", available: true, url: "https://mcp-api.op.gg/mcp", note: "Tier list", tone: "live" },
-      { id: "ugg", label: "U.GG", available: false, url: "https://stats2.u.gg/lol/1.5/overview/16_22/ranked_solo_5x5/", note: "Builds live", tone: "jade" },
+      { id: "ugg", label: "U.GG", available: false, url: "https://stats2.u.gg/lol/1.5/overview/16_23/ranked_solo_5x5/", note: "Builds live", tone: "jade" },
       { id: "merakicdn", label: "Meraki CDN", available: false, url: "https://cdn.merakianalytics.com/riot/lol/resources/latest/en-US/champions.json", note: "Kit live", tone: "verdigris" },
-      { id: "dpmlol", label: "DPM.LOL", available: false, url: "https://dpm.lol/api/v1/tier-list?patch=16.22", note: "Unavailable", tone: "off" },
-      { id: "lolalytics", label: "LoLalytics", available: false, url: "https://a1.lolalytics.com/mega/?ep=tier&v=1&patch=16.22", note: "Unavailable", tone: "off" },
-      { id: "metasrc", label: "MetaSRC", available: false, url: "https://www.metasrc.com/lol/16.22/tier-list", note: "Unavailable", tone: "off" },
+      { id: "dpmlol", label: "DPM.LOL", available: false, url: "https://dpm.lol/api/v1/tier-list?patch=16.23", note: "Unavailable", tone: "off" },
+      { id: "lolalytics", label: "LoLalytics", available: false, url: "https://a1.lolalytics.com/mega/?ep=tier&v=1&patch=16.23", note: "Unavailable", tone: "off" },
+      { id: "metasrc", label: "MetaSRC", available: false, url: "https://www.metasrc.com/lol/16.23/tier-list", note: "Unavailable", tone: "off" },
     ];
 
     const LANE_SVG = {
@@ -1378,7 +1378,7 @@
 
             <aside class="dash-right">
               <div class="bar-head">
-                <span class="bar-title">16.22 Meta Pulse (Sample)</span>
+                <span class="bar-title">16.23 Meta Pulse (Sample)</span>
                 <button class="link-act" onclick="setView('tierlist')">Live OP.GG →</button>
               </div>
               <div>
@@ -1718,7 +1718,7 @@
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
             <div>
               <h1 style="font-size:20px;font-weight:800;letter-spacing:-0.02em;">Collections</h1>
-              <p style="font-size:12px;color:var(--ink-secondary);margin-top:2px;">Verified Data Dragon 16.22.1 skin vault featuring @react-bits GlareHover sheen &amp; SpotlightCard lighting.</p>
+              <p style="font-size:12px;color:var(--ink-secondary);margin-top:2px;">Verified Data Dragon 16.23.1 skin vault featuring @react-bits GlareHover sheen &amp; SpotlightCard lighting.</p>
             </div>
             <div style="display:flex;gap:14px;align-items:baseline;">
               <span class="mono" style="font-size:16px;font-weight:800;">212 / 482 <span style="font-size:11px;color:var(--ink-muted);font-weight:600;">Owned</span></span>
@@ -1935,7 +1935,7 @@
       document.querySelectorAll("[data-period]").forEach((el) => el.classList.toggle("active", el.dataset.period === STATE.period));
       const pGrid = document.getElementById("patchGridBtns");
       if (pGrid) {
-        pGrid.innerHTML = ["16.22", "16.21", "16.20", "16.19", "16.18", "16.17"]
+        pGrid.innerHTML = ["16.23", "16.22", "16.21", "16.20", "16.19", "16.18"]
           .map((v) => `<button class="patch-cell ${STATE.patch === v ? "active" : ""}" onclick="selectPatch('${v}')">${v}</button>`)
           .join("");
       }

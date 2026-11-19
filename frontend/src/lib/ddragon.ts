@@ -1,8 +1,9 @@
-export const LATEST_PATCH = "16.22";
-export const LATEST_DDRAGON = "16.22.1";
+export const LATEST_PATCH = "16.23";
+export const LATEST_DDRAGON = "16.23.1";
 
 export const AVAILABLE_PERIODS = ["7 days", "14 days", "30 days"] as const;
 export const AVAILABLE_PATCHES = [
+  "16.23",
   "16.22",
   "16.21",
   "16.20",
@@ -15,7 +16,6 @@ export const AVAILABLE_PATCHES = [
   "16.13",
   "16.12",
   "16.11",
-  "16.10",
 ] as const;
 
 const CHAMPION_KEY_ALIASES: Record<string, string> = {
@@ -42,9 +42,11 @@ const CHAMPION_KEY_ALIASES: Record<string, string> = {
 };
 
 export function championKey(name: string): string {
-  const exact = CHAMPION_KEY_ALIASES[name];
+  // Strip OP.GG mode-variant prefixes (e.g. Classic mode's `Jade_Gangplank` -> `Gangplank`).
+  const stripped = name.trim().replace(/^[A-Za-z]+_/, "");
+  const exact = CHAMPION_KEY_ALIASES[stripped];
   if (exact) return exact;
-  const upper = name.trim().toUpperCase().replace(/[^A-Z]/g, "");
+  const upper = stripped.toUpperCase().replace(/[^A-Z]/g, "");
   switch (upper) {
     case "WUKONG":
     case "MONKEYKING":
@@ -94,7 +96,7 @@ export function championKey(name: string): string {
     case "KSANTE":
       return "KSante";
     default: {
-      const cleaned = name.replace(/['\s.&_]/g, "");
+      const cleaned = stripped.replace(/['\s.&_]/g, "");
       if (cleaned === cleaned.toUpperCase() && cleaned.length > 1) {
         return cleaned.charAt(0) + cleaned.slice(1).toLowerCase();
       }

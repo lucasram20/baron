@@ -14,6 +14,40 @@ const OPGG_CHAMPION_API: &str = "https://lol-api-champion.op.gg/api";
 static CATALOG_CACHE: OnceLock<Mutex<Option<Vec<OpggCatalogEntry>>>> = OnceLock::new();
 static AUGMENTS_CACHE: OnceLock<Mutex<Option<HashMap<u32, Value>>>> = OnceLock::new();
 
+/// Clears all in-memory OP.GG & live patch caches so a manual refresh pulls fresh data.
+pub fn clear_opgg_caches() {
+    if let Some(lock) = CATALOG_CACHE.get() {
+        let mut guard = lock.lock().unwrap_or_else(|e| e.into_inner());
+        *guard = None;
+    }
+    if let Some(lock) = AUGMENTS_CACHE.get() {
+        let mut guard = lock.lock().unwrap_or_else(|e| e.into_inner());
+        *guard = None;
+    }
+    crate::assets::clear_patch_metadata_cache();
+    crate::fallback::clear_opgg_regions_cache();
+}
+
+fn resolve_opgg_api_version(requested: Option<&str>) -> Option<String> {
+    let meta = crate::assets::fetch_live_patch_metadata(false);
+    if let Some(req) = requested.map(str::trim).filter(|s| !s.is_empty()) {
+        if meta.opgg_patches.iter().any(|v| v == req) {
+            return Some(req.to_string());
+        }
+    }
+    meta.opgg_patches.first().cloned()
+}
+
+fn append_version_param(url: String, version: Option<&str>) -> String {
+    match version.filter(|v| crate::assets::is_valid_short_patch(v)) {
+        Some(ver) => {
+            let sep = if url.contains('?') { '&' } else { '?' };
+            format!("{url}{sep}version={ver}")
+        }
+        None => url,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct OpggCatalogEntry {
@@ -222,6 +256,22 @@ pub fn fetch_opgg_champions_catalog() -> Result<Vec<OpggCatalogEntry>, String> {
     Ok(entries)
 }
 
+/// Strips OP.GG mode-variant champion key prefixes (e.g. Classic mode's `Jade_Gangplank` -> `Gangplank`)
+/// and normalizes Data Dragon aliases (`Jade_Wukong` -> `MonkeyKing`) so icons & splash art never 404.
+pub fn normalize_ddragon_champion_key(key: &str) -> String {
+    let trimmed = key.trim();
+    let stripped = trimmed
+        .split_once('_')
+        .map(|(_, rest)| rest)
+        .filter(|rest| !rest.is_empty())
+        .unwrap_or(trimmed);
+    if stripped.eq_ignore_ascii_case("Wukong") {
+        "MonkeyKing".to_string()
+    } else {
+        stripped.to_string()
+    }
+}
+
 fn resolve_champion_entry(champion_input: &str) -> Result<OpggCatalogEntry, String> {
     let catalog = fetch_opgg_champions_catalog()?;
     let norm = |s: &str| -> String {
@@ -236,10 +286,21 @@ fn resolve_champion_entry(champion_input: &str) -> Result<OpggCatalogEntry, Stri
             return Ok(found.clone());
         }
     }
-    catalog
-        .into_iter()
-        .find(|c| norm(&c.name) == needle || norm(&c.key) == needle)
-        .ok_or_else(|| format!("Champion '{champion_input}' not found in live OP.GG catalog"))
+    // Prefer standard Summoner's Rift champion IDs (< 60000) over mode clones like Jade_* (60000+).
+    let mut matches = catalog.into_iter().filter(|c| {
+        let clean_key = normalize_ddragon_champion_key(&c.key);
+        norm(&c.name) == needle || norm(&c.key) == needle || norm(&clean_key) == needle
+    });
+    let mut best: Option<OpggCatalogEntry> = None;
+    for entry in matches.by_ref() {
+        if entry.champion_id < 60_000 {
+            return Ok(entry);
+        }
+        if best.is_none() {
+            best = Some(entry);
+        }
+    }
+    best.ok_or_else(|| format!("Champion '{champion_input}' not found in live OP.GG catalog"))
 }
 
 /// Fetch and cache OP.GG's Arena/Mayhem augment catalog (`id -> {id,name,key,largeIcon,smallIcon,rarity,desc,tooltip}`).
@@ -285,9 +346,11 @@ pub fn fetch_opgg_mode_tier_list(
     mode: &str,
     role: Role,
     tier: &str,
+    version: Option<&str>,
 ) -> Result<Vec<OpggModeTierEntry>, String> {
     let norm_mode = normalize_opgg_mode(mode);
     let norm_tier = normalize_opgg_tier_slug(tier);
+    let resolved_version = resolve_opgg_api_version(version);
     let catalog = fetch_opgg_champions_catalog()?;
     let by_id: HashMap<u32, &OpggCatalogEntry> =
         catalog.iter().map(|c| (c.champion_id, c)).collect();
@@ -318,7 +381,7 @@ pub fn fetch_opgg_mode_tier_list(
             let rank_num = row.get("rank").and_then(|v| v.as_u64()).unwrap_or(999) as u32;
             out.push(OpggModeTierEntry {
                 champion_id: champ_id,
-                champion_key: meta.key.clone(),
+                champion_key: normalize_ddragon_champion_key(&meta.key),
                 champion_name: meta.name.clone(),
                 mode: norm_mode.to_string(),
                 role: Role::Unknown,
@@ -353,12 +416,13 @@ pub fn fetch_opgg_mode_tier_list(
         _ => "ranked",
     };
 
-    let url = match api_mode {
+    let base_url = match api_mode {
         "ranked" | "flex" | "aram" => {
             format!("{OPGG_CHAMPION_API}/global/champions/{api_mode}?tier={norm_tier}")
         }
         _ => format!("{OPGG_CHAMPION_API}/global/champions/{api_mode}"),
     };
+    let url = append_version_param(base_url, resolved_version.as_deref());
 
     let json = http_get_json(&url)?;
     let rows = json
@@ -391,7 +455,7 @@ pub fn fetch_opgg_mode_tier_list(
                 let rank = td.get("rank").and_then(|v| v.as_u64()).unwrap_or(999) as u32;
                 out.push(OpggModeTierEntry {
                     champion_id: champ_id,
-                    champion_key: meta.key.clone(),
+                    champion_key: normalize_ddragon_champion_key(&meta.key),
                     champion_name: meta.name.clone(),
                     mode: norm_mode.to_string(),
                     role: parse_pos_role(target_pos),
@@ -468,7 +532,7 @@ pub fn fetch_opgg_mode_tier_list(
 
         out.push(OpggModeTierEntry {
             champion_id: champ_id,
-            champion_key: meta.key.clone(),
+            champion_key: normalize_ddragon_champion_key(&meta.key),
             champion_name: meta.name.clone(),
             mode: norm_mode.to_string(),
             role: row
@@ -507,11 +571,13 @@ pub fn fetch_opgg_champion_bundle(
     role: Role,
     tier: &str,
     region: &str,
+    version: Option<&str>,
 ) -> Result<Value, String> {
     let entry = resolve_champion_entry(champion)?;
     let norm_mode = normalize_opgg_mode(mode);
     let norm_tier = normalize_opgg_tier_slug(tier);
     let mcp_tier = normalize_opgg_mcp_tier(tier);
+    let resolved_version = resolve_opgg_api_version(version);
     let opgg_pos = role_to_opgg_pos(role);
     let mcp_pos = role_to_mcp_pos(role);
     let mcp_slug = opgg_mcp_champion_slug(&entry.key);
@@ -522,37 +588,58 @@ pub fn fetch_opgg_champion_bundle(
     };
 
     let desktop_url = match norm_mode {
-        "arena" => Some(format!(
-            "{OPGG_CHAMPION_API}/global/champions/arena/{}",
-            entry.champion_id
+        "arena" => Some(append_version_param(
+            format!(
+                "{OPGG_CHAMPION_API}/global/champions/arena/{}",
+                entry.champion_id
+            ),
+            resolved_version.as_deref(),
         )),
-        "ranked" | "flex" => Some(format!(
-            "{OPGG_CHAMPION_API}/global/champions/{norm_mode}/{}/{opgg_pos}?tier={norm_tier}&is_more=true",
-            entry.champion_id
+        "ranked" | "flex" => Some(append_version_param(
+            format!(
+                "{OPGG_CHAMPION_API}/global/champions/{norm_mode}/{}/{opgg_pos}?tier={norm_tier}&is_more=true",
+                entry.champion_id
+            ),
+            resolved_version.as_deref(),
         )),
-        "classic" => Some(format!(
-            "{OPGG_CHAMPION_API}/global/champions/classic/{}/{opgg_pos}",
-            entry.champion_id
+        "classic" => Some(append_version_param(
+            format!(
+                "{OPGG_CHAMPION_API}/global/champions/classic/{}/{opgg_pos}",
+                entry.champion_id
+            ),
+            resolved_version.as_deref(),
         )),
-        "aram" => Some(format!(
-            "{OPGG_CHAMPION_API}/global/champions/aram/{}/none?tier={norm_tier}&is_more=true",
-            entry.champion_id
+        "aram" => Some(append_version_param(
+            format!(
+                "{OPGG_CHAMPION_API}/global/champions/aram/{}/none?tier={norm_tier}&is_more=true",
+                entry.champion_id
+            ),
+            resolved_version.as_deref(),
         )),
         "aram_mayhem" => Some(format!(
             "{OPGG_CHAMPION_API}/global/champions/aram_mayhem_classic/{}/none?tier=all&is_more=true",
             entry.champion_id
         )),
-        "urf" => Some(format!(
-            "{OPGG_CHAMPION_API}/global/champions/urf/{}/none",
-            entry.champion_id
+        "urf" => Some(append_version_param(
+            format!(
+                "{OPGG_CHAMPION_API}/global/champions/urf/{}/none",
+                entry.champion_id
+            ),
+            resolved_version.as_deref(),
         )),
-        "nexus_blitz" => Some(format!(
-            "{OPGG_CHAMPION_API}/global/champions/nexus_blitz/{}/none",
-            entry.champion_id
+        "nexus_blitz" => Some(append_version_param(
+            format!(
+                "{OPGG_CHAMPION_API}/global/champions/nexus_blitz/{}/none",
+                entry.champion_id
+            ),
+            resolved_version.as_deref(),
         )),
-        "doom" => Some(format!(
-            "{OPGG_CHAMPION_API}/global/champions/doom/{}/none",
-            entry.champion_id
+        "doom" => Some(append_version_param(
+            format!(
+                "{OPGG_CHAMPION_API}/global/champions/doom/{}/none",
+                entry.champion_id
+            ),
+            resolved_version.as_deref(),
         )),
         _ => None, // "brawl" exposes OP.GG tier rankings without per-champion item/rune tables.
     };
@@ -796,21 +883,23 @@ pub fn fetch_opgg_champion_bundle(
         .unwrap_or_default()
         .into_iter()
         .map(|c| {
+            let clean_key = normalize_ddragon_champion_key(&c.key);
             (
                 c.champion_id.to_string(),
-                json!({ "id": c.champion_id, "key": c.key, "name": c.name }),
+                json!({ "id": c.champion_id, "key": clean_key, "name": c.name }),
             )
         })
         .collect();
 
     Ok(json!({
         "championId": entry.champion_id,
-        "key": entry.key,
+        "key": normalize_ddragon_champion_key(&entry.key),
         "name": entry.name,
         "mode": norm_mode,
         "role": role,
         "tier": norm_tier,
         "region": region_code,
+        "patch": resolved_version,
         "endpointUrl": desktop_url.unwrap_or_default(),
         "desktopData": desktop_data,
         "mcpAnalysis": mcp_analysis,
@@ -850,7 +939,10 @@ pub fn get_provider_diagnostics(patch: &str) -> Vec<ProviderDiagnostic> {
             tier_list_status: "Live".to_string(),
             build_data_status: "Live".to_string(),
             summary: "Full official MCP + OP.GG Desktop JSON APIs covering Ranked, Flex, ARAM, ARAM: Mayhem, Arena, URF, Nexus Blitz, Brawl, Classic & Doom Bots.".to_string(),
-            sample_endpoint: "https://lol-api-champion.op.gg/api/global/champions/ranked?tier=emerald_plus".to_string(),
+            sample_endpoint: format!(
+                "https://lol-api-champion.op.gg/api/global/champions/ranked?tier=emerald_plus&version={}",
+                patch.trim()
+            ),
         },
         ProviderDiagnostic {
             id: "ugg".to_string(),
@@ -917,5 +1009,15 @@ mod tests {
         assert_eq!(opgg_mcp_champion_slug("LeeSin"), "LEE_SIN");
         assert_eq!(opgg_mcp_champion_slug("Wukong"), "MONKEY_KING");
         assert_eq!(opgg_mcp_champion_slug("K'Sante"), "KSANTE");
+        assert_eq!(
+            normalize_ddragon_champion_key("Jade_Gangplank"),
+            "Gangplank"
+        );
+        assert_eq!(normalize_ddragon_champion_key("Jade_DrMundo"), "DrMundo");
+        assert_eq!(normalize_ddragon_champion_key("Jade_Wukong"), "MonkeyKing");
+        assert_eq!(
+            normalize_ddragon_champion_key("Fiddlesticks"),
+            "Fiddlesticks"
+        );
     }
 }

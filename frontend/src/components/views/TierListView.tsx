@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChampionBuildView } from "@/components/views/ChampionBuildView";
-import { champSquareUrl, LATEST_DDRAGON } from "@/lib/ddragon";
+import { champSquareUrl, LATEST_DDRAGON, LATEST_PATCH } from "@/lib/ddragon";
 import {
   fetchOpggModeTierList,
   OPGG_GAME_MODES,
@@ -62,7 +62,7 @@ export function TierListView({
   refreshNonce = 0,
   searchFilter = "",
   initialSelectedChampion = null,
-  patch = "16.22",
+  patch = LATEST_PATCH,
   ddVersion = LATEST_DDRAGON,
   defaultRegion = "NA",
 }: {
@@ -90,7 +90,7 @@ export function TierListView({
   }>({ key: "", rows: [], error: null });
 
   const activeModeDef = OPGG_GAME_MODES.find((m) => m.id === mode) ?? OPGG_GAME_MODES[0];
-  const reqKey = `${activeProviderId}:${mode}:${role}:${tierFilter}:${refreshNonce}`;
+  const reqKey = `${activeProviderId}:${mode}:${role}:${tierFilter}:${patch}:${refreshNonce}`;
   const isLoading = !selectedChamp && state.key !== reqKey;
   const rows = state.key === reqKey ? state.rows : [];
   const error = state.key === reqKey ? state.error : null;
@@ -98,7 +98,7 @@ export function TierListView({
   useEffect(() => {
     if (selectedChamp) return;
     let cancelled = false;
-    fetchOpggModeTierList(mode, activeModeDef.hasRoles ? role : null, tierFilter, ddVersion)
+    fetchOpggModeTierList(mode, activeModeDef.hasRoles ? role : null, tierFilter, ddVersion, patch)
       .then((data) => {
         if (!cancelled) setState({ key: reqKey, rows: data, error: null });
       })
@@ -122,6 +122,7 @@ export function TierListView({
     mode,
     role,
     tierFilter,
+    patch,
     ddVersion,
     reqKey,
     activeModeDef.hasRoles,
@@ -138,6 +139,7 @@ export function TierListView({
         patch={patch}
         ddVersion={ddVersion}
         region={defaultRegion}
+        refreshNonce={refreshNonce}
         onChangeRole={(nextRole) => setRole(nextRole)}
         onChangeMode={(nextMode) => setMode(nextMode)}
         onChangeTierFilter={(nextTier) => setTierFilter(nextTier)}
@@ -172,7 +174,7 @@ export function TierListView({
               </h1>
               <span className="inline-flex items-center gap-1 rounded-md border border-baron-accent/30 bg-baron-accent/12 px-2 py-0.5 text-[10.5px] font-bold text-baron-accent-soft">
                 <Layers className="h-3 w-3" />
-                Live OP.GG
+                Live OP.GG · Patch {patch}
               </span>
             </div>
             <p className="mt-1 text-[12px] text-baron-ink-muted">

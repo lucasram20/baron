@@ -83,6 +83,8 @@ export interface BaronBootstrapPayload {
   latestPatch: string;
   ddragonVersion: string;
   patches: string[];
+  opggPatches?: string[];
+  patchSyncedLive?: boolean;
   periods: string[];
   providers: ProviderMeta[];
   lcuStatus: LcuStatusDto;
@@ -139,6 +141,8 @@ const FALLBACK_BOOTSTRAP: BaronBootstrapPayload = {
   latestPatch: LATEST_PATCH,
   ddragonVersion: LATEST_DDRAGON,
   patches: [...AVAILABLE_PATCHES],
+  opggPatches: [LATEST_PATCH],
+  patchSyncedLive: false,
   periods: [...AVAILABLE_PERIODS],
   providers: DEFAULT_PROVIDERS,
   lcuStatus: {
@@ -161,13 +165,46 @@ async function invokeTauri<T>(command: string, args?: Record<string, unknown>): 
   return invoke<T>(command, args);
 }
 
-export async function fetchBootstrapData(patch?: string): Promise<BaronBootstrapPayload> {
+export async function fetchBootstrapData(
+  patch?: string,
+  forceRefresh = false,
+): Promise<BaronBootstrapPayload> {
   if (!isTauriRuntime()) {
+    try {
+      const res = await fetch("https://ddragon.leagueoflegends.com/api/versions.json", {
+        cache: forceRefresh ? "no-store" : "default",
+      });
+      if (res.ok) {
+        const versions = (await res.json()) as string[];
+        const valid = versions.filter((v) => /^\d+\.\d+\.\d+$/.test(v));
+        const seen: string[] = [];
+        for (const v of valid) {
+          const short = v.split(".").slice(0, 2).join(".");
+          if (!seen.includes(short)) seen.push(short);
+          if (seen.length >= 13) break;
+        }
+        if (valid.length > 0 && seen.length > 0) {
+          return {
+            ...FALLBACK_BOOTSTRAP,
+            latestPatch: patch?.trim() || seen[0],
+            ddragonVersion: valid[0],
+            patches: seen,
+            opggPatches: seen.slice(0, 2),
+            patchSyncedLive: true,
+          };
+        }
+      }
+    } catch {
+      // Fall back to static Season 16 defaults if offline in browser preview.
+    }
     return FALLBACK_BOOTSTRAP;
   }
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    return await invoke<BaronBootstrapPayload>("get_bootstrap_data", { patch: patch ?? null });
+    return await invoke<BaronBootstrapPayload>("get_bootstrap_data", {
+      patch: patch ?? null,
+      forceRefresh,
+    });
   } catch (err) {
     console.warn("Tauri invoke(get_bootstrap_data) failed:", err);
     return FALLBACK_BOOTSTRAP;
@@ -411,6 +448,15 @@ export interface OpggSummonerOverview {
             op_score?: number;
           }[];
         };
+        ranked_most_champions?: {
+          my_champion_stats?: {
+            id?: number;
+            champion_name?: string;
+            play?: number;
+            win?: number;
+            lose?: number;
+          }[];
+        };
       };
     };
   };
@@ -419,6 +465,7 @@ export interface OpggSummonerOverview {
       game_history?: OpggGameSummary[];
     };
   };
+  matchesError?: string | null;
 }
 
 export async function fetchOpggSummonerOverview(
@@ -455,24 +502,41 @@ export async function fetchOpggGameDetail(
   });
 }
 
+export interface OpggLeaderboardRow {
+  rank: number;
+  summoner?: {
+    game_name?: string;
+    tagline?: string;
+    level?: number;
+    profile_image_url?: string;
+    league_stats?: OpggLeagueStat[];
+  };
+  most_champion_stat?: {
+    play?: number;
+    win?: number;
+    lose?: number;
+    kill?: number;
+    death?: number;
+    assist?: number;
+    op_score?: number;
+  };
+}
+
 export interface OpggLeaderboardResponse {
   region?: string;
   champion?: string;
-  leaderboard?: {
-    rank: number;
-    summoner?: {
-      game_name?: string;
-      tagline?: string;
-      level?: number;
-      profile_image_url?: string;
-      league_stats?: OpggLeagueStat[];
-    };
-    most_champion_stat?: {
-      play?: number;
-      win?: number;
-      lose?: number;
-    };
-  }[];
+  leaderboard?: OpggLeaderboardRow[];
+}
+
+export interface OpggMultiRegionEntry {
+  region: string;
+  leaderboard: OpggLeaderboardRow[];
+  error: string | null;
+}
+
+export interface OpggMultiRegionLeaderboardResponse {
+  champion: string;
+  regions: OpggMultiRegionEntry[];
 }
 
 export async function fetchOpggLeaderboard(
@@ -480,6 +544,16 @@ export async function fetchOpggLeaderboard(
   champion: string,
 ): Promise<OpggLeaderboardResponse> {
   return invokeTauri<OpggLeaderboardResponse>("get_opgg_leaderboard", { region, champion });
+}
+
+export async function fetchOpggMultiRegionLeaderboard(
+  champion: string,
+  regions?: string[],
+): Promise<OpggMultiRegionLeaderboardResponse> {
+  return invokeTauri<OpggMultiRegionLeaderboardResponse>("get_opgg_multi_region_leaderboard", {
+    champion,
+    regions: regions && regions.length > 0 ? regions : null,
+  });
 }
 
 export interface OpggDiscountedSkinsResponse {
@@ -585,6 +659,24 @@ export interface OpggRegionOption {
   code: string;
   label: string;
 }
+
+export const ALL_OPGG_REGIONS: OpggRegionOption[] = [
+  { code: "KR", label: "Korea (KR)" },
+  { code: "EUW", label: "Europe West (EUW)" },
+  { code: "NA", label: "North America (NA)" },
+  { code: "EUNE", label: "Europe Nordic & East (EUNE)" },
+  { code: "VN", label: "Vietnam (VN)" },
+  { code: "BR", label: "Brazil (BR)" },
+  { code: "SEA", label: "Southeast Asia (SEA)" },
+  { code: "TW", label: "Taiwan (TW)" },
+  { code: "JP", label: "Japan (JP)" },
+  { code: "TR", label: "Türkiye (TR)" },
+  { code: "LAN", label: "Latin America North (LAN)" },
+  { code: "LAS", label: "Latin America South (LAS)" },
+  { code: "OCE", label: "Oceania (OCE)" },
+  { code: "RU", label: "Russia (RU)" },
+  { code: "ME", label: "Middle East (ME)" },
+];
 
 export async function fetchOpggRegions(): Promise<OpggRegionOption[]> {
   return invokeTauri<OpggRegionOption[]>("get_opgg_regions");
@@ -949,6 +1041,7 @@ export interface OpggChampionBundle {
   role: TierRole;
   tier: string;
   region: string;
+  patch?: string | null;
   endpointUrl: string;
   desktopData: OpggDesktopData | null;
   mcpAnalysis: OpggChampionAnalysis | null;
@@ -1092,14 +1185,26 @@ async function resolveBrowserChampEntry(
   return null;
 }
 
+function appendVersionParam(url: string, patch?: string): string {
+  const clean = patch?.trim();
+  if (!clean || !/^\d+\.\d+$/.test(clean)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}version=${encodeURIComponent(clean)}`;
+}
+
 export async function fetchOpggModeTierList(
   mode: OpggGameMode,
   role: TierRole | null,
   tier: string = "emerald_plus",
-  ddVersion: string = "16.22.1",
+  ddVersion: string = LATEST_DDRAGON,
+  patch?: string,
 ): Promise<OpggModeTierEntry[]> {
   if (isTauriRuntime()) {
-    return invokeTauri<OpggModeTierEntry[]>("get_opgg_mode_tier_list", { mode, role, tier });
+    return invokeTauri<OpggModeTierEntry[]>("get_opgg_mode_tier_list", {
+      mode,
+      role,
+      tier,
+      patch: patch ?? null,
+    });
   }
 
   const idMap = await import("./ddragon").then((m) => m.fetchChampionIdNameMap(ddVersion));
@@ -1138,10 +1243,11 @@ export async function fetchOpggModeTierList(
     return mapped.toSorted((a, b) => a.rank - b.rank);
   }
 
-  const url =
+  const baseUrl =
     mode === "ranked" || mode === "flex" || mode === "aram"
       ? `https://lol-api-champion.op.gg/api/global/champions/${mode}?tier=${encodeURIComponent(tier)}`
       : `https://lol-api-champion.op.gg/api/global/champions/${mode}`;
+  const url = appendVersionParam(baseUrl, patch);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} loading OP.GG ${mode} tier list`);
   const body = (await res.json()) as { data?: Record<string, unknown>[] };
@@ -1214,7 +1320,8 @@ export async function fetchOpggChampionBundle(
   role: TierRole,
   tier: string = "emerald_plus",
   region: string = "NA",
-  ddVersion: string = "16.22.1",
+  ddVersion: string = LATEST_DDRAGON,
+  patch?: string,
 ): Promise<OpggChampionBundle> {
   if (isTauriRuntime()) {
     return invokeTauri<OpggChampionBundle>("get_opgg_champion_bundle", {
@@ -1223,6 +1330,7 @@ export async function fetchOpggChampionBundle(
       role,
       tier,
       region,
+      patch: patch ?? null,
     });
   }
 
@@ -1230,7 +1338,7 @@ export async function fetchOpggChampionBundle(
   const resolved = await resolveBrowserChampEntry(champion, ddVersion);
   if (!resolved) throw new Error(`Champion '${champion}' not found`);
   const pos = opggRoleParam(role);
-  const desktopUrl =
+  const rawDesktopUrl =
     mode === "arena"
       ? `https://lol-api-champion.op.gg/api/global/champions/arena/${resolved.id}`
       : mode === "ranked" || mode === "flex"
@@ -1244,6 +1352,8 @@ export async function fetchOpggChampionBundle(
               : mode === "brawl"
                 ? ""
                 : `https://lol-api-champion.op.gg/api/global/champions/${mode}/${resolved.id}/none`;
+  const desktopUrl =
+    rawDesktopUrl && mode !== "aram_mayhem" ? appendVersionParam(rawDesktopUrl, patch) : rawDesktopUrl;
 
   const errors: string[] = [];
   let desktopData: OpggDesktopData | null = null;
@@ -1312,7 +1422,7 @@ export async function fetchUggChampionBuild(
   patch: string,
   role: TierRole,
   championIdHint?: number,
-  ddVersion: string = "16.22.1",
+  ddVersion: string = LATEST_DDRAGON,
 ): Promise<UggBuildResponse> {
   if (isTauriRuntime()) {
     return invokeTauri<UggBuildResponse>("get_ugg_champion_build", { champion, patch, role });
@@ -1323,7 +1433,7 @@ export async function fetchUggChampionBuild(
     cid = resolved?.id ?? 0;
   }
   if (!cid) throw new Error(`Champion '${champion}' not found for U.GG`);
-  const slug = patch.split(".").slice(0, 2).join("_") || "16_22";
+  const slug = patch.split(".").slice(0, 2).join("_") || LATEST_PATCH.replace(".", "_");
   const endpointUrl = `https://stats2.u.gg/lol/1.5/overview/${slug}/ranked_solo_5x5/${cid}/1.5.0.json`;
   const res = await fetch(endpointUrl);
   if (!res.ok) throw new Error(`HTTP ${res.status} returned by U.GG overview`);
@@ -1404,7 +1514,7 @@ export async function fetchProviderDiagnostics(patch: string): Promise<ProviderD
       buildDataStatus: "Live",
       summary:
         "Official MCP + OP.GG Desktop JSON APIs covering Ranked, Flex, ARAM, ARAM: Mayhem, Arena, URF, Nexus Blitz, Brawl, Classic & Doom Bots.",
-      sampleEndpoint: "https://lol-api-champion.op.gg/api/global/champions/ranked?tier=emerald_plus",
+      sampleEndpoint: `https://lol-api-champion.op.gg/api/global/champions/ranked?tier=emerald_plus&version=${encodeURIComponent(patch)}`,
     },
     {
       id: "ugg",

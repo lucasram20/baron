@@ -40,6 +40,9 @@ interface TopCommandBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   patch: string;
+  availablePatches?: string[];
+  opggPatches?: string[];
+  patchSyncedLive?: boolean;
   onSelectPatch: (patch: string) => void;
   period: string;
   onSelectPeriod: (period: string) => void;
@@ -71,7 +74,11 @@ const THEME_OPTIONS: { id: ThemePreference; label: string; icon: typeof Sun }[] 
 const QUICK_ROUTES: { route: BaronRoute; label: string; hint: string }[] = [
   { route: "dashboard", label: "Dashboard", hint: "Live OP.GG summoner profile & matches" },
   { route: "tierlist", label: "Tierlist & Builds", hint: "Live OP.GG lane rankings & champion builds" },
-  { route: "leaderboards", label: "Leaderboards", hint: "Live OP.GG Champion Master+ ladders" },
+  {
+    route: "leaderboards",
+    label: "Champion Master+",
+    hint: "OP.GG Champion Master+ specialists across all 15 regions",
+  },
   { route: "champselect", label: "Champ Select", hint: "Live OP.GG matchup builds & LCU rune push" },
   { route: "postgame", label: "Post-game", hint: "Live OP.GG match scoreboard & analysis" },
   { route: "spectate", label: "Spectate", hint: "OP.GG esports results & LCU spectate" },
@@ -93,6 +100,9 @@ export function TopCommandBar({
   searchQuery,
   onSearchChange,
   patch,
+  availablePatches,
+  opggPatches = [],
+  patchSyncedLive = false,
   onSelectPatch,
   period,
   onSelectPeriod,
@@ -114,13 +124,15 @@ export function TopCommandBar({
   onLookupSummoner,
   regions = [],
 }: TopCommandBarProps) {
-  const { preference, resolved, setPreference } = useTheme();
+  const { preference, osTheme, setPreference } = useTheme();
   const reducedMotion = Boolean(useReducedMotion());
   const isDesktop = useIsDesktopHost();
   const [maximized, setMaximized] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
 
   const activeProvider = providers.find((p) => p.id === activeProviderId) ?? providers[0];
+  const patchChoices =
+    availablePatches && availablePatches.length > 0 ? availablePatches : [...AVAILABLE_PATCHES];
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -130,7 +142,6 @@ export function TopCommandBar({
     import("@tauri-apps/api/window")
       .then(async ({ getCurrentWindow }) => {
         const win = getCurrentWindow();
-        win.setTheme(resolved === "dark" ? "dark" : "light").catch(() => {});
         const max = await win.isMaximized().catch(() => false);
         if (!cancelled) setMaximized(max);
         unlisten = await win
@@ -146,7 +157,7 @@ export function TopCommandBar({
       cancelled = true;
       unlisten?.();
     };
-  }, [isDesktop, resolved]);
+  }, [isDesktop]);
 
   const handleMinimize = () => {
     if (!isDesktop) return;
@@ -330,26 +341,48 @@ export function TopCommandBar({
           <PopoverContent
             align="end"
             sideOffset={6}
-            className="baron-popover-surface w-[268px] rounded-xl border border-baron-border-strong bg-baron-surface/95 p-3 backdrop-blur-md"
+            className="baron-popover-surface w-[280px] rounded-xl border border-baron-border-strong bg-baron-surface/95 p-3 backdrop-blur-md"
           >
-            <div className="mb-1.5 text-[10px] font-bold tracking-[0.08em] text-baron-ink-muted uppercase">
-              Patch Version
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold tracking-[0.08em] text-baron-ink-muted uppercase">
+                Patch Version
+              </span>
+              {patchSyncedLive && (
+                <span className="inline-flex items-center gap-1 rounded bg-baron-emerald/15 px-1.5 py-0.5 text-[9.5px] font-semibold text-baron-emerald">
+                  <span className="h-1.5 w-1.5 rounded-full bg-baron-emerald" aria-hidden="true" />
+                  Auto-synced
+                </span>
+              )}
             </div>
             <div className="grid grid-cols-4 gap-1">
-              {AVAILABLE_PATCHES.slice(0, 8).map((p) => {
+              {patchChoices.slice(0, 8).map((p) => {
                 const selected = patch === p;
+                const opggLive = opggPatches.includes(p);
                 return (
                   <button
                     key={p}
                     type="button"
                     onClick={() => onSelectPatch(p)}
-                    className={`rounded-md py-1 text-[11px] font-semibold transition-colors tnum ${
+                    title={
+                      opggLive
+                        ? `Patch ${p} — Live OP.GG & Data Dragon data`
+                        : `Patch ${p} — Historical Data Dragon patch`
+                    }
+                    className={`relative flex items-center justify-center gap-1 rounded-md py-1 text-[11px] font-semibold transition-colors tnum ${
                       selected
                         ? "bg-baron-accent text-white shadow-xs"
                         : "bg-baron-elevated text-baron-ink-secondary hover:bg-baron-hover hover:text-baron-ink"
                     }`}
                   >
-                    {p}
+                    <span>{p}</span>
+                    {opggLive && (
+                      <span
+                        aria-hidden="true"
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          selected ? "bg-white/90" : "bg-baron-emerald"
+                        }`}
+                      />
+                    )}
                   </button>
                 );
               })}
@@ -378,7 +411,8 @@ export function TopCommandBar({
               })}
             </div>
             <p className="mt-2.5 text-[10.5px] leading-snug text-baron-ink-muted">
-              Live OP.GG MCP tier lists and builds always reflect the current patch.
+              Auto-discovers the newest Riot &amp; OP.GG patch ({patchChoices[0]}). Green dot marks
+              patches with live OP.GG analytics.
             </p>
           </PopoverContent>
         </Popover>
@@ -517,14 +551,18 @@ export function TopCommandBar({
           {THEME_OPTIONS.map((opt) => {
             const Icon = opt.icon;
             const active = preference === opt.id;
+            const tooltipLabel =
+              opt.id === "system"
+                ? `Match OS theme (OS: ${osTheme === "light" ? "Warm Light" : "Dark Warm"})`
+                : opt.label;
             return (
               <button
                 key={opt.id}
                 type="button"
                 onClick={(e) => setPreference(opt.id, e.currentTarget)}
-                aria-label={opt.label}
+                aria-label={tooltipLabel}
                 aria-pressed={active}
-                title={opt.label}
+                title={tooltipLabel}
                 className={`relative flex h-[22px] w-[24px] items-center justify-center rounded-[5px] transition-colors ${
                   active ? "text-white" : "text-baron-ink-muted hover:text-baron-ink-secondary"
                 }`}

@@ -17,7 +17,7 @@ use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager, WindowEvent,
+    Emitter, Manager, Theme, WindowEvent,
 };
 
 pub struct AppState {
@@ -50,6 +50,8 @@ pub struct BaronBootstrapPayload {
     pub latest_patch: String,
     pub ddragon_version: String,
     pub patches: Vec<String>,
+    pub opgg_patches: Vec<String>,
+    pub patch_synced_live: bool,
     pub periods: Vec<String>,
     pub providers: Vec<ProviderMeta>,
     pub lcu_status: LcuStatusDto,
@@ -127,8 +129,40 @@ pub fn assemble_bootstrap_payload(patch: Option<&str>) -> BaronBootstrapPayload 
         latest_patch: active_patch.to_string(),
         ddragon_version: LATEST_DDRAGON_VERSION.to_string(),
         patches: AVAILABLE_PATCHES.iter().map(|s| (*s).to_string()).collect(),
+        opgg_patches: vec![LATEST_PATCH.to_string()],
+        patch_synced_live: false,
         periods: AVAILABLE_PERIODS.iter().map(|s| (*s).to_string()).collect(),
         providers: build_providers_meta(active_patch),
+        lcu_status,
+        lcu_player,
+    }
+}
+
+pub fn assemble_live_bootstrap_payload(
+    patch: Option<&str>,
+    force_refresh: bool,
+) -> BaronBootstrapPayload {
+    if force_refresh {
+        baron_riot::clear_opgg_caches();
+    }
+    let live = baron_riot::fetch_live_patch_metadata(force_refresh);
+    let active_patch = patch
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or(live.latest_patch.as_str())
+        .to_string();
+    let lcu_player = fetch_lcu_player_context();
+    let lcu_status = status_from_player(lcu_player.as_ref());
+
+    BaronBootstrapPayload {
+        app_title: "Baron".to_string(),
+        latest_patch: active_patch.clone(),
+        ddragon_version: live.ddragon_version,
+        patches: live.patches,
+        opgg_patches: live.opgg_patches,
+        patch_synced_live: live.fetched_live,
+        periods: AVAILABLE_PERIODS.iter().map(|s| (*s).to_string()).collect(),
+        providers: build_providers_meta(&active_patch),
         lcu_status,
         lcu_player,
     }
@@ -138,12 +172,16 @@ pub fn assemble_bootstrap_payload(patch: Option<&str>) -> BaronBootstrapPayload 
 async fn get_bootstrap_data(
     state: tauri::State<'_, AppState>,
     patch: Option<String>,
+    force_refresh: Option<bool>,
 ) -> Result<BaronBootstrapPayload, String> {
     let _db = state.db.lock().map_err(|e| e.to_string())?;
     drop(_db);
-    tauri::async_runtime::spawn_blocking(move || assemble_bootstrap_payload(patch.as_deref()))
-        .await
-        .map_err(|e| format!("Bootstrap task failed: {e}"))
+    let force = force_refresh.unwrap_or(false);
+    tauri::async_runtime::spawn_blocking(move || {
+        assemble_live_bootstrap_payload(patch.as_deref(), force)
+    })
+    .await
+    .map_err(|e| format!("Bootstrap task failed: {e}"))
 }
 
 #[tauri::command]
@@ -180,11 +218,32 @@ async fn get_opgg_summoner_overview(
     region: String,
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let profile = baron_riot::fetch_opgg_summoner_profile(&game_name, &tag_line, &region)?;
-        let matches = baron_riot::fetch_opgg_summoner_matches(&game_name, &tag_line, &region, 8)?;
+        let (profile_res, matches_res) = std::thread::scope(|s| {
+            let h_profile =
+                s.spawn(|| baron_riot::fetch_opgg_summoner_profile(&game_name, &tag_line, &region));
+            let h_matches = s.spawn(|| {
+                baron_riot::fetch_opgg_summoner_matches(&game_name, &tag_line, &region, 10)
+            });
+            let profile = h_profile
+                .join()
+                .unwrap_or_else(|_| Err("OP.GG profile thread panicked".to_string()));
+            let matches = h_matches
+                .join()
+                .unwrap_or_else(|_| Err("OP.GG matches thread panicked".to_string()));
+            (profile, matches)
+        });
+        let profile = profile_res?;
+        let (matches, matches_error) = match matches_res {
+            Ok(m) => (m, Value::Null),
+            Err(err) => (
+                serde_json::json!({ "data": { "game_history": [] } }),
+                Value::String(err),
+            ),
+        };
         Ok(serde_json::json!({
             "profile": profile,
             "matches": matches,
+            "matchesError": matches_error,
         }))
     })
     .await
@@ -213,6 +272,19 @@ async fn get_opgg_leaderboard(region: String, champion: String) -> Result<Value,
     })
     .await
     .map_err(|e| format!("OP.GG leaderboard task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_opgg_multi_region_leaderboard(
+    champion: String,
+    regions: Option<Vec<String>>,
+) -> Result<Value, String> {
+    let target_regions = regions.unwrap_or_default();
+    tauri::async_runtime::spawn_blocking(move || {
+        baron_riot::fetch_opgg_multi_region_leaderboard(&champion, &target_regions)
+    })
+    .await
+    .map_err(|e| format!("OP.GG multi-region leaderboard task failed: {e}"))?
 }
 
 #[tauri::command]
@@ -302,11 +374,12 @@ async fn get_opgg_mode_tier_list(
     mode: String,
     role: Option<Role>,
     tier: Option<String>,
+    patch: Option<String>,
 ) -> Result<Vec<baron_riot::OpggModeTierEntry>, String> {
     let target_role = role.unwrap_or(Role::Unknown);
     let target_tier = tier.unwrap_or_else(|| "emerald_plus".to_string());
     tauri::async_runtime::spawn_blocking(move || {
-        baron_riot::fetch_opgg_mode_tier_list(&mode, target_role, &target_tier)
+        baron_riot::fetch_opgg_mode_tier_list(&mode, target_role, &target_tier, patch.as_deref())
     })
     .await
     .map_err(|e| format!("OP.GG mode tier list task failed: {e}"))?
@@ -319,6 +392,7 @@ async fn get_opgg_champion_bundle(
     role: Option<Role>,
     tier: Option<String>,
     region: Option<String>,
+    patch: Option<String>,
 ) -> Result<Value, String> {
     let target_mode = mode.unwrap_or_else(|| "ranked".to_string());
     let target_role = role.unwrap_or(Role::Unknown);
@@ -331,6 +405,7 @@ async fn get_opgg_champion_bundle(
             target_role,
             &target_tier,
             &target_region,
+            patch.as_deref(),
         )
     })
     .await
@@ -343,9 +418,11 @@ async fn get_ugg_champion_build(
     patch: Option<String>,
     role: Option<Role>,
 ) -> Result<baron_riot::UggBuildResponse, String> {
-    let target_patch = patch.unwrap_or_else(|| baron_riot::LATEST_PATCH.to_string());
     let target_role = role.unwrap_or(Role::Unknown);
     tauri::async_runtime::spawn_blocking(move || {
+        let target_patch = patch
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| baron_riot::fetch_live_patch_metadata(false).latest_patch);
         baron_riot::fetch_ugg_champion_build(&champion, &target_patch, target_role)
     })
     .await
@@ -365,8 +442,14 @@ async fn get_meraki_champion_kit(
 async fn get_provider_diagnostics(
     patch: Option<String>,
 ) -> Result<Vec<baron_riot::ProviderDiagnostic>, String> {
-    let target_patch = patch.unwrap_or_else(|| baron_riot::LATEST_PATCH.to_string());
-    Ok(baron_riot::get_provider_diagnostics(&target_patch))
+    tauri::async_runtime::spawn_blocking(move || {
+        let target_patch = patch
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| baron_riot::fetch_live_patch_metadata(false).latest_patch);
+        baron_riot::get_provider_diagnostics(&target_patch)
+    })
+    .await
+    .map_err(|e| format!("Provider diagnostics task failed: {e}"))
 }
 
 #[tauri::command]
@@ -374,6 +457,78 @@ async fn get_lcu_owned_skins() -> Result<Vec<OwnedSkinEntry>, String> {
     tauri::async_runtime::spawn_blocking(fetch_lcu_owned_skins)
         .await
         .map_err(|e| format!("LCU skins task failed: {e}"))?
+}
+
+fn theme_to_str(theme: Theme) -> &'static str {
+    match theme {
+        Theme::Light => "light",
+        _ => "dark",
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn detect_windows_apps_theme() -> Option<&'static str> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let output = std::process::Command::new("reg")
+        .args([
+            "query",
+            r"HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+            "/v",
+            "AppsUseLightTheme",
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for line in stdout.lines() {
+        if !line.contains("AppsUseLightTheme") {
+            continue;
+        }
+        if let Some(val) = line.split_whitespace().last() {
+            if val == "0x1" || val == "1" {
+                return Some("light");
+            }
+            if val == "0x0" || val == "0" {
+                return Some("dark");
+            }
+        }
+    }
+    None
+}
+
+fn detect_os_theme(window: &tauri::WebviewWindow) -> &'static str {
+    #[cfg(target_os = "windows")]
+    if let Some(win_theme) = detect_windows_apps_theme() {
+        return win_theme;
+    }
+    window.theme().map(theme_to_str).unwrap_or("dark")
+}
+
+#[tauri::command]
+fn get_os_theme(window: tauri::WebviewWindow) -> String {
+    detect_os_theme(&window).to_string()
+}
+
+#[tauri::command]
+fn set_app_theme(window: tauri::WebviewWindow, mode: String) -> String {
+    match mode.trim().to_ascii_lowercase().as_str() {
+        "light" => {
+            let _ = window.set_theme(Some(Theme::Light));
+            "light".to_string()
+        }
+        "dark" => {
+            let _ = window.set_theme(Some(Theme::Dark));
+            "dark".to_string()
+        }
+        _ => {
+            let _ = window.set_theme(None);
+            detect_os_theme(&window).to_string()
+        }
+    }
 }
 
 fn show_main_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
@@ -433,11 +588,19 @@ pub fn run() {
             tray_builder.build(app)?;
             Ok(())
         })
-        .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
+        .on_window_event(|window, event| match event {
+            WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
                 let _ = window.hide();
             }
+            WindowEvent::ThemeChanged(theme) => {
+                #[cfg(target_os = "windows")]
+                let os_theme = detect_windows_apps_theme().unwrap_or_else(|| theme_to_str(*theme));
+                #[cfg(not(target_os = "windows"))]
+                let os_theme = theme_to_str(*theme);
+                let _ = window.emit("baron://os-theme-changed", os_theme);
+            }
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             get_bootstrap_data,
@@ -447,6 +610,7 @@ pub fn run() {
             get_opgg_summoner_overview,
             get_opgg_game_detail,
             get_opgg_leaderboard,
+            get_opgg_multi_region_leaderboard,
             get_opgg_discounted_skins,
             get_opgg_esports_results,
             get_opgg_matchup_guide,
@@ -461,6 +625,8 @@ pub fn run() {
             get_lcu_player_context,
             import_opgg_runes_to_lcu,
             get_lcu_owned_skins,
+            get_os_theme,
+            set_app_theme,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Baron Tauri application");
@@ -474,7 +640,7 @@ mod tests {
     fn test_bootstrap_payload_uses_latest_patch_and_providers() {
         let payload = assemble_bootstrap_payload(None);
         assert_eq!(payload.app_title, "Baron");
-        assert_eq!(payload.latest_patch, "16.22");
+        assert_eq!(payload.latest_patch, "16.23");
         assert_eq!(payload.patches.len(), 13);
         assert_eq!(payload.providers[0].label, "OP.GG");
         assert_eq!(payload.providers[1].label, "U.GG");

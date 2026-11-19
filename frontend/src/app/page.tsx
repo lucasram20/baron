@@ -16,6 +16,7 @@ import { SpectateView } from "@/components/views/SpectateView";
 import { TierListView } from "@/components/views/TierListView";
 import { LATEST_DDRAGON, LATEST_PATCH, profileIconUrl } from "@/lib/ddragon";
 import {
+  ALL_OPGG_REGIONS,
   DEFAULT_PROVIDERS,
   fetchBootstrapData,
   fetchLcuPlayerContext,
@@ -76,7 +77,7 @@ export default function BaronAppPage() {
   );
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [patch, setPatch] = useState(LATEST_PATCH);
+  const [manualPatch, setManualPatch] = useState<string | null>(null);
   const [period, setPeriod] = useState("7 days");
   const [patchPopoverOpen, setPatchPopoverOpen] = useState(false);
   const [activeProviderId, setActiveProviderId] = useState("opgg");
@@ -84,7 +85,9 @@ export default function BaronAppPage() {
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [bootstrap, setBootstrap] = useState<BaronBootstrapPayload | null>(null);
   const [lcuPlayer, setLcuPlayer] = useState<LcuPlayerContext | null>(null);
-  const [supportedRegions, setSupportedRegions] = useState<OpggRegionOption[]>([]);
+  const [supportedRegions, setSupportedRegions] = useState<OpggRegionOption[]>(ALL_OPGG_REGIONS);
+
+  const patch = manualPatch ?? bootstrap?.latestPatch ?? LATEST_PATCH;
 
   const [summonerRegion, setSummonerRegion] = useState("KR");
   const [activeQuery, setActiveQuery] = useState<{
@@ -166,7 +169,7 @@ export default function BaronAppPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchBootstrapData(patch).then((payload) => {
+    fetchBootstrapData(manualPatch ?? undefined, false).then((payload) => {
       if (!cancelled) {
         setBootstrap(payload);
         if (payload.lcuPlayer) {
@@ -176,7 +179,7 @@ export default function BaronAppPage() {
     });
     fetchOpggRegions()
       .then((list) => {
-        if (!cancelled && Array.isArray(list)) {
+        if (!cancelled && Array.isArray(list) && list.length > 0) {
           setSupportedRegions(list);
         }
       })
@@ -186,7 +189,7 @@ export default function BaronAppPage() {
     return () => {
       cancelled = true;
     };
-  }, [patch]);
+  }, [manualPatch]);
 
   // Poll LCU every 10 seconds in desktop mode so logging into League or entering Champ Select auto-syncs.
   useEffect(() => {
@@ -221,19 +224,19 @@ export default function BaronAppPage() {
 
   const handleRefresh = useCallback(() => {
     setRefreshNonce((n) => n + 1);
-    fetchBootstrapData(patch).then((payload) => {
+    fetchBootstrapData(manualPatch ?? undefined, true).then((payload) => {
       setBootstrap(payload);
       setLcuPlayer(payload.lcuPlayer ?? null);
     });
     fetchOpggRegions()
       .then((list) => {
-        if (Array.isArray(list)) setSupportedRegions(list);
+        if (Array.isArray(list) && list.length > 0) setSupportedRegions(list);
       })
       .catch(() => {});
     if (activeQuery) {
       loadSummonerFromOpgg(activeQuery.gameName, activeQuery.tagLine, activeQuery.region);
     }
-  }, [patch, activeQuery, loadSummonerFromOpgg]);
+  }, [manualPatch, activeQuery, loadSummonerFromOpgg]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -324,7 +327,13 @@ export default function BaronAppPage() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         patch={patch}
-        onSelectPatch={setPatch}
+        availablePatches={bootstrap?.patches}
+        opggPatches={bootstrap?.opggPatches}
+        patchSyncedLive={bootstrap?.patchSyncedLive}
+        onSelectPatch={(nextPatch) => {
+          setManualPatch(nextPatch === bootstrap?.patches?.[0] ? null : nextPatch);
+          setPatchPopoverOpen(false);
+        }}
         period={period}
         onSelectPeriod={setPeriod}
         patchPopoverOpen={patchPopoverOpen}
@@ -379,10 +388,17 @@ export default function BaronAppPage() {
               <DashboardView
                 ddVersion={ddVersion}
                 patch={patch}
+                refreshNonce={refreshNonce}
                 onNavigate={navigateTo}
                 lcuPlayer={lcuPlayer}
                 isViewingLcuAccount={isViewingLcuAccount}
                 onSwitchToMyLcuAccount={handleSwitchToMyLcuAccount}
+                onClearSummoner={() => {
+                  setManualOverride(true);
+                  setActiveQuery(null);
+                  setSummonerData(null);
+                  setSummonerError(null);
+                }}
                 summonerData={summonerData}
                 summonerLoading={summonerLoading}
                 summonerError={summonerError}
@@ -414,6 +430,7 @@ export default function BaronAppPage() {
                 ddVersion={ddVersion}
                 regions={supportedRegions}
                 defaultRegion={lcuPlayer?.opggRegion ?? "KR"}
+                refreshNonce={refreshNonce}
                 onLookupSummoner={handleLookupSummoner}
               />
             )}
