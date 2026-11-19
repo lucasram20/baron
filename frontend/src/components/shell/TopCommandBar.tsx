@@ -223,7 +223,7 @@ export function TopCommandBar({
                 BARON
               </span>
               <span className="text-[9.5px] font-semibold tracking-[0.06em] text-baron-ink-muted uppercase">
-                v0.1.0
+                v0.2.0
               </span>
             </div>
           )}

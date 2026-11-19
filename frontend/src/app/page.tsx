@@ -303,24 +303,13 @@ export default function BaronAppPage() {
         region: lcuPlayer.opggRegion,
         tierLabel: lcuSolo?.tier
           ? `${lcuSolo.tier} ${lcuSolo.leaguePoints} LP`
-          : soloStat?.tier_info?.tier
+          : isViewingLcuAccount && soloStat?.tier_info?.tier
             ? `${soloStat.tier_info.tier} ${soloStat.tier_info.lp ?? 0} LP`
             : "Unranked",
         profileImageUrl: profileIconUrl(lcuPlayer.profileIconId || 1, ddVersion),
         isLcuAccount: true,
       }
-    : loadedSummoner?.game_name
-      ? {
-          gameName: loadedSummoner.game_name,
-          tagLine: loadedSummoner.tagline ?? "",
-          region: loadedSummoner.region ?? summonerRegion,
-          tierLabel: soloStat?.tier_info?.tier
-            ? `${soloStat.tier_info.tier} ${soloStat.tier_info.lp ?? 0} LP`
-            : "Unranked",
-          profileImageUrl: loadedSummoner.profile_image_url,
-          isLcuAccount: false,
-        }
-      : null;
+    : null;
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-baron-chrome text-baron-ink ring-1 ring-inset ring-baron-border/75">

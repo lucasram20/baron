@@ -24,7 +24,7 @@ Baron brings League of Legends draft assistance, live tier lists & multi-mode bu
 
 It uses a **Tauri v2** desktop shell with the OS native system WebView (**Edge WebView2** on Windows, **WKWebView** on macOS), a TypeScript **Next.js 16** (`React 19`) frontend powered by the **Node.js / JavaScript `node_modules` ecosystem** (installed and built via **Bun** into static `frontend/out/` assets), and a **100% native Rust backend**—so there is **no bundled Chromium / Electron browser binary** bloating the app.
 
-## Live Features & Current Capabilities (`v0.1.0-dev.15`)
+## Live Features & Current Capabilities (`v0.2.0`)
 
 - **Automated Live Patch Discovery (`16.23+`):** Automatically discovers the latest live Riot Data Dragon version (`versions.json`) and OP.GG Desktop API patch history (`/api/global/champions/ranked/versions`) at startup and on refresh—no manual codebase updates required when a new League patch drops.
 - **10-Mode Live OP.GG Tier Lists & Champion Builds:**
