@@ -415,6 +415,7 @@ export default function BaronAppPage() {
                 searchFilter={searchQuery}
                 initialSelectedChampion={buildTarget}
                 patch={patch}
+                period={period}
                 ddVersion={ddVersion}
                 defaultRegion={lcuPlayer?.opggRegion ?? "NA"}
               />

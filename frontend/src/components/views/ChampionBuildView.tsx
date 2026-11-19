@@ -45,12 +45,15 @@ import {
 } from "@/lib/ddragon";
 import {
   asList,
+  fetchLolalyticsChampionBuild,
   fetchMerakiChampionKit,
   fetchOpggChampionBundle,
   fetchOpggMatchupGuide,
   fetchUggChampionBuild,
+  importOpggRunesToLcu,
   OPGG_GAME_MODES,
   OPGG_TIER_FILTERS,
+  type LolalyticsBuildResponse,
   type MerakiChampionDetail,
   type OpggChampionBundle,
   type OpggDesktopItemStat,
@@ -69,6 +72,7 @@ interface ChampionBuildViewProps {
   patch: string;
   ddVersion: string;
   region: string;
+  activeProviderId?: string;
   refreshNonce?: number;
   onChangeRole: (role: TierRole) => void;
   onChangeMode: (mode: OpggGameMode) => void;
@@ -131,6 +135,7 @@ export function ChampionBuildView({
   patch,
   ddVersion,
   region,
+  activeProviderId = "opgg",
   refreshNonce = 0,
   onChangeRole,
   onChangeMode,
@@ -139,7 +144,9 @@ export function ChampionBuildView({
   onBack,
 }: ChampionBuildViewProps) {
   const { resolved } = useTheme();
-  const [subTab, setSubTab] = useState<BuildSubTab>("build");
+  const [subTab, setSubTab] = useState<BuildSubTab>(
+    activeProviderId === "ugg" || activeProviderId === "lolalytics" ? "providers" : "build",
+  );
   const [showMoreModes, setShowMoreModes] = useState(false);
   const [bundleState, setBundleState] = useState<{
     key: string;
@@ -164,11 +171,19 @@ export function ChampionBuildView({
     error: string | null;
   }>({ key: "", data: null, error: null });
 
+  const [lolaState, setLolaState] = useState<{
+    key: string;
+    data: LolalyticsBuildResponse | null;
+    error: string | null;
+  }>({ key: "", data: null, error: null });
+
   const [merakiState, setMerakiState] = useState<{
     key: string;
     data: MerakiChampionDetail | null;
     error: string | null;
   }>({ key: "", data: null, error: null });
+
+  const [providerImportMsg, setProviderImportMsg] = useState<string | null>(null);
 
   const activeModeDef = OPGG_GAME_MODES.find((m) => m.id === mode) ?? OPGG_GAME_MODES[0];
   const reqKey = `${champion}:${mode}:${role}:${tierFilter}:${region}:${patch}:${refreshNonce}`;
@@ -221,7 +236,7 @@ export function ChampionBuildView({
     };
   }, [champion, mode, role, tierFilter, region, ddVersion, patch, reqKey]);
 
-  const compareKey = `${champion}:${patch}:${role}:${refreshNonce}`;
+  const compareKey = `${champion}:${patch}:${role}:${tierFilter}:${refreshNonce}`;
   useEffect(() => {
     if (subTab !== "providers") return;
     let cancelled = false;
@@ -236,6 +251,21 @@ export function ChampionBuildView({
               key: compareKey,
               data: null,
               error: err instanceof Error ? err.message : "U.GG build request failed",
+            });
+          }
+        });
+    }
+    if (lolaState.key !== compareKey) {
+      fetchLolalyticsChampionBuild(champion, role, tierFilter, patch)
+        .then((data) => {
+          if (!cancelled) setLolaState({ key: compareKey, data, error: null });
+        })
+        .catch((err: unknown) => {
+          if (!cancelled) {
+            setLolaState({
+              key: compareKey,
+              data: null,
+              error: err instanceof Error ? err.message : "LoLalytics build request failed",
             });
           }
         });
@@ -266,10 +296,12 @@ export function ChampionBuildView({
     champion,
     patch,
     role,
+    tierFilter,
     compareKey,
     bundle?.championId,
     ddVersion,
     uggState.key,
+    lolaState.key,
     merakiState.key,
   ]);
 
@@ -715,7 +747,7 @@ export function ChampionBuildView({
               { id: "build", label: "Build" },
               { id: "counters", label: "Counters & Matchups" },
               { id: "synergies", label: "Synergies & Late Items" },
-              { id: "providers", label: "Compare: U.GG & Meraki" },
+              { id: "providers", label: "Compare: U.GG, LoLalytics & Meraki" },
               { id: "skins", label: "Skins & Patch Trends" },
             ] as { id: BuildSubTab; label: string }[]
           ).map((t) => (
@@ -1911,122 +1943,462 @@ export function ChampionBuildView({
           </div>
         )}
 
-        {/* SUBTAB: COMPARE PROVIDERS (LIVE U.GG + MERAKI CDN) */}
+        {/* SUBTAB: COMPARE PROVIDERS (LIVE U.GG + LOLALYTICS + MERAKI CDN) */}
         {!isLoading && !error && subTab === "providers" && (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {/* Live U.GG Overview */}
-            <section className="rounded-xl border border-baron-border bg-baron-surface p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-[13.5px] font-bold text-baron-ink">
-                  U.GG Live Overview Build ({role})
-                </h2>
-                <span className="rounded bg-baron-emerald/15 px-2 py-0.5 text-[10px] font-bold text-baron-emerald">
-                  stats2.u.gg JSON
-                </span>
+          <div className="space-y-4">
+            {providerImportMsg && (
+              <div className="rounded-lg border border-baron-emerald/35 bg-baron-emerald/10 px-3.5 py-2 text-[12px] font-medium text-baron-emerald">
+                {providerImportMsg}
               </div>
+            )}
 
-              {uggState.key !== compareKey ? (
-                <Skeleton className="h-48 w-full rounded-lg bg-baron-inset" />
-              ) : uggState.error || !uggState.data ? (
-                <div className="rounded-lg border border-baron-border bg-baron-inset p-4 text-[12px] text-baron-ink-secondary">
-                  {uggState.error ?? "No U.GG build returned for this role."}
-                </div>
-              ) : (
-                <div className="space-y-3 text-[12px]">
-                  <div className="flex items-center justify-between rounded-lg border border-baron-border bg-baron-inset px-3 py-2 tabular-nums">
-                    <span>
-                      Tier: <strong>{uggState.data.tierLabel}</strong> · Priority:{" "}
-                      <strong>{uggState.data.skillPriority}</strong>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {/* Live U.GG Overview & Counters */}
+              <section
+                className={`rounded-xl border bg-baron-surface p-4 ${
+                  activeProviderId === "ugg"
+                    ? "border-baron-accent/60 shadow-[inset_0_1px_0_rgba(242,149,96,0.2)]"
+                    : "border-baron-border"
+                }`}
+              >
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-[13.5px] font-bold text-baron-ink">
+                    U.GG Live Overview Build ({role})
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded bg-baron-emerald/15 px-2 py-0.5 text-[10px] font-bold text-baron-emerald">
+                      stats2.u.gg JSON
                     </span>
-                    <span className="font-extrabold text-baron-victory">
-                      {uggState.data.roleWinRate.toFixed(2)}% WR (
-                      {uggState.data.roleGames.toLocaleString()} Games)
-                    </span>
+                    {uggState.data && uggState.data.runes.length >= 6 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          const d = uggState.data;
+                          if (!d) return;
+                          const perks = [...d.runes.slice(0, 6), ...d.statShards.slice(0, 3)];
+                          if (perks.length < 9) return;
+                          try {
+                            const res = await importOpggRunesToLcu(
+                              champion,
+                              d.primaryStyle,
+                              d.subStyle,
+                              perks,
+                            );
+                            setProviderImportMsg(`U.GG → ${res.message}`);
+                          } catch (err: unknown) {
+                            setProviderImportMsg(
+                              err instanceof Error ? err.message : "LCU rune import failed",
+                            );
+                          }
+                        }}
+                        className="h-6 border-baron-accent/40 bg-baron-accent/12 px-2 text-[10.5px] font-bold text-baron-accent-soft hover:bg-baron-accent/20"
+                      >
+                        Import Runes to LCU
+                      </Button>
+                    )}
                   </div>
+                </div>
 
-                  <div>
-                    <div className="mb-1.5 text-[10.5px] font-bold uppercase text-baron-ink-muted">
-                      U.GG Runes &amp; Shards
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-baron-border bg-baron-inset p-2.5">
-                      <img
-                        src={runeIconUrl(
-                          runeMeta[uggState.data.primaryStyle]?.icon ??
-                            RUNE_STYLE_ICON_FALLBACK[uggState.data.primaryStyle] ??
-                            RUNE_STYLE_ICON_FALLBACK[8000],
-                        )}
-                        alt="Primary"
-                        className="h-6 w-6 rounded-full"
-                      />
-                      <img
-                        src={runeIconUrl(
-                          runeMeta[uggState.data.subStyle]?.icon ??
-                            RUNE_STYLE_ICON_FALLBACK[uggState.data.subStyle] ??
-                            RUNE_STYLE_ICON_FALLBACK[8400],
-                        )}
-                        alt="Secondary"
-                        className="h-5 w-5 rounded-full"
-                      />
-                      {uggState.data.runes.map((id, i) => {
-                        const icon = runeMeta[id]?.icon;
-                        return icon ? (
-                          <img
-                            key={`ugg-r-${i}`}
-                            src={runeIconUrl(icon)}
-                            alt={runeMeta[id]?.name ?? `Rune ${id}`}
-                            className="h-6 w-6 rounded-full border border-baron-border bg-baron-surface"
-                          />
-                        ) : null;
-                      })}
-                      <span className="text-[11px] text-baron-ink-muted">
-                        · {uggState.data.statShards.map((s) => statShardLabel(s)).join(" / ")}
+                {uggState.key !== compareKey ? (
+                  <Skeleton className="h-48 w-full rounded-lg bg-baron-inset" />
+                ) : uggState.error || !uggState.data ? (
+                  <div className="rounded-lg border border-baron-border bg-baron-inset p-4 text-[12px] text-baron-ink-secondary">
+                    {uggState.error ?? "No U.GG build returned for this role."}
+                  </div>
+                ) : (
+                  <div className="space-y-3 text-[12px]">
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-baron-border bg-baron-inset px-3 py-2 tabular-nums">
+                      <span>
+                        Tier: <strong>{uggState.data.tierLabel}</strong> · Priority:{" "}
+                        <strong>{uggState.data.skillPriority}</strong>
+                      </span>
+                      <span className="font-extrabold text-baron-victory">
+                        {uggState.data.roleWinRate.toFixed(2)}% WR (
+                        {uggState.data.roleGames.toLocaleString()} Games)
                       </span>
                     </div>
-                  </div>
 
-                  <div>
-                    <div className="mb-1.5 text-[10.5px] font-bold uppercase text-baron-ink-muted">
-                      U.GG Starters &amp; Core Items
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-baron-border bg-baron-inset p-2.5">
-                      {uggState.data.starterItems.map((id, i) => (
-                        <span key={`us-${i}`}>{renderItemImg(id, "h-7 w-7")}</span>
-                      ))}
-                      <ChevronRight className="h-3.5 w-3.5 text-baron-ink-muted" />
-                      {uggState.data.coreItems.map((id, i) => (
-                        <span key={`uc-${i}`}>{renderItemImg(id, "h-8 w-8")}</span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {uggState.data.fourthItems.length > 0 && (
                     <div>
                       <div className="mb-1.5 text-[10.5px] font-bold uppercase text-baron-ink-muted">
-                        U.GG 4th Item Options
+                        U.GG Runes &amp; Shards
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {uggState.data.fourthItems.slice(0, 4).map((it) => (
-                          <div
-                            key={`u4-${it.itemId}`}
-                            className="flex items-center justify-between rounded border border-baron-border bg-baron-inset px-2.5 py-1.5 tabular-nums"
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              {renderItemImg(it.itemId, "h-6 w-6 shrink-0")}
-                              <span className="truncate text-[11px]">
-                                {itemCatalog[it.itemId]?.name ?? `#${it.itemId}`}
-                              </span>
-                            </div>
-                            <span className="font-bold text-baron-victory">
-                              {it.winRate.toFixed(1)}%
-                            </span>
-                          </div>
+                      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-baron-border bg-baron-inset p-2.5">
+                        <img
+                          src={runeIconUrl(
+                            runeMeta[uggState.data.primaryStyle]?.icon ??
+                              RUNE_STYLE_ICON_FALLBACK[uggState.data.primaryStyle] ??
+                              RUNE_STYLE_ICON_FALLBACK[8000],
+                          )}
+                          alt="Primary"
+                          className="h-6 w-6 rounded-full"
+                        />
+                        <img
+                          src={runeIconUrl(
+                            runeMeta[uggState.data.subStyle]?.icon ??
+                              RUNE_STYLE_ICON_FALLBACK[uggState.data.subStyle] ??
+                              RUNE_STYLE_ICON_FALLBACK[8400],
+                          )}
+                          alt="Secondary"
+                          className="h-5 w-5 rounded-full"
+                        />
+                        {uggState.data.runes.map((id, i) => {
+                          const icon = runeMeta[id]?.icon;
+                          return icon ? (
+                            <img
+                              key={`ugg-r-${i}`}
+                              src={runeIconUrl(icon)}
+                              alt={runeMeta[id]?.name ?? `Rune ${id}`}
+                              className="h-6 w-6 rounded-full border border-baron-border bg-baron-surface"
+                            />
+                          ) : null;
+                        })}
+                        <span className="text-[11px] text-baron-ink-muted">
+                          · {uggState.data.statShards.map((s) => statShardLabel(s)).join(" / ")}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-1.5 text-[10.5px] font-bold uppercase text-baron-ink-muted">
+                        U.GG Starters &amp; Core Items
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-baron-border bg-baron-inset p-2.5">
+                        {uggState.data.starterItems.map((id, i) => (
+                          <span key={`us-${i}`}>{renderItemImg(id, "h-7 w-7")}</span>
+                        ))}
+                        <ChevronRight className="h-3.5 w-3.5 text-baron-ink-muted" />
+                        {uggState.data.coreItems.map((id, i) => (
+                          <span key={`uc-${i}`}>{renderItemImg(id, "h-8 w-8")}</span>
                         ))}
                       </div>
                     </div>
-                  )}
+
+                    {uggState.data.fourthItems.length > 0 && (
+                      <div>
+                        <div className="mb-1.5 text-[10.5px] font-bold uppercase text-baron-ink-muted">
+                          U.GG 4th Item Options
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {uggState.data.fourthItems.slice(0, 4).map((it) => (
+                            <div
+                              key={`u4-${it.itemId}`}
+                              className="flex items-center justify-between rounded border border-baron-border bg-baron-inset px-2.5 py-1.5 tabular-nums"
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                {renderItemImg(it.itemId, "h-6 w-6 shrink-0")}
+                                <span className="truncate text-[11px]">
+                                  {itemCatalog[it.itemId]?.name ?? `#${it.itemId}`}
+                                </span>
+                              </div>
+                              <span className="font-bold text-baron-victory">
+                                {it.winRate.toFixed(1)}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {((uggState.data.worstAgainst?.length ?? 0) > 0 ||
+                      (uggState.data.bestAgainst?.length ?? 0) > 0) && (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div>
+                          <div className="mb-1 text-[10px] font-bold uppercase text-baron-defeat">
+                            U.GG Toughest Counters
+                          </div>
+                          <div className="space-y-1">
+                            {(uggState.data.worstAgainst ?? []).slice(0, 4).map((c) => (
+                              <div
+                                key={`uw-${c.championId}`}
+                                className="flex items-center justify-between rounded border border-baron-border bg-baron-inset px-2 py-1 text-[11px] tabular-nums"
+                              >
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <img
+                                    src={champSquareUrl(c.championKey, ddVersion)}
+                                    alt={c.championName}
+                                    className="h-4 w-4 rounded-[2px]"
+                                  />
+                                  <span className="truncate">{c.championName}</span>
+                                </span>
+                                <span className="font-bold text-baron-defeat">
+                                  {c.winRate.toFixed(1)}%
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="mb-1 text-[10px] font-bold uppercase text-baron-emerald">
+                            U.GG Strong Against
+                          </div>
+                          <div className="space-y-1">
+                            {(uggState.data.bestAgainst ?? []).slice(0, 4).map((c) => (
+                              <div
+                                key={`ub-${c.championId}`}
+                                className="flex items-center justify-between rounded border border-baron-border bg-baron-inset px-2 py-1 text-[11px] tabular-nums"
+                              >
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <img
+                                    src={champSquareUrl(c.championKey, ddVersion)}
+                                    alt={c.championName}
+                                    className="h-4 w-4 rounded-[2px]"
+                                  />
+                                  <span className="truncate">{c.championName}</span>
+                                </span>
+                                <span className="font-bold text-baron-emerald">
+                                  {c.winRate.toFixed(1)}%
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+
+              {/* Live LoLalytics Build & Analytics */}
+              <section
+                className={`rounded-xl border bg-baron-surface p-4 ${
+                  activeProviderId === "lolalytics"
+                    ? "border-baron-accent/60 shadow-[inset_0_1px_0_rgba(242,149,96,0.2)]"
+                    : "border-baron-border"
+                }`}
+              >
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-[13.5px] font-bold text-baron-ink">
+                    LoLalytics Live Build ({role})
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded bg-baron-accent/15 px-2 py-0.5 text-[10px] font-bold text-baron-accent-soft">
+                      a1.lolalytics.com JSON
+                    </span>
+                    {lolaState.data?.mostCommonRunes && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          const r = lolaState.data?.mostCommonRunes;
+                          if (!r) return;
+                          const perks = [
+                            ...r.primaryPerks.slice(0, 4),
+                            ...r.secondaryPerks.slice(0, 2),
+                            ...r.statShards.slice(0, 3),
+                          ];
+                          if (perks.length < 9) return;
+                          try {
+                            const res = await importOpggRunesToLcu(
+                              champion,
+                              r.primaryStyle,
+                              r.subStyle,
+                              perks,
+                            );
+                            setProviderImportMsg(`LoLalytics → ${res.message}`);
+                          } catch (err: unknown) {
+                            setProviderImportMsg(
+                              err instanceof Error ? err.message : "LCU rune import failed",
+                            );
+                          }
+                        }}
+                        className="h-6 border-baron-accent/40 bg-baron-accent/12 px-2 text-[10.5px] font-bold text-baron-accent-soft hover:bg-baron-accent/20"
+                      >
+                        Import Runes to LCU
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              )}
-            </section>
+
+                {lolaState.key !== compareKey ? (
+                  <Skeleton className="h-48 w-full rounded-lg bg-baron-inset" />
+                ) : lolaState.error || !lolaState.data ? (
+                  <div className="rounded-lg border border-baron-border bg-baron-inset p-4 text-[12px] text-baron-ink-secondary">
+                    {lolaState.error ?? "No LoLalytics build returned for this role."}
+                  </div>
+                ) : (
+                  <div className="space-y-3 text-[12px]">
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-baron-border bg-baron-inset px-3 py-2 tabular-nums">
+                      <span>
+                        {lolaState.data.tierLabel} · Pick{" "}
+                        <strong>{lolaState.data.pickRate.toFixed(2)}%</strong> · Ban{" "}
+                        <strong>{lolaState.data.banRate.toFixed(2)}%</strong>
+                      </span>
+                      <span className="font-extrabold text-baron-victory">
+                        {lolaState.data.winRate.toFixed(2)}% WR (
+                        {lolaState.data.games.toLocaleString()}G)
+                      </span>
+                    </div>
+
+                    {lolaState.data.mostCommonRunes && (
+                      <div>
+                        <div className="mb-1.5 text-[10.5px] font-bold uppercase text-baron-ink-muted">
+                          Most Common Runes ({lolaState.data.mostCommonRunes.winRate.toFixed(2)}% WR
+                          · {lolaState.data.mostCommonRunes.games.toLocaleString()}G)
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-baron-border bg-baron-inset p-2.5">
+                          <img
+                            src={runeIconUrl(
+                              runeMeta[lolaState.data.mostCommonRunes.primaryStyle]?.icon ??
+                                RUNE_STYLE_ICON_FALLBACK[
+                                  lolaState.data.mostCommonRunes.primaryStyle
+                                ] ??
+                                RUNE_STYLE_ICON_FALLBACK[8000],
+                            )}
+                            alt="Primary"
+                            className="h-6 w-6 rounded-full"
+                          />
+                          <img
+                            src={runeIconUrl(
+                              runeMeta[lolaState.data.mostCommonRunes.subStyle]?.icon ??
+                                RUNE_STYLE_ICON_FALLBACK[lolaState.data.mostCommonRunes.subStyle] ??
+                                RUNE_STYLE_ICON_FALLBACK[8400],
+                            )}
+                            alt="Secondary"
+                            className="h-5 w-5 rounded-full"
+                          />
+                          {[
+                            ...lolaState.data.mostCommonRunes.primaryPerks,
+                            ...lolaState.data.mostCommonRunes.secondaryPerks,
+                          ].map((id, i) => {
+                            const icon = runeMeta[id]?.icon;
+                            return icon ? (
+                              <img
+                                key={`lola-r-${i}`}
+                                src={runeIconUrl(icon)}
+                                alt={runeMeta[id]?.name ?? `Rune ${id}`}
+                                className="h-6 w-6 rounded-full border border-baron-border bg-baron-surface"
+                              />
+                            ) : null;
+                          })}
+                          <span className="text-[11px] text-baron-ink-muted">
+                            ·{" "}
+                            {lolaState.data.mostCommonRunes.statShards
+                              .map((s) => statShardLabel(s))
+                              .join(" / ")}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {lolaState.data.corePaths.length > 0 && (
+                      <div>
+                        <div className="mb-1.5 text-[10.5px] font-bold uppercase text-baron-ink-muted">
+                          LoLalytics Core Item Paths
+                        </div>
+                        <div className="space-y-1.5">
+                          {lolaState.data.corePaths.slice(0, 3).map((path, idx) => (
+                            <div
+                              key={`lola-core-${idx}`}
+                              className="flex items-center justify-between rounded-lg border border-baron-border bg-baron-inset px-2.5 py-1.5 tabular-nums"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                {path.itemIds.map((id, i) => (
+                                  <span key={`lc-${idx}-${i}`}>{renderItemImg(id, "h-7 w-7")}</span>
+                                ))}
+                              </div>
+                              <div className="text-right text-[11px]">
+                                <span className="font-bold text-baron-victory">
+                                  {path.winRate.toFixed(1)}% WR
+                                </span>{" "}
+                                <span className="text-baron-ink-muted">({path.games}G)</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {(lolaState.data.weakAgainst.length > 0 ||
+                      lolaState.data.strongAgainst.length > 0) && (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div>
+                          <div className="mb-1 text-[10px] font-bold uppercase text-baron-defeat">
+                            LoLalytics Hard Counters (Δ1)
+                          </div>
+                          <div className="space-y-1">
+                            {lolaState.data.weakAgainst.slice(0, 4).map((c) => (
+                              <div
+                                key={`lw-${c.championId}`}
+                                className="flex items-center justify-between rounded border border-baron-border bg-baron-inset px-2 py-1 text-[11px] tabular-nums"
+                              >
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <img
+                                    src={champSquareUrl(c.championKey, ddVersion)}
+                                    alt={c.championName}
+                                    className="h-4 w-4 rounded-[2px]"
+                                  />
+                                  <span className="truncate">{c.championName}</span>
+                                </span>
+                                <span className="font-bold text-baron-defeat">
+                                  {c.winRate.toFixed(1)}% ({c.delta1 >= 0 ? "+" : ""}
+                                  {c.delta1.toFixed(1)})
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="mb-1 text-[10px] font-bold uppercase text-baron-emerald">
+                            LoLalytics Best Matchups (Δ1)
+                          </div>
+                          <div className="space-y-1">
+                            {lolaState.data.strongAgainst.slice(0, 4).map((c) => (
+                              <div
+                                key={`ls-${c.championId}`}
+                                className="flex items-center justify-between rounded border border-baron-border bg-baron-inset px-2 py-1 text-[11px] tabular-nums"
+                              >
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <img
+                                    src={champSquareUrl(c.championKey, ddVersion)}
+                                    alt={c.championName}
+                                    className="h-4 w-4 rounded-[2px]"
+                                  />
+                                  <span className="truncate">{c.championName}</span>
+                                </span>
+                                <span className="font-bold text-baron-emerald">
+                                  {c.winRate.toFixed(1)}% (+{c.delta1.toFixed(1)})
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {lolaState.data.synergies.length > 0 && (
+                      <div>
+                        <div className="mb-1 text-[10px] font-bold uppercase text-baron-ink-muted">
+                          Top Ally Synergies (Δ1)
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {lolaState.data.synergies.slice(0, 4).map((s) => (
+                            <div
+                              key={`lsyn-${s.championId}-${s.role}`}
+                              className="flex items-center justify-between rounded border border-baron-border bg-baron-inset px-2 py-1 text-[11px] tabular-nums"
+                            >
+                              <span className="flex items-center gap-1.5 truncate">
+                                <img
+                                  src={champSquareUrl(s.championKey, ddVersion)}
+                                  alt={s.championName}
+                                  className="h-4 w-4 rounded-[2px]"
+                                />
+                                <span className="truncate">{s.championName}</span>
+                              </span>
+                              <span className="font-bold text-baron-cyan">
+                                {s.winRate.toFixed(1)}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            </div>
 
             {/* Live Meraki CDN Champion Kit Reference */}
             <section className="rounded-xl border border-baron-border bg-baron-surface p-4">
@@ -2040,7 +2412,7 @@ export function ChampionBuildView({
               </div>
 
               {merakiState.key !== champion ? (
-                <Skeleton className="h-48 w-full rounded-lg bg-baron-inset" />
+                <Skeleton className="h-36 w-full rounded-lg bg-baron-inset" />
               ) : merakiState.error || !merakiState.data ? (
                 <div className="rounded-lg border border-baron-border bg-baron-inset p-4 text-[12px] text-baron-ink-secondary">
                   {merakiState.error ?? "Meraki CDN champion kit not loaded."}
@@ -2057,11 +2429,15 @@ export function ChampionBuildView({
                     </span>
                     <span>·</span>
                     <span>
+                      Resource: <strong>{merakiState.data.resource}</strong>
+                    </span>
+                    <span>·</span>
+                    <span>
                       Last Changed: <strong>{merakiState.data.patchLastChanged}</strong>
                     </span>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
                     {(["P", "Q", "W", "E", "R"] as const).map((slot) => {
                       const forms = merakiState.data?.abilities?.[slot] ?? [];
                       const primary = forms[0];
@@ -2071,11 +2447,11 @@ export function ChampionBuildView({
                           key={`mk-${slot}`}
                           className="rounded-lg border border-baron-border bg-baron-inset p-2.5"
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-baron-ink">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate font-bold text-baron-ink">
                               {slot} · {primary.name}
                             </span>
-                            <span className="text-[10.5px] text-baron-accent-soft tabular-nums">
+                            <span className="shrink-0 text-[10.5px] text-baron-accent-soft tabular-nums">
                               {primary.cooldown ? `CD ${primary.cooldown}s` : ""}{" "}
                               {primary.cost ? `· Cost ${primary.cost}` : ""}
                             </span>

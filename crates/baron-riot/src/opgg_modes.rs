@@ -1,7 +1,12 @@
 use crate::providers::http_get_json;
+use crate::providers::lolalytics::{
+    fetch_lolalytics_champion_build, fetch_lolalytics_tier_list, LolalyticsBuildResponse,
+};
 use crate::providers::meraki::{fetch_meraki_champion_detail, MerakiChampionDetail};
 use crate::providers::opgg::call_opgg_tool_json;
-use crate::providers::ugg::{fetch_ugg_champion_overview, UggBuildResponse};
+use crate::providers::ugg::{
+    fetch_ugg_champion_overview_with_catalog, fetch_ugg_tier_list, UggBuildResponse,
+};
 use baron_core::models::Role;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -946,76 +951,147 @@ pub fn fetch_opgg_champion_bundle(
     }))
 }
 
-/// Fetch live U.GG Ranked Solo/Duo champion build by resolving name/key via OP.GG live catalog.
+fn champion_catalog_map() -> HashMap<u32, OpggCatalogEntry> {
+    fetch_opgg_champions_catalog()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|c| (c.champion_id, c))
+        .collect()
+}
+
+/// Fetch live U.GG Ranked Solo/Duo champion build & lane counters by resolving name/key via live catalog.
 pub fn fetch_ugg_champion_build(
     champion: &str,
     patch: &str,
     role: Role,
 ) -> Result<UggBuildResponse, String> {
     let entry = resolve_champion_entry(champion)?;
-    fetch_ugg_champion_overview(entry.champion_id, patch, role)
+    let catalog = champion_catalog_map();
+    fetch_ugg_champion_overview_with_catalog(entry.champion_id, patch, role, &catalog)
+}
+
+/// Fetch live U.GG champion tier list (`ranked`, `flex`, or `aram`) directly from `stats2.u.gg`.
+pub fn fetch_ugg_tier_list_for_mode(
+    mode: &str,
+    role: Role,
+    tier: &str,
+    patch: Option<&str>,
+) -> Result<Vec<OpggModeTierEntry>, String> {
+    let resolved_patch = patch
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| crate::assets::fetch_live_patch_metadata(false).latest_patch);
+    let catalog = champion_catalog_map();
+    fetch_ugg_tier_list(mode, role, tier, &resolved_patch, &catalog)
+}
+
+/// Fetch live LoLalytics Ranked Solo/Duo tier list directly from `a1.lolalytics.com/mega/?ep=tier`.
+pub fn fetch_lolalytics_tier_list_for_role(
+    role: Role,
+    tier: &str,
+    patch: Option<&str>,
+    period: Option<&str>,
+) -> Result<Vec<OpggModeTierEntry>, String> {
+    let catalog = champion_catalog_map();
+    fetch_lolalytics_tier_list(role, tier, patch, period, &catalog)
+}
+
+/// Fetch live LoLalytics champion build (runes, core item sets, counters & ally synergies).
+pub fn fetch_lolalytics_champion_build_by_name(
+    champion: &str,
+    role: Role,
+    tier: &str,
+    patch: Option<&str>,
+) -> Result<LolalyticsBuildResponse, String> {
+    let entry = resolve_champion_entry(champion)?;
+    let catalog = champion_catalog_map();
+    fetch_lolalytics_champion_build(&entry, role, tier, patch, &catalog)
+}
+
+/// Unified multi-provider live tier-list dispatcher supporting OP.GG, U.GG, and LoLalytics.
+pub fn fetch_unified_provider_tier_list(
+    provider_id: &str,
+    mode: &str,
+    role: Role,
+    tier: &str,
+    patch: Option<&str>,
+    period: Option<&str>,
+) -> Result<Vec<OpggModeTierEntry>, String> {
+    match provider_id.trim().to_ascii_lowercase().as_str() {
+        "ugg" => fetch_ugg_tier_list_for_mode(mode, role, tier, patch),
+        "lolalytics" => fetch_lolalytics_tier_list_for_role(role, tier, patch, period),
+        "opgg" | "" => fetch_opgg_mode_tier_list(mode, role, tier, patch),
+        other => Err(format!(
+            "Provider '{other}' does not provide a live open tier-list endpoint."
+        )),
+    }
 }
 
 /// Fetch live Meraki Analytics CDN champion kit & scaling reference by resolving name/key via OP.GG live catalog.
 pub fn fetch_meraki_champion_kit(champion: &str) -> Result<MerakiChampionDetail, String> {
     let entry = resolve_champion_entry(champion)?;
-    fetch_meraki_champion_detail(&entry.key)
+    fetch_meraki_champion_detail(&normalize_ddragon_champion_key(&entry.key))
 }
 
 /// Honest, empirically tested API capability matrix across all third-party providers.
 pub fn get_provider_diagnostics(patch: &str) -> Vec<ProviderDiagnostic> {
-    let slug = patch.trim().replace('.', "_");
+    let clean_patch = patch.trim();
+    let slug = crate::providers::ugg::ugg_patch_slug(clean_patch);
     vec![
         ProviderDiagnostic {
             id: "opgg".to_string(),
             name: "OP.GG".to_string(),
             tier_list_status: "Live".to_string(),
             build_data_status: "Live".to_string(),
-            summary: "Full official MCP + OP.GG Desktop JSON APIs covering Ranked, Flex, ARAM, ARAM: Mayhem, Arena, URF, Nexus Blitz, Brawl, Classic & Doom Bots.".to_string(),
+            summary: "Full official MCP + OP.GG Desktop JSON APIs covering all 10 game modes, 15-region leaderboards, summoner history, matchup guides & esports.".to_string(),
             sample_endpoint: format!(
-                "https://lol-api-champion.op.gg/api/global/champions/ranked?tier=emerald_plus&version={}",
-                patch.trim()
+                "https://lol-api-champion.op.gg/api/global/champions/ranked?tier=emerald_plus&version={clean_patch}"
             ),
         },
         ProviderDiagnostic {
             id: "ugg".to_string(),
             name: "U.GG".to_string(),
-            tier_list_status: "Blocked (HTTP 403)".to_string(),
+            tier_list_status: "Live".to_string(),
             build_data_status: "Live".to_string(),
-            summary: "stats2.u.gg serves open JSON per-champion Ranked Solo/Duo overview builds (runes, items, skill order, late options); global tier_list JSON is 403-restricted.".to_string(),
-            sample_endpoint: format!("https://stats2.u.gg/lol/1.5/overview/{slug}/ranked_solo_5x5/54/1.5.0.json"),
+            summary: "stats2.u.gg serves open JSON tier lists (Ranked Solo/Duo, Flex, ARAM via champion_ranking/world/...), per-champion builds (runes, items, skills), lane counters, and automated patch manifests via static.bigbrain.gg.".to_string(),
+            sample_endpoint: format!(
+                "https://stats2.u.gg/lol/1.5/champion_ranking/world/{slug}/ranked_solo_5x5/emerald_plus/1.5.0.json"
+            ),
+        },
+        ProviderDiagnostic {
+            id: "lolalytics".to_string(),
+            name: "LoLalytics".to_string(),
+            tier_list_status: "Live".to_string(),
+            build_data_status: "Live".to_string(),
+            summary: "a1.lolalytics.com/mega/ serves open JSON Ranked tier lists (ep=tier with S+..D- tiers & 7d/14d/30d windows), runes (ep=rune), core item sets (ep=build-itemset), counters (ep=counter) & ally synergies (ep=build-team).".to_string(),
+            sample_endpoint: format!(
+                "https://a1.lolalytics.com/mega/?ep=tier&p=d&v=1&patch={clean_patch}&lane=top&tier=emerald_plus&queue=ranked&region=all"
+            ),
         },
         ProviderDiagnostic {
             id: "merakicdn".to_string(),
             name: "Meraki CDN".to_string(),
             tier_list_status: "Not Provided".to_string(),
             build_data_status: "Live".to_string(),
-            summary: "cdn.merakianalytics.com serves open JSON champion kits, attack types, adaptive types, ability scaling notes, and base stats (no match winrates/tier lists).".to_string(),
+            summary: "cdn.merakianalytics.com serves open JSON champion kits (champions/{Key}.json), attack/adaptive types, ability scaling & item encyclopedia (items.json); does not publish match winrate tier lists.".to_string(),
             sample_endpoint: "https://cdn.merakianalytics.com/riot/lol/resources/latest/en-US/champions/Malphite.json".to_string(),
-        },
-        ProviderDiagnostic {
-            id: "lolalytics".to_string(),
-            name: "LoLalytics".to_string(),
-            tier_list_status: "Token Gated".to_string(),
-            build_data_status: "Token Gated".to_string(),
-            summary: "a1.lolalytics.com/mega/ requires signed session tokens/checksums (`valid: false` on unsigned requests).".to_string(),
-            sample_endpoint: "https://a1.lolalytics.com/mega/".to_string(),
         },
         ProviderDiagnostic {
             id: "dpmlol".to_string(),
             name: "DPM.LOL".to_string(),
             tier_list_status: "Blocked (CF 403)".to_string(),
             build_data_status: "Blocked (CF 403)".to_string(),
-            summary: "dpm.lol endpoints are protected behind Cloudflare managed challenge (HTTP 403); Baron does not bypass challenges.".to_string(),
-            sample_endpoint: "https://dpm.lol/api/v1/tier-list".to_string(),
+            summary: "dpm.lol endpoints are protected behind Cloudflare Managed Challenge (HTTP 403, no public API subdomain); Baron never bypasses anti-bot challenges.".to_string(),
+            sample_endpoint: "https://dpm.lol/tierlist".to_string(),
         },
         ProviderDiagnostic {
             id: "metasrc".to_string(),
             name: "MetaSRC".to_string(),
             tier_list_status: "Blocked (CF 403)".to_string(),
             build_data_status: "Blocked (CF 403)".to_string(),
-            summary: "metasrc.com is gated by Cloudflare managed challenge (HTTP 403); Baron does not bypass challenges.".to_string(),
-            sample_endpoint: "https://www.metasrc.com/lol".to_string(),
+            summary: "metasrc.com is gated by Cloudflare Managed Challenge (HTTP 403, no public JSON API); Baron never bypasses anti-bot challenges.".to_string(),
+            sample_endpoint: "https://www.metasrc.com/lol/5v5/tier-list".to_string(),
         },
     ]
 }

@@ -2172,20 +2172,20 @@ export function DataStudioView({
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-[12px] font-bold text-baron-ink">Meta &amp; Data Providers</h2>
           <span className="text-[11.5px] text-baron-ink-muted">
-            Only verified OP.GG MCP endpoints can be selected
+            Select any verified live open API provider (OP.GG, U.GG, or LoLalytics)
           </span>
         </div>
 
         <div className="baron-surface-card divide-y divide-baron-border overflow-hidden rounded-xl border border-baron-border bg-baron-surface">
           {providers.map((p) => {
             const available = isProviderAvailable(p.id);
-            const partialLive = p.id === "ugg" || p.id === "merakicdn";
+            const kitLive = p.id === "merakicdn";
             const active = activeProviderId === p.id;
             return (
               <div
                 key={p.id}
                 className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${
-                  available || partialLive ? "" : "opacity-55"
+                  available || kitLive ? "" : "opacity-60"
                 }`}
               >
                 <div className="min-w-0">
@@ -2195,11 +2195,9 @@ export function DataStudioView({
                       className={`h-2 w-2 rounded-full ${
                         available
                           ? "bg-baron-emerald"
-                          : p.id === "ugg"
-                            ? "bg-baron-victory"
-                            : p.id === "merakicdn"
-                              ? "bg-baron-cyan"
-                              : "bg-baron-ink-muted"
+                          : kitLive
+                            ? "bg-baron-cyan"
+                            : "bg-baron-ink-muted"
                       }`}
                     />
                     <span className="text-[13px] font-bold text-baron-ink">{p.label}</span>
@@ -2207,20 +2205,12 @@ export function DataStudioView({
                       className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
                         available
                           ? "bg-baron-emerald/15 text-baron-emerald"
-                          : p.id === "ugg"
-                            ? "bg-baron-victory/15 text-baron-victory"
-                            : p.id === "merakicdn"
-                              ? "bg-baron-cyan/15 text-baron-cyan"
-                              : "bg-baron-elevated text-baron-ink-muted"
+                          : kitLive
+                            ? "bg-baron-cyan/15 text-baron-cyan"
+                            : "bg-baron-elevated text-baron-ink-muted"
                       }`}
                     >
-                      {available
-                        ? "Live OP.GG MCP"
-                        : p.id === "ugg"
-                          ? "Builds Live"
-                          : p.id === "merakicdn"
-                            ? "Kit Live"
-                            : "Unavailable"}
+                      {available ? "Available" : kitLive ? "Kit Available" : "CF Gated (403)"}
                     </span>
                   </div>
                   <div className="mt-1 truncate font-mono text-[11px] text-baron-ink-muted">
@@ -2241,17 +2231,13 @@ export function DataStudioView({
                     {active && <Check className="h-3.5 w-3.5" />}
                     <span>{active ? "Active Provider" : "Use Provider"}</span>
                   </button>
-                ) : p.id === "ugg" ? (
-                  <span className="rounded-md border border-baron-victory/30 bg-baron-victory/10 px-2.5 py-1 text-[11px] font-medium text-baron-victory">
-                    Builds Live (Tierlist 403)
-                  </span>
-                ) : p.id === "merakicdn" ? (
+                ) : kitLive ? (
                   <span className="rounded-md border border-baron-cyan/30 bg-baron-cyan/10 px-2.5 py-1 text-[11px] font-medium text-baron-cyan">
-                    Kit Reference Only
+                    Kit &amp; Item Reference
                   </span>
                 ) : (
                   <span className="rounded-md border border-baron-border bg-baron-inset px-2.5 py-1 text-[11px] font-medium text-baron-ink-muted">
-                    Blocked / Token-Gated
+                    Cloudflare Managed Challenge
                   </span>
                 )}
               </div>

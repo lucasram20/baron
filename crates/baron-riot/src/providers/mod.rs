@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+pub(crate) mod lolalytics;
 pub(crate) mod meraki;
 pub(crate) mod opgg;
 pub(crate) mod ugg;

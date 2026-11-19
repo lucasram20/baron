@@ -1,7 +1,7 @@
 import { AVAILABLE_PATCHES, AVAILABLE_PERIODS, LATEST_DDRAGON, LATEST_PATCH } from "@/lib/ddragon";
 
 export function isProviderAvailable(id: string): boolean {
-  return id === "opgg";
+  return id === "opgg" || id === "ugg" || id === "lolalytics";
 }
 
 export interface ProviderMeta {
@@ -95,42 +95,42 @@ export const DEFAULT_PROVIDERS: ProviderMeta[] = [
   {
     id: "opgg",
     label: "OP.GG",
-    roleTag: "Primary #1",
+    roleTag: "Primary #1 (MCP + 10 Modes)",
     tierListUrl: "https://mcp-api.op.gg/mcp",
     sampleBuildUrl: "https://mcp-api.op.gg/mcp",
   },
   {
     id: "ugg",
     label: "U.GG",
-    roleTag: "Unavailable",
-    tierListUrl: `https://stats2.u.gg/lol/1.5/tier_list/${LATEST_PATCH}/ranked_solo_5x5.json`,
-    sampleBuildUrl: `https://stats2.u.gg/lol/1.5/overview/${LATEST_PATCH}/ranked_solo_5x5/Ahri/1.5.0.json`,
+    roleTag: "Live #2 (Tierlist + Builds)",
+    tierListUrl: `https://stats2.u.gg/lol/1.5/champion_ranking/world/${LATEST_PATCH.replace(".", "_")}/ranked_solo_5x5/emerald_plus/1.5.0.json`,
+    sampleBuildUrl: `https://stats2.u.gg/lol/1.5/overview/${LATEST_PATCH.replace(".", "_")}/ranked_solo_5x5/103/1.5.0.json`,
   },
   {
     id: "dpmlol",
     label: "DPM.LOL",
-    roleTag: "Unavailable",
-    tierListUrl: `https://dpm.lol/api/v1/tier-list?patch=${LATEST_PATCH}`,
+    roleTag: "Cloudflare Gated (403)",
+    tierListUrl: "https://dpm.lol/tierlist",
     sampleBuildUrl: `https://dpm.lol/api/v1/champions/Ahri/build?patch=${LATEST_PATCH}`,
   },
   {
     id: "lolalytics",
     label: "LoLalytics",
-    roleTag: "Unavailable",
-    tierListUrl: `https://a1.lolalytics.com/mega/?ep=tier&v=1&patch=${LATEST_PATCH}&tier=emerald_plus&queue=420&region=all`,
-    sampleBuildUrl: `https://a1.lolalytics.com/mega/?ep=champion&v=1&patch=${LATEST_PATCH}&c=ahri&lane=middle&tier=emerald_plus&queue=420&region=all`,
+    roleTag: "Live #3 (Tierlist + Builds)",
+    tierListUrl: `https://a1.lolalytics.com/mega/?ep=tier&p=d&v=1&patch=${LATEST_PATCH}&lane=top&tier=emerald_plus&queue=ranked&region=all`,
+    sampleBuildUrl: `https://a1.lolalytics.com/mega/?ep=rune&p=d&v=1&patch=${LATEST_PATCH}&c=ahri&lane=middle&tier=emerald_plus&queue=ranked&region=all`,
   },
   {
     id: "metasrc",
     label: "MetaSRC",
-    roleTag: "Unavailable",
+    roleTag: "Cloudflare Gated (403)",
     tierListUrl: `https://www.metasrc.com/lol/${LATEST_PATCH}/tier-list`,
     sampleBuildUrl: `https://www.metasrc.com/lol/${LATEST_PATCH}/build/ahri/middle`,
   },
   {
     id: "merakicdn",
     label: "Meraki CDN",
-    roleTag: "Unavailable",
+    roleTag: "Kit & Item Reference",
     tierListUrl: "https://cdn.merakianalytics.com/riot/lol/resources/latest/en-US/champions.json",
     sampleBuildUrl: "https://cdn.merakianalytics.com/riot/lol/resources/latest/en-US/champions/Ahri.json",
   },
@@ -1118,6 +1118,15 @@ export interface UggOptionStat {
   winRate: number;
 }
 
+export interface UggCounterEntry {
+  championId: number;
+  championKey: string;
+  championName: string;
+  wins: number;
+  games: number;
+  winRate: number;
+}
+
 export interface UggBuildResponse {
   championId: number;
   patch: string;
@@ -1142,6 +1151,69 @@ export interface UggBuildResponse {
   sixthItems: UggOptionStat[];
   skillOrder: string[];
   skillPriority: string;
+  bestAgainst?: UggCounterEntry[];
+  worstAgainst?: UggCounterEntry[];
+}
+
+export interface LolalyticsRuneSet {
+  primaryStyle: number;
+  subStyle: number;
+  primaryPerks: number[];
+  secondaryPerks: number[];
+  statShards: number[];
+  winRate: number;
+  games: number;
+}
+
+export interface LolalyticsItemBuild {
+  itemIds: number[];
+  games: number;
+  wins: number;
+  winRate: number;
+}
+
+export interface LolalyticsCounterEntry {
+  championId: number;
+  championKey: string;
+  championName: string;
+  winRate: number;
+  games: number;
+  delta1: number;
+  delta2: number;
+}
+
+export interface LolalyticsSynergyEntry {
+  championId: number;
+  championKey: string;
+  championName: string;
+  role: TierRole | "Unknown";
+  winRate: number;
+  delta1: number;
+  games: number;
+}
+
+export interface LolalyticsBuildResponse {
+  championId: number;
+  championKey: string;
+  championName: string;
+  patch: string;
+  role: TierRole;
+  tierLabel: string;
+  winRate: number;
+  pickRate: number;
+  banRate: number;
+  games: number;
+  avgWinRate: number;
+  mostCommonRunes: LolalyticsRuneSet | null;
+  highestWrRunes: LolalyticsRuneSet | null;
+  corePaths: LolalyticsItemBuild[];
+  firstItems: LolalyticsItemBuild[];
+  secondItems: LolalyticsItemBuild[];
+  thirdItems: LolalyticsItemBuild[];
+  strongAgainst: LolalyticsCounterEntry[];
+  weakAgainst: LolalyticsCounterEntry[];
+  synergies: LolalyticsSynergyEntry[];
+  endpointUrl: string;
 }
 
 export interface MerakiAbilitySpell {
@@ -1553,6 +1625,70 @@ export async function fetchUggChampionBuild(
   };
 }
 
+export async function fetchUnifiedProviderTierList(
+  provider: string,
+  mode: OpggGameMode,
+  role: TierRole | null,
+  tier: string = "emerald_plus",
+  ddVersion: string = LATEST_DDRAGON,
+  patch: string = LATEST_PATCH,
+  period?: string,
+): Promise<OpggModeTierEntry[]> {
+  if (isTauriRuntime()) {
+    return invokeTauri<OpggModeTierEntry[]>("get_unified_provider_tier_list", {
+      provider,
+      mode,
+      role,
+      tier,
+      patch,
+      period: period ?? null,
+    });
+  }
+  if (provider === "opgg" || !provider) {
+    return fetchOpggModeTierList(mode, role, tier, ddVersion, patch);
+  }
+  throw new Error(
+    `Live ${provider.toUpperCase()} tier list runs through the Baron desktop app Tauri runtime.`,
+  );
+}
+
+export async function fetchUggTierList(
+  mode: string = "ranked",
+  role: TierRole = "Top",
+  tier: string = "emerald_plus",
+  patch: string = LATEST_PATCH,
+): Promise<OpggModeTierEntry[]> {
+  return invokeTauri<OpggModeTierEntry[]>("get_ugg_tier_list", { mode, role, tier, patch });
+}
+
+export async function fetchLolalyticsTierList(
+  role: TierRole = "Top",
+  tier: string = "emerald_plus",
+  patch: string = LATEST_PATCH,
+  period?: string,
+): Promise<OpggModeTierEntry[]> {
+  return invokeTauri<OpggModeTierEntry[]>("get_lolalytics_tier_list", {
+    role,
+    tier,
+    patch,
+    period: period ?? null,
+  });
+}
+
+export async function fetchLolalyticsChampionBuild(
+  champion: string,
+  role: TierRole = "Middle",
+  tier: string = "emerald_plus",
+  patch: string = LATEST_PATCH,
+): Promise<LolalyticsBuildResponse> {
+  return invokeTauri<LolalyticsBuildResponse>("get_lolalytics_champion_build", {
+    champion,
+    role,
+    tier,
+    patch,
+  });
+}
+
 export async function fetchMerakiChampionKit(champion: string): Promise<MerakiChampionDetail> {
   if (!isTauriRuntime()) {
     throw new Error(
@@ -1574,17 +1710,26 @@ export async function fetchProviderDiagnostics(patch: string): Promise<ProviderD
       tierListStatus: "Live",
       buildDataStatus: "Live",
       summary:
-        "Official MCP + OP.GG Desktop JSON APIs covering Ranked, Flex, ARAM, ARAM: Mayhem, Arena, URF, Nexus Blitz, Brawl, Classic & Doom Bots.",
+        "Full official MCP + OP.GG Desktop JSON APIs covering all 10 game modes, 15-region leaderboards, summoner history, matchup guides & esports.",
       sampleEndpoint: `https://lol-api-champion.op.gg/api/global/champions/ranked?tier=emerald_plus&version=${encodeURIComponent(patch)}`,
     },
     {
       id: "ugg",
       name: "U.GG",
-      tierListStatus: "Blocked (HTTP 403)",
+      tierListStatus: "Live",
       buildDataStatus: "Live",
       summary:
-        "stats2.u.gg serves open JSON per-champion Ranked Solo/Duo overview builds (runes, items, skill order, late options); global tier_list JSON is 403-restricted.",
-      sampleEndpoint: `https://stats2.u.gg/lol/1.5/overview/${slug}/ranked_solo_5x5/54/1.5.0.json`,
+        "stats2.u.gg serves open JSON tier lists (Ranked Solo/Duo, Flex, ARAM via champion_ranking/world/...), per-champion builds, lane counters & automated patch manifests.",
+      sampleEndpoint: `https://stats2.u.gg/lol/1.5/champion_ranking/world/${slug}/ranked_solo_5x5/emerald_plus/1.5.0.json`,
+    },
+    {
+      id: "lolalytics",
+      name: "LoLalytics",
+      tierListStatus: "Live",
+      buildDataStatus: "Live",
+      summary:
+        "a1.lolalytics.com/mega/ serves open JSON Ranked tier lists (ep=tier with S+..D- tiers & 7d/14d/30d windows), runes (ep=rune), core item sets, counters & ally synergies.",
+      sampleEndpoint: `https://a1.lolalytics.com/mega/?ep=tier&p=d&v=1&patch=${encodeURIComponent(patch)}&lane=top&tier=emerald_plus&queue=ranked&region=all`,
     },
     {
       id: "merakicdn",
@@ -1592,17 +1737,8 @@ export async function fetchProviderDiagnostics(patch: string): Promise<ProviderD
       tierListStatus: "Not Provided",
       buildDataStatus: "Live (Desktop IPC)",
       summary:
-        "cdn.merakianalytics.com serves open JSON champion kits, attack types, adaptive types, ability scaling notes & base stats inside Tauri desktop.",
+        "cdn.merakianalytics.com serves open JSON champion kits, attack/adaptive types, ability scaling notes & item encyclopedia inside Tauri desktop.",
       sampleEndpoint: "https://cdn.merakianalytics.com/riot/lol/resources/latest/en-US/champions/Malphite.json",
-    },
-    {
-      id: "lolalytics",
-      name: "LoLalytics",
-      tierListStatus: "Token Gated",
-      buildDataStatus: "Token Gated",
-      summary:
-        "a1.lolalytics.com/mega/ requires signed session tokens/checksums (valid: false on unsigned requests).",
-      sampleEndpoint: "https://a1.lolalytics.com/mega/",
     },
     {
       id: "dpmlol",
@@ -1610,8 +1746,8 @@ export async function fetchProviderDiagnostics(patch: string): Promise<ProviderD
       tierListStatus: "Blocked (CF 403)",
       buildDataStatus: "Blocked (CF 403)",
       summary:
-        "dpm.lol endpoints sit behind Cloudflare managed challenge (HTTP 403); Baron does not bypass challenges.",
-      sampleEndpoint: "https://dpm.lol/api/v1/tier-list",
+        "dpm.lol endpoints are protected behind Cloudflare Managed Challenge (HTTP 403, no public API subdomain); Baron never bypasses challenges.",
+      sampleEndpoint: "https://dpm.lol/tierlist",
     },
     {
       id: "metasrc",
@@ -1619,8 +1755,8 @@ export async function fetchProviderDiagnostics(patch: string): Promise<ProviderD
       tierListStatus: "Blocked (CF 403)",
       buildDataStatus: "Blocked (CF 403)",
       summary:
-        "metasrc.com is gated by Cloudflare managed challenge (HTTP 403); Baron does not bypass challenges.",
-      sampleEndpoint: "https://www.metasrc.com/lol",
+        "metasrc.com is gated by Cloudflare Managed Challenge (HTTP 403, no public JSON API); Baron never bypasses challenges.",
+      sampleEndpoint: "https://www.metasrc.com/lol/5v5/tier-list",
     },
   ];
 }

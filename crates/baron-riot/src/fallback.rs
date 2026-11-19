@@ -71,14 +71,17 @@ impl FallbackProvider {
             Self::OpGg => format!(
                 "https://lol-api-champion.op.gg/api/global/champions/ranked/{champion_key}/{pos}?tier=emerald_plus&version={patch}"
             ),
-            Self::UGg => format!(
-                "https://stats2.u.gg/lol/1.5/overview/{patch}/ranked_solo_5x5/{champion_key}/1.5.0.json"
-            ),
+            Self::UGg => {
+                let slug = crate::providers::ugg::ugg_patch_slug(patch);
+                format!(
+                    "https://stats2.u.gg/lol/1.5/overview/{slug}/ranked_solo_5x5/{champion_key}/1.5.0.json"
+                )
+            }
             Self::DpmLol => format!(
                 "https://dpm.lol/api/v1/champions/{champion_key}/build?patch={patch}"
             ),
             Self::Lolalytics => format!(
-                "https://a1.lolalytics.com/mega/?ep=champion&v=1&patch={patch}&c={champ}&lane={lane}&tier=emerald_plus&queue=420&region=all"
+                "https://a1.lolalytics.com/mega/?ep=rune&p=d&v=1&patch={patch}&c={champ}&lane={lane}&tier=emerald_plus&queue=ranked&region=all"
             ),
             Self::MetaSrc => format!("https://www.metasrc.com/lol/{patch}/build/{champ}/{lane}"),
             Self::MerakiCdn => format!(
@@ -91,11 +94,14 @@ impl FallbackProvider {
         match self {
             Self::OpGg => "https://mcp-api.op.gg/mcp".to_string(),
             Self::UGg => {
-                format!("https://stats2.u.gg/lol/1.5/tier_list/{patch}/ranked_solo_5x5.json")
+                let slug = crate::providers::ugg::ugg_patch_slug(patch);
+                format!(
+                    "https://stats2.u.gg/lol/1.5/champion_ranking/world/{slug}/ranked_solo_5x5/emerald_plus/1.5.0.json"
+                )
             }
             Self::DpmLol => format!("https://dpm.lol/api/v1/tier-list?patch={patch}"),
             Self::Lolalytics => format!(
-                "https://a1.lolalytics.com/mega/?ep=tier&v=1&patch={patch}&tier=emerald_plus&queue=420&region=all"
+                "https://a1.lolalytics.com/mega/?ep=tier&p=d&v=1&patch={patch}&lane=top&tier=emerald_plus&queue=ranked&region=all"
             ),
             Self::MetaSrc => format!("https://www.metasrc.com/lol/{patch}/tier-list"),
             Self::MerakiCdn => {
@@ -688,13 +694,60 @@ pub fn parse_fallback_tier_list_json(
     provider: FallbackProvider,
     raw_json: &str,
 ) -> Result<Vec<ChampionTierEntry>, RiotApiParseError> {
-    if provider == FallbackProvider::OpGg {
-        return crate::providers::opgg::parse_tier_list(raw_json);
+    match provider {
+        FallbackProvider::OpGg => crate::providers::opgg::parse_tier_list(raw_json),
+        FallbackProvider::UGg => {
+            let root: serde_json::Value = serde_json::from_str(raw_json)
+                .map_err(|e| RiotApiParseError::InvalidPayload(e.to_string()))?;
+            let rows = crate::providers::ugg::parse_ugg_champion_ranking_json(
+                &root,
+                "ranked",
+                Role::Top,
+                &std::collections::HashMap::new(),
+            )
+            .map_err(RiotApiParseError::InvalidPayload)?;
+            Ok(rows
+                .into_iter()
+                .map(|r| ChampionTierEntry {
+                    rank: r.rank,
+                    champion_name: r.champion_name,
+                    role: r.role,
+                    tier: r.tier,
+                    win_rate: r.win_rate,
+                    pick_rate: r.pick_rate,
+                    ban_rate: r.ban_rate,
+                    matches_label: r.play.to_string(),
+                })
+                .collect())
+        }
+        FallbackProvider::Lolalytics => {
+            let root: serde_json::Value = serde_json::from_str(raw_json)
+                .map_err(|e| RiotApiParseError::InvalidPayload(e.to_string()))?;
+            let rows = crate::providers::lolalytics::parse_lolalytics_tier_json(
+                &root,
+                Role::Top,
+                &std::collections::HashMap::new(),
+            )
+            .map_err(RiotApiParseError::InvalidPayload)?;
+            Ok(rows
+                .into_iter()
+                .map(|r| ChampionTierEntry {
+                    rank: r.rank,
+                    champion_name: r.champion_name,
+                    role: r.role,
+                    tier: r.tier,
+                    win_rate: r.win_rate,
+                    pick_rate: r.pick_rate,
+                    ban_rate: r.ban_rate,
+                    matches_label: r.play.to_string(),
+                })
+                .collect())
+        }
+        _ => Err(RiotApiParseError::InvalidPayload(format!(
+            "{} tier list response is not supported",
+            provider.label()
+        ))),
     }
-    Err(RiotApiParseError::InvalidPayload(format!(
-        "{} tier list response is not supported",
-        provider.label()
-    )))
 }
 
 #[cfg(test)]

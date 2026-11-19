@@ -73,12 +73,14 @@ pub fn build_providers_meta(patch: &str) -> Vec<ProviderMeta> {
     DEFAULT_FALLBACK_ORDER
         .iter()
         .copied()
-        .enumerate()
-        .map(|(idx, prov)| {
-            let role_tag = match idx {
-                0 => "Primary #1",
-                1 => "Fallback #2",
-                _ => "Fallback",
+        .map(|prov| {
+            let role_tag = match prov {
+                FallbackProvider::OpGg => "Primary #1 (MCP + 10 Modes)",
+                FallbackProvider::UGg => "Live #2 (Tierlist + Builds)",
+                FallbackProvider::Lolalytics => "Live #3 (Tierlist + Builds)",
+                FallbackProvider::MerakiCdn => "Kit & Item Reference",
+                FallbackProvider::DpmLol => "Cloudflare Gated (403)",
+                FallbackProvider::MetaSrc => "Cloudflare Gated (403)",
             };
             ProviderMeta {
                 id: provider_id(prov).to_string(),
@@ -194,12 +196,40 @@ async fn get_provider_tier_list(
     provider: String,
     role: Role,
 ) -> Result<Vec<ChampionTierEntry>, String> {
-    if provider != "opgg" {
-        return Err("This provider has no verified tier-list integration".to_string());
-    }
-    tauri::async_runtime::spawn_blocking(move || baron_riot::fetch_opgg_tier_list(role))
+    let prov = provider.trim().to_ascii_lowercase();
+    match prov.as_str() {
+        "opgg" => {
+            tauri::async_runtime::spawn_blocking(move || baron_riot::fetch_opgg_tier_list(role))
+                .await
+                .map_err(|e| format!("Provider task failed: {e}"))?
+        }
+        "ugg" | "lolalytics" => tauri::async_runtime::spawn_blocking(move || {
+            let rows = baron_riot::fetch_unified_provider_tier_list(
+                &prov,
+                "ranked",
+                role,
+                "emerald_plus",
+                None,
+                None,
+            )?;
+            Ok(rows
+                .into_iter()
+                .map(|r| ChampionTierEntry {
+                    rank: r.rank,
+                    champion_name: r.champion_name,
+                    role: r.role,
+                    tier: r.tier,
+                    win_rate: r.win_rate,
+                    pick_rate: r.pick_rate,
+                    ban_rate: r.ban_rate,
+                    matches_label: r.play.to_string(),
+                })
+                .collect())
+        })
         .await
-        .map_err(|e| format!("Provider task failed: {e}"))?
+        .map_err(|e| format!("Provider task failed: {e}"))?,
+        _ => Err("This provider has no verified live tier-list integration".to_string()),
+    }
 }
 
 #[tauri::command]
@@ -426,6 +456,95 @@ async fn get_opgg_champion_bundle(
 }
 
 #[tauri::command]
+async fn get_unified_provider_tier_list(
+    provider: String,
+    mode: String,
+    role: Option<Role>,
+    tier: Option<String>,
+    patch: Option<String>,
+    period: Option<String>,
+) -> Result<Vec<baron_riot::OpggModeTierEntry>, String> {
+    let target_role = role.unwrap_or(Role::Unknown);
+    let target_tier = tier.unwrap_or_else(|| "emerald_plus".to_string());
+    tauri::async_runtime::spawn_blocking(move || {
+        baron_riot::fetch_unified_provider_tier_list(
+            &provider,
+            &mode,
+            target_role,
+            &target_tier,
+            patch.as_deref(),
+            period.as_deref(),
+        )
+    })
+    .await
+    .map_err(|e| format!("Unified tier list task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_ugg_tier_list(
+    mode: Option<String>,
+    role: Option<Role>,
+    tier: Option<String>,
+    patch: Option<String>,
+) -> Result<Vec<baron_riot::OpggModeTierEntry>, String> {
+    let target_mode = mode.unwrap_or_else(|| "ranked".to_string());
+    let target_role = role.unwrap_or(Role::Top);
+    let target_tier = tier.unwrap_or_else(|| "emerald_plus".to_string());
+    tauri::async_runtime::spawn_blocking(move || {
+        baron_riot::fetch_ugg_tier_list_for_mode(
+            &target_mode,
+            target_role,
+            &target_tier,
+            patch.as_deref(),
+        )
+    })
+    .await
+    .map_err(|e| format!("U.GG tier list task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_lolalytics_tier_list(
+    role: Option<Role>,
+    tier: Option<String>,
+    patch: Option<String>,
+    period: Option<String>,
+) -> Result<Vec<baron_riot::OpggModeTierEntry>, String> {
+    let target_role = role.unwrap_or(Role::Top);
+    let target_tier = tier.unwrap_or_else(|| "emerald_plus".to_string());
+    tauri::async_runtime::spawn_blocking(move || {
+        baron_riot::fetch_lolalytics_tier_list_for_role(
+            target_role,
+            &target_tier,
+            patch.as_deref(),
+            period.as_deref(),
+        )
+    })
+    .await
+    .map_err(|e| format!("LoLalytics tier list task failed: {e}"))?
+}
+
+#[tauri::command]
+async fn get_lolalytics_champion_build(
+    champion: String,
+    role: Option<Role>,
+    tier: Option<String>,
+    patch: Option<String>,
+) -> Result<baron_riot::LolalyticsBuildResponse, String> {
+    let target_role = role.unwrap_or(Role::Middle);
+    let target_tier = tier.unwrap_or_else(|| "emerald_plus".to_string());
+    tauri::async_runtime::spawn_blocking(move || {
+        baron_riot::fetch_lolalytics_champion_build_by_name(
+            &champion,
+            target_role,
+            &target_tier,
+            patch.as_deref(),
+        )
+    })
+    .await
+    .map_err(|e| format!("LoLalytics build task failed: {e}"))?
+}
+
+#[tauri::command]
 async fn get_ugg_champion_build(
     champion: String,
     patch: Option<String>,
@@ -631,7 +750,11 @@ pub fn run() {
             get_opgg_regions,
             get_opgg_mode_tier_list,
             get_opgg_champion_bundle,
+            get_unified_provider_tier_list,
+            get_ugg_tier_list,
             get_ugg_champion_build,
+            get_lolalytics_tier_list,
+            get_lolalytics_champion_build,
             get_meraki_champion_kit,
             get_provider_diagnostics,
             build_baron_rune_page_payload,

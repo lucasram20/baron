@@ -107,3 +107,20 @@ fn opgg_parses_observed_mcp_top_lane_result() {
     assert_eq!(rows[0].ban_rate, 18.0);
     assert_eq!(rows[0].matches_label, "155642");
 }
+
+#[test]
+fn ugg_and_lolalytics_parse_observed_tier_payloads() {
+    let ugg_sample = r#"[{"top":[["54",[[36,205,342]],6596,12685,264735081,133096076,54013,95428,60535,2249368]]},{"54":33000},"2026-11-19T08:32:17Z",187463]"#;
+    let ugg_rows = parse_fallback_tier_list_json(FallbackProvider::UGg, ugg_sample)
+        .expect("observed U.GG champion_ranking payload should parse");
+    assert_eq!(ugg_rows.len(), 1);
+    assert_eq!(ugg_rows[0].role, baron_core::models::Role::Top);
+    assert_eq!(ugg_rows[0].matches_label, "12685");
+
+    let lola_sample = r#"{"queue":420,"avgWr":51.27,"analysed":2217980,"tier":{"1":{"lane":{"top":{"cid":{"54":{"rank":1,"wr":53.14,"pr":6.75,"br":17.8,"games":14928}}}}}},"response":{"valid":true}}"#;
+    let lola_rows = parse_fallback_tier_list_json(FallbackProvider::Lolalytics, lola_sample)
+        .expect("observed LoLalytics mega tier payload should parse");
+    assert_eq!(lola_rows.len(), 1);
+    assert_eq!(lola_rows[0].tier, "S+");
+    assert_eq!(lola_rows[0].matches_label, "14928");
+}

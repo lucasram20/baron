@@ -471,11 +471,9 @@ export function TopCommandBar({
                     title={
                       available
                         ? `${p.label} live tier-list & builds integration`
-                        : p.id === "ugg"
-                          ? "U.GG per-champion overview builds are live inside Champion Builds (tier_list JSON returns HTTP 403)"
-                          : p.id === "merakicdn"
-                            ? "Meraki CDN champion kit & ability data is live inside Champion Builds (no tier lists)"
-                            : `${p.label} stays disabled until a verified open API integration is available`
+                        : p.id === "merakicdn"
+                          ? "Meraki CDN champion kit & ability data is live inside Champion Builds (does not publish winrate tier lists)"
+                          : `${p.label} is gated behind Cloudflare Managed Challenge (HTTP 403) — Baron never bypasses challenges`
                     }
                     className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[12px] transition-colors ${
                       available
@@ -491,7 +489,7 @@ export function TopCommandBar({
                         className={`h-2 w-2 rounded-full ${
                           available
                             ? "bg-baron-emerald"
-                            : p.id === "ugg" || p.id === "merakicdn"
+                            : p.id === "merakicdn"
                               ? "bg-baron-cyan"
                               : "bg-baron-ink-muted"
                         }`}
@@ -503,21 +501,17 @@ export function TopCommandBar({
                       {available ? (
                         <>
                           <span className="rounded bg-baron-emerald/15 px-1.5 py-0.5 text-[10px] font-semibold text-baron-emerald">
-                            Tier list
+                            Available
                           </span>
                           {active && <Check className="h-3.5 w-3.5 text-baron-accent-soft" />}
                         </>
-                      ) : p.id === "ugg" ? (
-                        <span className="rounded bg-baron-victory/15 px-1.5 py-0.5 text-[10px] font-semibold text-baron-victory">
-                          Builds live
-                        </span>
                       ) : p.id === "merakicdn" ? (
                         <span className="rounded bg-baron-cyan/15 px-1.5 py-0.5 text-[10px] font-semibold text-baron-cyan">
-                          Kit live
+                          Kit Available
                         </span>
                       ) : (
                         <span className="rounded bg-baron-elevated px-1.5 py-0.5 text-[10px] font-medium text-baron-ink-muted">
-                          Unavailable
+                          CF Gated
                         </span>
                       )}
                     </span>

@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChampionBuildView } from "@/components/views/ChampionBuildView";
 import { champSquareUrl, LATEST_DDRAGON, LATEST_PATCH } from "@/lib/ddragon";
 import {
-  fetchOpggModeTierList,
+  fetchUnifiedProviderTierList,
   OPGG_GAME_MODES,
   OPGG_TIER_FILTERS,
   type OpggGameMode,
@@ -33,18 +33,20 @@ const LANE_TABS: { id: TierRole; label: string }[] = [
   { id: "Utility", label: "Support" },
 ];
 
+const UGG_SUPPORTED_MODES: OpggGameMode[] = ["ranked", "flex", "aram"];
+
 function tierBadgeStyle(tier: string): string {
   const t = tier.trim().toUpperCase();
   if (t === "OP" || t === "S+" || t === "0") {
     return "border-baron-gold/40 bg-baron-gold/15 text-baron-gold shadow-[inset_0_1px_0_rgba(245,158,11,0.2)]";
   }
-  if (t === "1" || t === "S") {
+  if (t === "1" || t === "S" || t === "S-") {
     return "border-baron-accent/40 bg-baron-accent/18 text-baron-accent-soft shadow-[inset_0_1px_0_rgba(242,149,96,0.24)]";
   }
-  if (t === "2" || t === "A") {
+  if (t === "2" || t === "A+" || t === "A" || t === "A-") {
     return "border-baron-victory/35 bg-baron-victory/15 text-baron-victory";
   }
-  if (t === "3" || t === "B") {
+  if (t === "3" || t === "B+" || t === "B" || t === "B-") {
     return "border-baron-emerald/35 bg-baron-emerald/15 text-baron-emerald";
   }
   return "border-baron-border bg-baron-inset text-baron-ink-muted";
@@ -63,6 +65,7 @@ export function TierListView({
   searchFilter = "",
   initialSelectedChampion = null,
   patch = LATEST_PATCH,
+  period,
   ddVersion = LATEST_DDRAGON,
   defaultRegion = "NA",
 }: {
@@ -72,6 +75,7 @@ export function TierListView({
   searchFilter?: string;
   initialSelectedChampion?: { champion: string; role: TierRole } | null;
   patch?: string;
+  period?: string;
   ddVersion?: string;
   defaultRegion?: string;
 }) {
@@ -89,8 +93,16 @@ export function TierListView({
     error: string | null;
   }>({ key: "", rows: [], error: null });
 
-  const activeModeDef = OPGG_GAME_MODES.find((m) => m.id === mode) ?? OPGG_GAME_MODES[0];
-  const reqKey = `${activeProviderId}:${mode}:${role}:${tierFilter}:${patch}:${refreshNonce}`;
+  const effectiveMode: OpggGameMode =
+    activeProviderId === "lolalytics"
+      ? "ranked"
+      : activeProviderId === "ugg" && !UGG_SUPPORTED_MODES.includes(mode)
+        ? "ranked"
+        : mode;
+
+  const activeModeDef = OPGG_GAME_MODES.find((m) => m.id === effectiveMode) ?? OPGG_GAME_MODES[0];
+  const lolaPeriodParam = activeProviderId === "lolalytics" ? period : undefined;
+  const reqKey = `${activeProviderId}:${effectiveMode}:${role}:${tierFilter}:${patch}:${lolaPeriodParam ?? ""}:${refreshNonce}`;
   const isLoading = !selectedChamp && state.key !== reqKey;
   const rows = state.key === reqKey ? state.rows : [];
   const error = state.key === reqKey ? state.error : null;
@@ -98,7 +110,15 @@ export function TierListView({
   useEffect(() => {
     if (selectedChamp) return;
     let cancelled = false;
-    fetchOpggModeTierList(mode, activeModeDef.hasRoles ? role : null, tierFilter, ddVersion, patch)
+    fetchUnifiedProviderTierList(
+      activeProviderId,
+      effectiveMode,
+      activeModeDef.hasRoles ? role : null,
+      tierFilter,
+      ddVersion,
+      patch,
+      lolaPeriodParam,
+    )
       .then((data) => {
         if (!cancelled) setState({ key: reqKey, rows: data, error: null });
       })
@@ -119,10 +139,12 @@ export function TierListView({
     };
   }, [
     selectedChamp,
-    mode,
+    activeProviderId,
+    effectiveMode,
     role,
     tierFilter,
     patch,
+    lolaPeriodParam,
     ddVersion,
     reqKey,
     activeModeDef.hasRoles,
@@ -134,11 +156,12 @@ export function TierListView({
       <ChampionBuildView
         champion={selectedChamp}
         role={role}
-        mode={mode}
+        mode={effectiveMode}
         tierFilter={tierFilter}
         patch={patch}
         ddVersion={ddVersion}
         region={defaultRegion}
+        activeProviderId={activeProviderId}
         refreshNonce={refreshNonce}
         onChangeRole={(nextRole) => setRole(nextRole)}
         onChangeMode={(nextMode) => setMode(nextMode)}
@@ -157,10 +180,16 @@ export function TierListView({
     ? rows.filter((r) => r.championName.toLowerCase().includes(effectiveSearch))
     : rows;
 
-  const isArena = mode === "arena";
-  const isTierOnly = mode === "aram_mayhem" || mode === "brawl";
-  const primaryModes = OPGG_GAME_MODES.filter((m) => m.primaryBar);
-  const secondaryModes = OPGG_GAME_MODES.filter((m) => !m.primaryBar);
+  const isArena = effectiveMode === "arena";
+  const isTierOnly = effectiveMode === "aram_mayhem" || effectiveMode === "brawl";
+  const primaryModes =
+    activeProviderId === "lolalytics"
+      ? OPGG_GAME_MODES.filter((m) => m.id === "ranked")
+      : activeProviderId === "ugg"
+        ? OPGG_GAME_MODES.filter((m) => UGG_SUPPORTED_MODES.includes(m.id))
+        : OPGG_GAME_MODES.filter((m) => m.primaryBar);
+  const secondaryModes =
+    activeProviderId === "opgg" ? OPGG_GAME_MODES.filter((m) => !m.primaryBar) : [];
 
   return (
     <div className="min-h-full">
@@ -174,12 +203,13 @@ export function TierListView({
               </h1>
               <span className="inline-flex items-center gap-1 rounded-md border border-baron-accent/30 bg-baron-accent/12 px-2 py-0.5 text-[10.5px] font-bold text-baron-accent-soft">
                 <Layers className="h-3 w-3" />
-                Live OP.GG · Patch {patch}
+                Live {activeProviderLabel} · Patch {patch}
+                {activeProviderId === "lolalytics" && period ? ` · ${period}` : ""}
               </span>
             </div>
             <p className="mt-1 text-[12px] text-baron-ink-muted">
-              Click any champion for OP.GG Desktop builds, 3-column rune matrix, abilities, mode
-              augments, counters, U.GG comparison &amp; Meraki kit data.
+              Click any champion for live builds, 3-column rune matrix, abilities, matchups &amp;
+              side-by-side OP.GG, U.GG, LoLalytics &amp; Meraki comparison.
             </p>
           </div>
 
@@ -188,7 +218,7 @@ export function TierListView({
               <Select value={tierFilter} onValueChange={setTierFilter}>
                 <SelectTrigger
                   size="sm"
-                  aria-label="Filter OP.GG rank tier"
+                  aria-label={`Filter ${activeProviderLabel} rank tier`}
                   className="h-8 min-w-[146px] border-baron-border bg-baron-inset text-[12px] font-semibold text-baron-ink"
                 >
                   <SelectValue />
@@ -220,12 +250,16 @@ export function TierListView({
           </div>
         </div>
 
-        {/* OP.GG Game Modes Bar (@aceternity AnimatedTabs + @shadcn Popover) */}
+        {/* Game Modes Bar (@aceternity AnimatedTabs + @shadcn Popover) */}
         <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t border-baron-border/80 pt-3">
           <AnimatedTabs
             layoutId="tierlist-game-modes"
             ariaLabel="Select League game mode"
-            value={activeModeDef.primaryBar ? mode : ("__secondary__" as OpggGameMode)}
+            value={
+              primaryModes.some((m) => m.id === effectiveMode)
+                ? effectiveMode
+                : ("__secondary__" as OpggGameMode)
+            }
             onChange={(next) => {
               setMode(next);
               setShowMoreModes(false);
@@ -237,49 +271,51 @@ export function TierListView({
             }))}
           />
 
-          <Popover open={showMoreModes} onOpenChange={setShowMoreModes}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                aria-expanded={showMoreModes}
-                className={`flex h-[30px] items-center gap-1 rounded-lg border px-2.5 text-[12px] font-semibold transition-colors ${
-                  !activeModeDef.primaryBar
-                    ? "border-baron-accent/60 bg-baron-accent/15 text-baron-ink"
-                    : "border-baron-border bg-baron-elevated/70 text-baron-ink-secondary hover:border-baron-border-strong hover:text-baron-ink"
-                }`}
-              >
-                <span>{!activeModeDef.primaryBar ? activeModeDef.label : "More modes"}</span>
-                <ChevronDown
-                  className={`h-3.5 w-3.5 transition-transform duration-150 ${
-                    showMoreModes ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="start"
-              sideOffset={6}
-              className="baron-popover-surface w-52 rounded-xl border-baron-border-strong bg-baron-surface/95 p-1.5 backdrop-blur-md"
-            >
-              {secondaryModes.map((m) => (
+          {secondaryModes.length > 0 && (
+            <Popover open={showMoreModes} onOpenChange={setShowMoreModes}>
+              <PopoverTrigger asChild>
                 <button
-                  key={m.id}
                   type="button"
-                  onClick={() => {
-                    setMode(m.id);
-                    setShowMoreModes(false);
-                  }}
-                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px] font-medium transition-colors ${
-                    mode === m.id
-                      ? "bg-baron-accent/18 font-semibold text-baron-ink"
-                      : "text-baron-ink-secondary hover:bg-baron-elevated hover:text-baron-ink"
+                  aria-expanded={showMoreModes}
+                  className={`flex h-[30px] items-center gap-1 rounded-lg border px-2.5 text-[12px] font-semibold transition-colors ${
+                    !activeModeDef.primaryBar
+                      ? "border-baron-accent/60 bg-baron-accent/15 text-baron-ink"
+                      : "border-baron-border bg-baron-elevated/70 text-baron-ink-secondary hover:border-baron-border-strong hover:text-baron-ink"
                   }`}
                 >
-                  <span>{m.label}</span>
+                  <span>{!activeModeDef.primaryBar ? activeModeDef.label : "More modes"}</span>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform duration-150 ${
+                      showMoreModes ? "rotate-180" : ""
+                    }`}
+                  />
                 </button>
-              ))}
-            </PopoverContent>
-          </Popover>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                sideOffset={6}
+                className="baron-popover-surface w-52 rounded-xl border-baron-border-strong bg-baron-surface/95 p-1.5 backdrop-blur-md"
+              >
+                {secondaryModes.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => {
+                      setMode(m.id);
+                      setShowMoreModes(false);
+                    }}
+                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[12px] font-medium transition-colors ${
+                      effectiveMode === m.id
+                        ? "bg-baron-accent/18 font-semibold text-baron-ink"
+                        : "text-baron-ink-secondary hover:bg-baron-elevated hover:text-baron-ink"
+                    }`}
+                  >
+                    <span>{m.label}</span>
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+          )}
 
           {activeModeDef.hasRoles && (
             <div className="ml-auto">
@@ -318,7 +354,7 @@ export function TierListView({
               <AlertCircle className="mt-0.5 h-5 w-5 text-baron-gold" />
               <div>
                 <h2 className="text-[14px] font-bold text-baron-ink">
-                  Unable to Load Live OP.GG Tier List
+                  Unable to Load Live {activeProviderLabel} Tier List
                 </h2>
                 <p className="mt-1 text-[12.5px] text-baron-ink-secondary">{error}</p>
               </div>
